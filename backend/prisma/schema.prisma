@@ -1,0 +1,567 @@
+// Prisma schema for Haven Institute - MariaDB
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql" // MariaDB uses MySQL protocol
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USERS & AUTHENTICATION
+// ============================================================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  fullName  String?
+  avatar    String?
+  role      Role     @default(USER)
+  subscription SubscriptionPlan @default(FREE)
+  onboardingCompleted Boolean @default(false)
+  preferences Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  subscriptions    Subscription[]
+  paymentHistory   PaymentHistory[]
+  quizSessions     QuizSession[]
+  questionUsage    QuestionUsage[]
+  flashcardProgress FlashcardProgress[]
+  readingProgress  ReadingProgress[]
+  highlights       Highlight[]
+  bookmarks        Bookmark[]
+  plannerSessions  PlannerSession[]
+  tasks            Task[]
+  goals            Goal[]
+  studyGroups      GroupMember[]
+  messages         GroupMessage[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  PREMIUM
+}
+
+// ============================================================================
+// SUBSCRIPTIONS & PAYMENTS
+// ============================================================================
+
+model Subscription {
+  id        String   @id @default(uuid())
+  userId    String
+  plan      SubscriptionPlan
+  status    SubscriptionStatus
+  startDate DateTime
+  endDate   DateTime
+  autoRenew Boolean  @default(true)
+  amount    Decimal  @db.Decimal(10, 2)
+  interval  BillingInterval
+  paymentMethod Json?
+  stripeSubscriptionId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentHistory PaymentHistory[]
+
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+model PaymentHistory {
+  id             String   @id @default(uuid())
+  userId         String
+  subscriptionId String?
+  amount         Decimal  @db.Decimal(10, 2)
+  status         PaymentStatus
+  invoiceUrl     String?
+  description    String?
+  stripePaymentId String?
+  createdAt      DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@map("payment_history")
+}
+
+enum PaymentStatus {
+  SUCCESS
+  FAILED
+  PENDING
+  REFUNDED
+}
+
+// ============================================================================
+// QUESTIONS & QUIZZES
+// ============================================================================
+
+model Question {
+  id            String   @id @default(uuid())
+  question      String   @db.Text
+  options       Json     // Array of options
+  correctAnswer Int
+  explanation   String   @db.Text
+  rationales    Json?    // Array of rationales for each option
+  category      String
+  subcategory   String?
+  difficulty    Difficulty
+  discrimination Float?   // IRT discrimination parameter
+  tags          Json?    // Array of tags
+  questionType  QuestionType @default(MULTIPLE_CHOICE)
+  createdBy     String?
+  isPublic      Boolean  @default(true)
+  isActive      Boolean  @default(true)
+  usageCount    Int      @default(0)
+  successRate   Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  questionUsage QuestionUsage[]
+  quizQuestions QuizQuestion[]
+
+  @@index([category, difficulty])
+  @@index([isActive])
+  @@map("questions")
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  SELECT_ALL
+  FILL_BLANK
+  ORDERED_RESPONSE
+}
+
+model Quiz {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?  @db.Text
+  category     String
+  subcategory  String?
+  difficulty   Difficulty
+  questionCount Int     @default(0)
+  timeLimit    Int?     // seconds
+  passingScore Int      @default(70)
+  tags         Json?
+  createdBy    String?
+  isPublic     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  questions QuizQuestion[]
+  sessions  QuizSession[]
+
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id       String @id @default(uuid())
+  quizId   String
+  questionId String
+  orderIndex Int?
+
+  quiz     Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, questionId])
+  @@map("quiz_questions")
+}
+
+// ============================================================================
+// QUIZ SESSIONS
+// ============================================================================
+
+model QuizSession {
+  id                  String   @id @default(uuid())
+  userId              String
+  quizId              String?
+  sessionType         SessionType
+  status              SessionStatus @default(ACTIVE)
+
+  // Configuration
+  totalQuestions      Int
+  timeLimit           Int?
+  passingScore        Int      @default(70)
+
+  // Progress
+  currentQuestionIndex Int     @default(0)
+  questionsAnswered   Int      @default(0)
+  correctAnswers      Int      @default(0)
+
+  // Data
+  questionIds         Json     // Array of question IDs
+  userAnswers         Json     @default("[]")
+
+  // Timing
+  startedAt           DateTime @default(now())
+  lastActivityAt      DateTime @default(now())
+  completedAt         DateTime?
+  timeElapsed         Int      @default(0) // seconds
+
+  // CAT-specific
+  abilityEstimate     Float?
+  confidenceLevel     Float?
+
+  // Results
+  finalScore          Int?
+  finalPercentage     Float?
+  passed              Boolean?
+
+  settings            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz     Quiz?  @relation(fields: [quizId], references: [id], onDelete: SetNull)
+  questionUsage QuestionUsage[]
+
+  @@index([userId, status])
+  @@map("quiz_sessions")
+}
+
+enum SessionType {
+  QUIZ
+  CAT
+  PRACTICE
+  TIMED_PRACTICE
+}
+
+enum SessionStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ABANDONED
+}
+
+model QuestionUsage {
+  id         String   @id @default(uuid())
+  questionId String
+  sessionId  String
+  userId     String
+  userAnswer Int?
+  isCorrect  Boolean
+  timeSpent  Int?     // seconds
+  presentedAt DateTime @default(now())
+  answeredAt DateTime?
+
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  session  QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionId])
+  @@map("question_usage")
+}
+
+// ============================================================================
+// FLASHCARDS
+// ============================================================================
+
+model Flashcard {
+  id          String   @id @default(uuid())
+  question    String   @db.Text
+  answer      String   @db.Text
+  category    String
+  subcategory String?
+  difficulty  Difficulty
+  tags        Json?
+  createdBy   String?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  progress FlashcardProgress[]
+
+  @@map("flashcards")
+}
+
+model FlashcardProgress {
+  id           String   @id @default(uuid())
+  userId       String
+  flashcardId  String
+  status       FlashcardStatus @default(NEW)
+  attempts     Int      @default(0)
+  correctCount Int      @default(0)
+  lastReviewed DateTime @default(now())
+  nextReview   DateTime @default(now())
+  confidence   Int      @default(0)
+  easeFactor   Float?   // SM-2 algorithm
+  interval     Int?     // days
+  repetitions  Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, flashcardId])
+  @@index([userId, nextReview])
+  @@map("flashcard_progress")
+}
+
+enum FlashcardStatus {
+  NEW
+  LEARNING
+  MASTERED
+}
+
+// ============================================================================
+// BOOKS
+// ============================================================================
+
+model Book {
+  id            String   @id @default(uuid())
+  title         String
+  author        String
+  description   String?  @db.Text
+  coverImage    String?
+  category      String
+  totalChapters Int
+  totalPages    Int
+  difficulty    Difficulty?
+  tags          Json?
+  content       Json?    // Book content
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  readingProgress ReadingProgress[]
+  highlights      Highlight[]
+  bookmarks       Bookmark[]
+
+  @@map("books")
+}
+
+model ReadingProgress {
+  id             String   @id @default(uuid())
+  userId         String
+  bookId         String
+  currentChapter Int      @default(1)
+  currentPage    Int      @default(1)
+  progress       Float    @default(0) // percentage
+  lastRead       DateTime @default(now())
+  timeSpent      Int      @default(0) // minutes
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+  @@map("reading_progress")
+}
+
+model Highlight {
+  id        String   @id @default(uuid())
+  userId    String
+  bookId    String
+  chapter   Int
+  text      String   @db.Text
+  color     String   @default("yellow")
+  note      String?  @db.Text
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@map("highlights")
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  bookId    String
+  chapter   Int
+  page      Int
+  title     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@map("bookmarks")
+}
+
+// ============================================================================
+// STUDY GROUPS
+// ============================================================================
+
+model StudyGroup {
+  id          String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  category    String
+  avatar      String?  @default("📚")
+  isPrivate   Boolean  @default(false)
+  tags        Json?
+  memberCount Int      @default(1)
+  maxMembers  Int      @default(20)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members  GroupMember[]
+  messages GroupMessage[]
+  sessions StudySession[]
+
+  @@map("study_groups")
+}
+
+model GroupMember {
+  id           String   @id @default(uuid())
+  groupId      String
+  userId       String
+  role         GroupRole
+  studyStreak  Int      @default(0)
+  contributionScore Int @default(0)
+  joinedAt     DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+enum GroupRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
+model GroupMessage {
+  id            String   @id @default(uuid())
+  groupId       String
+  senderId      String
+  senderName    String
+  content       String   @db.Text
+  type          MessageType @default(TEXT)
+  attachmentUrl String?
+  createdAt     DateTime @default(now())
+
+  group  StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("group_messages")
+}
+
+enum MessageType {
+  TEXT
+  FILE
+  IMAGE
+  POLL
+}
+
+model StudySession {
+  id          String   @id @default(uuid())
+  groupId     String
+  title       String
+  description String?  @db.Text
+  scheduledAt DateTime
+  duration    Int      // minutes
+  hostId      String?
+  hostName    String
+  attendees   Json?    // Array of user IDs
+  meetingLink String?
+  status      String
+  createdAt   DateTime @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@map("study_sessions")
+}
+
+// ============================================================================
+// STUDY PLANNER
+// ============================================================================
+
+model PlannerSession {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  category  String
+  date      DateTime
+  startTime String
+  endTime   String
+  duration  Int      // minutes
+  completed Boolean  @default(false)
+  notes     String?  @db.Text
+  topics    Json?
+  priority  Priority?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("planner_sessions")
+}
+
+model Task {
+  id            String   @id @default(uuid())
+  userId        String
+  title         String
+  description   String?  @db.Text
+  category      String
+  dueDate       DateTime
+  completed     Boolean  @default(false)
+  priority      Priority?
+  estimatedTime Int?     // minutes
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tasks")
+}
+
+model Goal {
+  id              String   @id @default(uuid())
+  userId          String
+  title           String
+  description     String?  @db.Text
+  targetDate      DateTime
+  currentProgress Int      @default(0)
+  targetProgress  Int
+  category        String
+  milestones      Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("goals")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
