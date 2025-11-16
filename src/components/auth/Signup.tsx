@@ -1,0 +1,233 @@
+import { useState } from 'react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { Alert, AlertDescription } from '../ui/alert';
+import { GraduationCap, Mail, Lock, User, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { useAuth } from './AuthContext';
+
+interface SignupProps {
+  onSwitchToLogin: () => void;
+  onBackToHome: () => void;
+}
+
+export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
+  const { signup } = useAuth();
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const passwordStrength = password.length >= 8 ? 
+    password.match(/[A-Z]/) && password.match(/[0-9]/) ? 'strong' : 'medium' : 
+    password.length > 0 ? 'weak' : 'none';
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // Validation
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await signup(email, password, fullName);
+      // After successful signup, the AuthContext will trigger onboarding
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Signup failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Back to Home Button */}
+        <div className="mb-4">
+          <Button
+            variant="ghost"
+            onClick={onBackToHome}
+            className="gap-2 text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="size-4" />
+            Back to Home
+          </Button>
+        </div>
+
+        {/* Logo & Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-3 rounded-xl shadow-lg">
+              <GraduationCap className="size-8 text-white" />
+            </div>
+            <div className="text-left">
+              <h1 className="text-3xl">Haven Institute</h1>
+              <p className="text-gray-600">Excellence in NCLEX Preparation</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Signup Card */}
+        <Card className="shadow-xl border-2">
+          <CardHeader>
+            <CardTitle>Create Your Account</CardTitle>
+            <CardDescription>Join thousands of nursing students succeeding with NurseHaven</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <Alert className="bg-red-50 border-red-200">
+                  <AlertCircle className="size-4 text-red-600" />
+                  <AlertDescription className="text-red-800">{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div>
+                <label className="text-gray-700 mb-2 block">Full Name</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Jane Doe"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-gray-700 mb-2 block">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-gray-700 mb-2 block">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+                  <Input
+                    type="password"
+                    placeholder="At least 8 characters"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+                {password && (
+                  <div className="mt-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all ${
+                            passwordStrength === 'strong' ? 'bg-green-500 w-full' :
+                            passwordStrength === 'medium' ? 'bg-yellow-500 w-2/3' :
+                            'bg-red-500 w-1/3'
+                          }`}
+                        />
+                      </div>
+                      <span className={`text-xs ${
+                        passwordStrength === 'strong' ? 'text-green-600' :
+                        passwordStrength === 'medium' ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {passwordStrength === 'strong' ? 'Strong' :
+                         passwordStrength === 'medium' ? 'Medium' : 'Weak'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600">Use 8+ characters with uppercase and numbers</p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-gray-700 mb-2 block">Confirm Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
+                  <Input
+                    type="password"
+                    placeholder="Re-enter your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                  {confirmPassword && password === confirmPassword && (
+                    <CheckCircle2 className="absolute right-3 top-1/2 transform -translate-y-1/2 size-4 text-green-600" />
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <input type="checkbox" className="mt-1" required />
+                <label className="text-gray-600">
+                  I agree to the <a href="#" className="text-blue-600 hover:underline">Terms of Service</a> and <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
+                </label>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Creating Account...' : 'Create Account'}
+              </Button>
+            </form>
+
+            {/* Features List */}
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center gap-2 text-gray-600">
+                <CheckCircle2 className="size-4 text-green-600" />
+                <span>Access to 1000+ NCLEX questions</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-600">
+                <CheckCircle2 className="size-4 text-green-600" />
+                <span>AI-powered Computer Adaptive Testing</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-600">
+                <CheckCircle2 className="size-4 text-green-600" />
+                <span>Personalized study recommendations</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-600">
+                <CheckCircle2 className="size-4 text-green-600" />
+                <span>Progress tracking & analytics</span>
+              </div>
+            </div>
+
+            {/* Login Link */}
+            <div className="mt-6 text-center">
+              <p className="text-gray-600">
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  onClick={onSwitchToLogin}
+                  className="text-blue-600 hover:underline"
+                >
+                  Sign in
+                </button>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
