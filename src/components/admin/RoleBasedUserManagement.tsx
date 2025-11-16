@@ -52,7 +52,7 @@ import {
   ROLE_CONFIGS
 } from '../../services/roleBasedUserApi';
 import { useAuth } from '../auth/AuthContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function RoleBasedUserManagement() {
   const { user: currentUser } = useAuth();

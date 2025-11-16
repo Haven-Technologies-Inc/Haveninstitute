@@ -56,7 +56,7 @@ import {
   type Transaction,
   type BillingFilters
 } from '../../services/billingApi';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export function BillingRevenue() {
