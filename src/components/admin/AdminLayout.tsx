@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
-import { 
-  LayoutDashboard, 
-  Users, 
-  FileText, 
+import {
+  LayoutDashboard,
+  Users,
+  FileText,
   DollarSign,
   Settings,
   Menu,
@@ -20,7 +20,8 @@ import {
   BookOpen,
   Layers,
   Upload,
-  Globe
+  Globe,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 
