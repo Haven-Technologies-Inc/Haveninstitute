@@ -101,69 +101,70 @@ export function BillingHistory() {
     .reduce((sum, inv) => sum + inv.amount, 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h3 className="text-2xl text-gray-900 mb-2">Billing History</h3>
-        <p className="text-gray-600">View and download your past invoices</p>
+        <h3 className="text-xl sm:text-2xl text-gray-900 dark:text-white mb-2">Billing History</h3>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">View and download your past invoices</p>
       </div>
 
       {/* Summary Card */}
-      <Card className="border-2 bg-gradient-to-r from-blue-50 to-purple-50">
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <p className="text-gray-600 mb-1">Total Spent</p>
-              <p className="text-3xl text-gray-900">${totalSpent.toFixed(2)}</p>
+      <Card className="border-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            <div className="text-center sm:text-left">
+              <p className="text-gray-600 dark:text-gray-400 mb-1 text-sm">Total Spent</p>
+              <p className="text-2xl sm:text-3xl text-gray-900 dark:text-white">${totalSpent.toFixed(2)}</p>
             </div>
-            <div>
-              <p className="text-gray-600 mb-1">Total Invoices</p>
-              <p className="text-3xl text-gray-900">{mockInvoices.length}</p>
+            <div className="text-center sm:text-left">
+              <p className="text-gray-600 dark:text-gray-400 mb-1 text-sm">Total Invoices</p>
+              <p className="text-2xl sm:text-3xl text-gray-900 dark:text-white">{mockInvoices.length}</p>
             </div>
-            <div>
-              <p className="text-gray-600 mb-1">Next Billing Date</p>
-              <p className="text-3xl text-gray-900">Dec 1</p>
+            <div className="text-center sm:text-left">
+              <p className="text-gray-600 dark:text-gray-400 mb-1 text-sm">Next Billing Date</p>
+              <p className="text-2xl sm:text-3xl text-gray-900 dark:text-white">Dec 1</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Invoices Table */}
+      {/* Invoices - Mobile Cards / Desktop Table */}
       <Card className="border-2">
-        <CardHeader>
-          <CardTitle>All Invoices</CardTitle>
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="text-lg sm:text-xl">All Invoices</CardTitle>
           <CardDescription>Download or view your payment receipts</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
+        <CardContent className="px-4 sm:px-6">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="border-b">
                 <tr>
-                  <th className="text-left py-3 px-4 text-gray-700">Date</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Description</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Payment Method</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Amount</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Status</th>
-                  <th className="text-left py-3 px-4 text-gray-700">Actions</th>
+                  <th className="text-left py-3 px-4 text-gray-700 dark:text-gray-300">Date</th>
+                  <th className="text-left py-3 px-4 text-gray-700 dark:text-gray-300">Description</th>
+                  <th className="text-left py-3 px-4 text-gray-700 dark:text-gray-300">Payment Method</th>
+                  <th className="text-left py-3 px-4 text-gray-700 dark:text-gray-300">Amount</th>
+                  <th className="text-left py-3 px-4 text-gray-700 dark:text-gray-300">Status</th>
+                  <th className="text-left py-3 px-4 text-gray-700 dark:text-gray-300">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {mockInvoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-gray-50">
+                  <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="py-4 px-4">
-                      <p className="text-gray-900">{formatDate(invoice.date)}</p>
+                      <p className="text-gray-900 dark:text-white">{formatDate(invoice.date)}</p>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2">
                         <Receipt className="size-4 text-gray-400" />
-                        <p className="text-gray-900">{invoice.description}</p>
+                        <p className="text-gray-900 dark:text-white">{invoice.description}</p>
                       </div>
                     </td>
                     <td className="py-4 px-4">
-                      <p className="text-gray-600">{invoice.paymentMethod}</p>
+                      <p className="text-gray-600 dark:text-gray-400">{invoice.paymentMethod}</p>
                     </td>
                     <td className="py-4 px-4">
-                      <p className="text-gray-900">${invoice.amount.toFixed(2)}</p>
+                      <p className="text-gray-900 dark:text-white">${invoice.amount.toFixed(2)}</p>
                     </td>
                     <td className="py-4 px-4">
                       {getStatusBadge(invoice.status)}
@@ -183,11 +184,40 @@ export function BillingHistory() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3">
+            {mockInvoices.map((invoice) => (
+              <div key={invoice.id} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">{formatDate(invoice.date)}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{invoice.description}</p>
+                  </div>
+                  {getStatusBadge(invoice.status)}
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">${invoice.amount.toFixed(2)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{invoice.paymentMethod}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDownloadInvoice(invoice.id)}
+                  >
+                    <Download className="size-4 mr-1" />
+                    PDF
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
       {/* Help Text */}
-      <div className="text-center text-gray-600">
+      <div className="text-center text-gray-600 dark:text-gray-400 text-sm sm:text-base">
         <p>
           Need help with billing? <a href="#" className="text-blue-600 hover:underline">Contact support</a>
         </p>

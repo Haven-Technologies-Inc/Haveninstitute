@@ -395,11 +395,13 @@ export function Forum({ onBack }: ForumProps) {
                     />
                   </div>
                   <div>
-                    <Label>Category</Label>
+                    <Label htmlFor="post-category">Category</Label>
                     <select
+                      id="post-category"
                       value={newPostCategory}
                       onChange={(e) => setNewPostCategory(e.target.value)}
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                      aria-label="Post category"
                     >
                       {categories.filter(c => c.id !== 'all').map(cat => (
                         <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -648,31 +650,34 @@ export function Forum({ onBack }: ForumProps) {
 
   // Post Detail View
   return (
-    <div className="max-w-5xl mx-auto">
-      <Button variant="ghost" onClick={() => setSelectedPost(null)} className="mb-6">
+    <div className="max-w-5xl mx-auto px-3 sm:px-0">
+      <Button variant="ghost" onClick={() => setSelectedPost(null)} className="mb-4 sm:mb-6">
         <ArrowLeft className="mr-2 size-4" />
         Back to Forum
       </Button>
 
       {/* Post */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <div className="shrink-0">
-              <div className="size-16 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-2xl">
+      <Card className="mb-4 sm:mb-6">
+        <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="shrink-0 flex sm:block items-center gap-3">
+              <div className="size-12 sm:size-16 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-xl sm:text-2xl">
                 {selectedPost.author.name[0]}
+              </div>
+              <div className="sm:hidden">
+                <span className="font-medium text-gray-900">{selectedPost.author.name}</span>
               </div>
             </div>
 
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    {selectedPost.isPinned && <Pin className="size-5 text-blue-600" />}
-                    {selectedPost.isResolved && <CheckCircle className="size-5 text-green-600" />}
-                    <h1 className="text-2xl text-gray-900">{selectedPost.title}</h1>
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    {selectedPost.isPinned && <Pin className="size-4 sm:size-5 text-blue-600" />}
+                    {selectedPost.isResolved && <CheckCircle className="size-4 sm:size-5 text-green-600" />}
+                    <h1 className="text-xl sm:text-2xl text-gray-900 dark:text-white">{selectedPost.title}</h1>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 flex-wrap">
                     <span className="text-gray-900">{selectedPost.author.name}</span>
                     {selectedPost.author.verified && (
                       <Badge variant="outline" className="text-xs">
@@ -699,26 +704,27 @@ export function Forum({ onBack }: ForumProps) {
 
               <p className="text-gray-800 mb-6 whitespace-pre-wrap">{selectedPost.content}</p>
 
-              <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-2 sm:gap-4 pt-4 border-t border-gray-200 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleLikePost(selectedPost.id)}
+                  className="text-xs sm:text-sm"
                 >
-                  <ThumbsUp className="mr-2 size-4" />
-                  Like ({selectedPost.likes})
+                  <ThumbsUp className="mr-1 sm:mr-2 size-3 sm:size-4" />
+                  <span className="hidden xs:inline">Like</span> ({selectedPost.likes})
                 </Button>
-                <Button variant="outline" size="sm">
-                  <Share2 className="mr-2 size-4" />
-                  Share
+                <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                  <Share2 className="mr-1 sm:mr-2 size-3 sm:size-4" />
+                  <span className="hidden sm:inline">Share</span>
                 </Button>
-                <Button variant="outline" size="sm">
-                  <Bookmark className="mr-2 size-4" />
-                  Save
+                <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                  <Bookmark className="mr-1 sm:mr-2 size-3 sm:size-4" />
+                  <span className="hidden sm:inline">Save</span>
                 </Button>
-                <Button variant="ghost" size="sm">
-                  <Flag className="mr-2 size-4" />
-                  Report
+                <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
+                  <Flag className="mr-1 sm:mr-2 size-3 sm:size-4" />
+                  <span className="hidden sm:inline">Report</span>
                 </Button>
               </div>
             </div>
@@ -727,22 +733,23 @@ export function Forum({ onBack }: ForumProps) {
       </Card>
 
       {/* Replies */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>{selectedPost.replies.length} Replies</CardTitle>
+      <Card className="mb-4 sm:mb-6">
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-lg sm:text-xl">{selectedPost.replies.length} Replies</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 px-3 sm:px-6">
           {selectedPost.replies.map(reply => (
-            <div key={reply.id} className={`flex gap-4 ${reply.isAnswer ? 'p-4 bg-green-50 border-2 border-green-200 rounded-lg' : ''}`}>
-              <div className="shrink-0">
-                <div className="size-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-lg">
+            <div key={reply.id} className={`flex flex-col sm:flex-row gap-3 sm:gap-4 ${reply.isAnswer ? 'p-3 sm:p-4 bg-green-50 border-2 border-green-200 rounded-lg' : ''}`}>
+              <div className="shrink-0 flex sm:block items-center gap-3">
+                <div className="size-10 sm:size-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-base sm:text-lg">
                   {reply.author.name[0]}
                 </div>
+                <span className="sm:hidden font-medium text-gray-900 dark:text-white">{reply.author.name}</span>
               </div>
 
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-gray-900">{reply.author.name}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="text-gray-900 dark:text-white hidden sm:inline">{reply.author.name}</span>
                   {reply.author.verified && (
                     <Badge variant="outline" className="text-xs">
                       <CheckCircle className="size-3 mr-1" />
@@ -755,10 +762,10 @@ export function Forum({ onBack }: ForumProps) {
                   {reply.isAnswer && (
                     <Badge className="text-xs bg-green-600 text-white">
                       <CheckCircle className="size-3 mr-1" />
-                      Accepted Answer
+                      <span className="hidden xs:inline">Accepted </span>Answer
                     </Badge>
                   )}
-                  <span className="text-sm text-gray-600">• {formatTimeAgo(reply.createdAt)}</span>
+                  <span className="text-xs sm:text-sm text-gray-600">• {formatTimeAgo(reply.createdAt)}</span>
                 </div>
 
                 <p className="text-gray-800 mb-3">{reply.content}</p>
@@ -781,22 +788,22 @@ export function Forum({ onBack }: ForumProps) {
 
       {/* Reply Form */}
       <Card>
-        <CardHeader>
-          <CardTitle>Add Your Reply</CardTitle>
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-lg sm:text-xl">Add Your Reply</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           <Textarea
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
             placeholder="Share your thoughts or answer..."
-            className="min-h-[120px] mb-4"
+            className="min-h-[100px] sm:min-h-[120px] mb-4"
           />
-          <div className="flex gap-3">
-            <Button onClick={handleReply} className="bg-gradient-to-r from-purple-600 to-pink-600">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <Button onClick={handleReply} className="bg-gradient-to-r from-purple-600 to-pink-600 w-full sm:w-auto">
               <Send className="mr-2 size-4" />
               Post Reply
             </Button>
-            <Button variant="outline" onClick={() => setSelectedPost(null)}>
+            <Button variant="outline" onClick={() => setSelectedPost(null)} className="w-full sm:w-auto">
               Cancel
             </Button>
           </div>
