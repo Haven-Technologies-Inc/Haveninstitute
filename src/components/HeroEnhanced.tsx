@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useDarkMode } from './DarkModeContext';
+import { Moon, Sun } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
@@ -6,7 +8,6 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Bookstore } from './Bookstore';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  GraduationCap, 
   CheckCircle2, 
   Brain, 
   TrendingUp, 
@@ -30,6 +31,7 @@ import {
   MessageCircle,
   BarChart3
 } from 'lucide-react';
+import { LogoIcon } from './ui/Logo';
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -53,6 +55,7 @@ const stats = [
 export function HeroEnhanced({ onGetStarted }: HeroProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const { isDarkMode, toggleDarkMode } = useDarkMode();
 
   // Mouse parallax effect
   useEffect(() => {
@@ -68,13 +71,13 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 overflow-hidden transition-colors duration-300">
       {/* Navigation */}
       <motion.nav 
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ type: 'spring', stiffness: 100 }}
-        className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50 shadow-sm"
+        className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-4">
           <div className="flex items-center justify-between">
@@ -84,12 +87,10 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
               whileHover={{ scale: 1.05 }}
               transition={{ type: 'spring', stiffness: 300 }}
             >
-              <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-1.5 md:p-2 rounded-xl shadow-lg">
-                <GraduationCap className="size-6 md:size-7 text-white" />
-              </div>
+              <LogoIcon size="lg" className="size-10 md:size-12" />
               <div>
                 <h1 className="text-lg md:text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Haven Institute</h1>
-                <p className="text-xs text-gray-600 hidden sm:block">Excellence in NCLEX Preparation</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 hidden sm:block">Excellence in NCLEX Preparation</p>
               </div>
             </motion.div>
 
@@ -99,7 +100,7 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
                 <motion.a 
                   key={item}
                   href={`#${item.toLowerCase().replace(' ', '-')}`}
-                  className="text-gray-600 hover:text-gray-900 transition-colors relative group"
+                  className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors relative group"
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
@@ -108,8 +109,20 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 group-hover:w-full transition-all duration-300"></span>
                 </motion.a>
               ))}
+              {/* Dark Mode Toggle */}
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
+              >
+                {isDarkMode ? (
+                  <Sun className="size-5 text-yellow-500" />
+                ) : (
+                  <Moon className="size-5 text-gray-600" />
+                )}
+              </button>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="outline" onClick={onGetStarted} className="hidden xl:flex">
+                <Button variant="outline" onClick={onGetStarted} className="hidden xl:flex dark:border-gray-600 dark:text-white dark:hover:bg-gray-800">
                   Sign In
                 </Button>
               </motion.div>
@@ -149,12 +162,12 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
                 exit={{ height: 0, opacity: 0 }}
                 className="lg:hidden overflow-hidden"
               >
-                <div className="mt-4 pb-4 border-t border-gray-200 pt-4 space-y-3">
+                <div className="mt-4 pb-4 border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
                   {['Features', 'Bookstore', 'Success Stories', 'Pricing'].map((item) => (
                     <a 
                       key={item}
                       href={`#${item.toLowerCase().replace(' ', '-')}`}
-                      className="block text-gray-600 hover:text-gray-900 py-2 transition-colors"
+                      className="block text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white py-2 transition-colors"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       {item}
@@ -219,7 +232,7 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight text-gray-900 dark:text-white">
                   Pass Your NCLEX on the{' '}
                   <motion.span 
                     className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent inline-block"
@@ -232,7 +245,7 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
                   </motion.span>
                 </h1>
                 
-                <p className="text-base md:text-xl text-gray-600 leading-relaxed">
+                <p className="text-base md:text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
                   Join 10,000+ nursing students who passed NCLEX with NurseHaven's AI-powered 
                   adaptive testing, personalized study plans, and expert-curated content.
                 </p>
@@ -264,7 +277,7 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
                     >
                       <feature.icon className={`size-4 md:size-5 text-${feature.color}-600`} />
                     </motion.div>
-                    <span className="text-sm md:text-base text-gray-700 group-hover:text-gray-900">{feature.text}</span>
+                    <span className="text-sm md:text-base text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">{feature.text}</span>
                   </motion.div>
                 ))}
               </motion.div>
@@ -290,7 +303,7 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
                   <Button 
                     size="lg" 
                     variant="outline"
-                    className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 w-full sm:w-auto border-2 hover:bg-gray-50"
+                    className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 w-full sm:w-auto border-2 hover:bg-gray-50 dark:hover:bg-gray-800 dark:border-gray-600 dark:text-white"
                   >
                     <Play className="size-4 md:size-5 mr-2" />
                     Watch Demo
@@ -875,10 +888,8 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-xl">
-                  <GraduationCap className="size-6 text-white" />
-                </div>
-                <span className="text-xl">Haven Institute</span>
+                <LogoIcon size="md" className="size-10" />
+                <span className="text-xl font-bold">Haven Institute</span>
               </div>
               <p className="text-gray-400 text-sm">
                 Excellence in NCLEX Preparation

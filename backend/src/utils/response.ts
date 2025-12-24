@@ -77,6 +77,11 @@ export const errorCodes = {
   VAL_MISSING_REQUIRED_FIELD: 'VAL_002',
   VAL_INVALID_FORMAT: 'VAL_003',
 
+  // Resource errors (RES)
+  RES_NOT_FOUND: 'RES_001',
+  RES_ALREADY_EXISTS: 'RES_002',
+  RES_ACCESS_DENIED: 'RES_003',
+
   // Database errors (DB)
   DB_QUERY_ERROR: 'DB_001',
   DB_NOT_FOUND: 'DB_002',

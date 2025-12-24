@@ -3,8 +3,9 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Alert, AlertDescription } from '../ui/alert';
-import { GraduationCap, Mail, Lock, User, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, User, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useAuth } from './AuthContext';
+import { Logo } from '../ui/Logo';
 
 interface SignupProps {
   onSwitchToLogin: () => void;
@@ -51,7 +52,7 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center p-4 transition-colors">
       <div className="w-full max-w-md">
         {/* Back to Home Button */}
         <div className="mb-4">
@@ -67,13 +68,11 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
 
         {/* Logo & Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 mb-4">
-            <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-3 rounded-xl shadow-lg">
-              <GraduationCap className="size-8 text-white" />
-            </div>
-            <div className="text-left">
-              <h1 className="text-3xl">Haven Institute</h1>
-              <p className="text-gray-600">Excellence in NCLEX Preparation</p>
+          <div className="flex flex-col items-center gap-2">
+            <Logo size="xl" showText={false} />
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Haven Institute</h1>
+              <p className="text-gray-600 dark:text-gray-400">Excellence in NCLEX Preparation</p>
             </div>
           </div>
         </div>

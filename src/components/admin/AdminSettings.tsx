@@ -126,8 +126,12 @@ export function AdminSettings() {
   const handleSaveSMTP = async () => {
     setLoading(true);
     try {
-      updateSMTPConfig(smtpConfig);
-      toast.success('Zoho SMTP configuration saved successfully');
+      const result = await updateSMTPConfig(smtpConfig);
+      if (result.success) {
+        toast.success(result.message || 'Zoho SMTP configuration saved successfully');
+      } else {
+        toast.error(result.message || 'Failed to save SMTP configuration');
+      }
     } catch (error) {
       toast.error('Failed to save SMTP configuration');
     } finally {

@@ -86,7 +86,11 @@ export class User extends Model {
     type: DataType.JSON,
     get() {
       const value = this.getDataValue('goals' as any);
-      return value ? JSON.parse(value as string) : [];
+      if (!value) return [];
+      if (typeof value === 'string') {
+        try { return JSON.parse(value); } catch { return []; }
+      }
+      return value;
     }
   })
   goals?: string[];
@@ -114,7 +118,11 @@ export class User extends Model {
     field: 'weak_areas',
     get() {
       const value = this.getDataValue('weakAreas' as any);
-      return value ? JSON.parse(value as string) : [];
+      if (!value) return [];
+      if (typeof value === 'string') {
+        try { return JSON.parse(value); } catch { return []; }
+      }
+      return value;
     }
   })
   weakAreas?: number[];

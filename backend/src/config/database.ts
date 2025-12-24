@@ -1,6 +1,6 @@
 import { Sequelize } from 'sequelize-typescript';
-import path from 'path';
 import dotenv from 'dotenv';
+import { models } from '../models';
 
 dotenv.config();
 
@@ -11,7 +11,7 @@ export const sequelize = new Sequelize({
   port: Number(process.env.DB_PORT) || 3306,
   username: process.env.DB_USER || 'haven_user',
   password: process.env.DB_PASSWORD,
-  models: [path.join(__dirname, '..', 'models')],
+  models: models,
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
   pool: {
     max: Number(process.env.DB_POOL_MAX) || 10,
@@ -22,7 +22,8 @@ export const sequelize = new Sequelize({
   dialectOptions: {
     charset: 'utf8mb4',
     collate: 'utf8mb4_unicode_ci',
-    timezone: '+00:00'
+    timezone: '+00:00',
+    ssl: process.env.DB_SSL === 'true' ? true : false
   },
   timezone: '+00:00',
   define: {
@@ -36,10 +37,11 @@ export async function connectDatabase(): Promise<void> {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully');
 
-    if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: false });
-      console.log('✅ Database synchronized');
-    }
+    // Sync disabled - CAT tables need manual migration due to FK constraints
+    // if (process.env.NODE_ENV === 'development') {
+    //   await sequelize.sync({ alter: false });
+    //   console.log('✅ Database synchronized');
+    // }
   } catch (error) {
     console.error('❌ Unable to connect to the database:', error);
     throw error;

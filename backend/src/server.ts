@@ -1,5 +1,7 @@
+import { createServer } from 'http';
 import app from './app';
 import { connectDatabase, disconnectDatabase } from './config/database';
+import { websocketService } from './services/websocket.service';
 import { logger } from './utils/logger';
 import dotenv from 'dotenv';
 
@@ -14,12 +16,20 @@ async function startServer() {
     await connectDatabase();
     logger.info('✅ Database connected successfully');
 
+    // Create HTTP server from Express app
+    const httpServer = createServer(app);
+
+    // Initialize WebSocket server
+    websocketService.initialize(httpServer);
+    logger.info('🔌 WebSocket server initialized');
+
     // Start HTTP server
-    const server = app.listen(PORT, () => {
+    const server = httpServer.listen(PORT, () => {
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`📝 Environment: ${NODE_ENV}`);
       logger.info(`🔗 API: http://localhost:${PORT}/api/v1`);
       logger.info(`💚 Health: http://localhost:${PORT}/api/v1/health`);
+      logger.info(`🔌 WebSocket: ws://localhost:${PORT}`);
     });
 
     // Graceful shutdown
@@ -30,6 +40,10 @@ async function startServer() {
         logger.info('HTTP server closed');
 
         try {
+          // Shutdown WebSocket server
+          websocketService.shutdown();
+          logger.info('WebSocket server closed');
+
           await disconnectDatabase();
           logger.info('Database connection closed');
           process.exit(0);

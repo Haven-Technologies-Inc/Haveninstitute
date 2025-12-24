@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authApi, AuthUser } from '../../services/authApi';
+import { logger } from '../../utils/logger';
 
 export interface User {
   id: string;
@@ -14,7 +16,24 @@ export interface User {
   hasCompletedOnboarding: boolean;
   createdAt: string;
   avatar?: string;
+  emailVerified?: boolean;
 }
+
+// Convert backend user to frontend User format
+const mapAuthUserToUser = (authUser: AuthUser): User => ({
+  id: authUser.id,
+  email: authUser.email,
+  name: authUser.fullName,
+  fullName: authUser.fullName,
+  role: authUser.role === 'admin' || authUser.role === 'moderator' || authUser.role === 'instructor' ? 'admin' : 'student',
+  subscription: authUser.subscriptionTier as 'Free' | 'Pro' | 'Premium',
+  goals: authUser.goals,
+  targetExamDate: authUser.examDate,
+  hasCompletedOnboarding: authUser.hasCompletedOnboarding,
+  createdAt: authUser.createdAt,
+  avatar: authUser.avatarUrl,
+  emailVerified: authUser.emailVerified,
+});
 
 interface AuthContextType {
   user: User | null;
@@ -39,18 +58,6 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Predefined admin accounts
-const ADMIN_ACCOUNTS = [
-  { email: 'admin@nursehaven.com', password: 'admin123', fullName: 'Admin User' },
-  { email: 'superadmin@nursehaven.com', password: 'super123', fullName: 'Super Admin' },
-];
-
-// Predefined demo student accounts
-const DEMO_STUDENTS = [
-  { email: 'student@demo.com', password: 'student123', fullName: 'Sarah Johnson', subscription: 'Pro' as const },
-  { email: 'demo@nursehaven.com', password: 'demo123', fullName: 'John Smith', subscription: 'Premium' as const },
-  { email: 'test@nursehaven.com', password: 'test123', fullName: 'Emma Davis', subscription: 'Free' as const },
-];
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
@@ -63,7 +70,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         setUser(JSON.parse(storedUser));
       } catch (error) {
-        console.error('Error parsing stored user:', error);
+        logger.error('Error parsing stored user:', error);
         localStorage.removeItem('nursehaven_user');
       }
     }
@@ -73,73 +80,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Check if it's an admin account
-      const adminAccount = ADMIN_ACCOUNTS.find(
-        admin => admin.email === email && admin.password === password
-      );
-
-      if (adminAccount) {
-        const adminUser: User = {
-          id: `admin-${Date.now()}`,
-          email: adminAccount.email,
-          name: adminAccount.fullName,
-          fullName: adminAccount.fullName,
-          role: 'admin',
-          hasCompletedOnboarding: true,
-          createdAt: new Date().toISOString()
-        };
-        setUser(adminUser);
-        localStorage.setItem('nursehaven_user', JSON.stringify(adminUser));
-        setIsLoading(false);
+      // Try backend API for authentication
+      const response = await authApi.login({ email, password });
+      
+      if (response.success && response.data) {
+        const mappedUser = mapAuthUserToUser(response.data.user);
+        setUser(mappedUser);
+        localStorage.setItem('nursehaven_user', JSON.stringify(mappedUser));
         return;
       }
-
-      // Check demo student accounts
-      const demoStudent = DEMO_STUDENTS.find(
-        student => student.email === email && student.password === password
-      );
-
-      if (demoStudent) {
-        const studentUser: User = {
-          id: `student-${Date.now()}`,
-          email: demoStudent.email,
-          name: demoStudent.fullName,
-          fullName: demoStudent.fullName,
-          role: 'student',
-          subscription: demoStudent.subscription,
-          hasCompletedOnboarding: true,
-          createdAt: new Date().toISOString()
-        };
-        setUser(studentUser);
-        localStorage.setItem('nursehaven_user', JSON.stringify(studentUser));
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if user exists in registered users database
-      const mockUsers = JSON.parse(localStorage.getItem('nursehaven_users') || '[]');
-      const existingUser = mockUsers.find((u: any) => u.email === email && u.password === password);
-
-      if (existingUser) {
-        const { password: _, ...userWithoutPassword } = existingUser;
-        
-        // Ensure role is set (default to student if not set)
-        const userToSet = {
-          ...userWithoutPassword,
-          role: userWithoutPassword.role || 'student',
-          subscription: userWithoutPassword.subscription || 'Free'
-        };
-        
-        setUser(userToSet);
-        localStorage.setItem('nursehaven_user', JSON.stringify(userToSet));
-      } else {
-        throw new Error('Invalid email or password');
-      }
+      
+      throw new Error('Invalid email or password');
     } catch (error) {
-      console.error('Login error:', error);
+      logger.error('Login error:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -149,42 +102,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signup = async (email: string, password: string, fullName: string) => {
     setIsLoading(true);
     try {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Prevent signup with admin emails
-      if (ADMIN_ACCOUNTS.some(admin => admin.email === email)) {
-        throw new Error('This email is reserved for administrators');
-      }
-
-      // Check existing users
-      const mockUsers = JSON.parse(localStorage.getItem('nursehaven_users') || '[]');
+      // Use backend API for registration
+      const response = await authApi.register({ email, password, fullName });
       
-      // Check if user already exists
-      if (mockUsers.some((u: any) => u.email === email)) {
-        throw new Error('An account with this email already exists');
+      if (response.success && response.data) {
+        const mappedUser = mapAuthUserToUser(response.data.user);
+        setUser(mappedUser);
+        localStorage.setItem('nursehaven_user', JSON.stringify(mappedUser));
+        return;
       }
-
-      const newUser: User & { password: string } = {
-        id: `user-${Date.now()}`,
-        email,
-        password, // Store password for demo (never do this in production!)
-        name: fullName,
-        fullName,
-        role: 'student',
-        subscription: 'Free',
-        hasCompletedOnboarding: false,
-        createdAt: new Date().toISOString()
-      };
-
-      mockUsers.push(newUser);
-      localStorage.setItem('nursehaven_users', JSON.stringify(mockUsers));
-
-      const { password: _, ...userWithoutPassword } = newUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('nursehaven_user', JSON.stringify(userWithoutPassword));
+      
+      throw new Error('Registration failed. Please try again.');
     } catch (error) {
-      console.error('Signup error:', error);
+      logger.error('Signup error:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -192,6 +122,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
+    // Try to logout from backend (fire and forget)
+    authApi.logout().catch(err => logger.info('Backend logout:', err.message));
+    
     setUser(null);
     localStorage.removeItem('nursehaven_user');
   };

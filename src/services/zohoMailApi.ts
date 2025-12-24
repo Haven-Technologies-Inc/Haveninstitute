@@ -1,13 +1,63 @@
+// SMTP Configuration Type
+export interface SMTPConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password: string;
+  fromEmail: string;
+  fromName: string;
+}
+
+// Email Types
+export interface EmailRecipient {
+  email: string;
+  name?: string;
+}
+
+export interface SendEmailOptions {
+  from: EmailRecipient;
+  to: EmailRecipient[];
+  cc?: EmailRecipient[];
+  bcc?: EmailRecipient[];
+  subject: string;
+  htmlBody?: string;
+  textBody?: string;
+}
+
+export interface EmailResponse {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  variables: string[];
+}
+
+export interface EmailStats {
+  sent: number;
+  delivered: number;
+  opened: number;
+  clicked: number;
+  bounced: number;
+  failed: number;
+}
+
 // Zoho Mail SMTP Configuration
 // Default configuration - can be updated via admin settings
 let SMTP_CONFIG: SMTPConfig = {
-  host: 'smtp.zoho.com',
+  host: 'smtp.zeptomail.com',
   port: 465,
   secure: true, // Use SSL/TLS
-  username: 'noreply@nursehaven.com',
+  username: 'emailapikey',
   password: '',
-  fromEmail: 'noreply@nursehaven.com',
-  fromName: 'NurseHaven'
+  fromEmail: 'info@havenstudy.com',
+  fromName: 'Haven Institute'
 };
 
 // Initialize SMTP config from localStorage on load
@@ -22,12 +72,45 @@ if (typeof window !== 'undefined') {
   }
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+
+// Helper to get auth headers
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('haven_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+}
+
 // Update SMTP Configuration
-export function updateSMTPConfig(config: Partial<SMTPConfig>) {
+export async function updateSMTPConfig(config: Partial<SMTPConfig>): Promise<{ success: boolean; message: string }> {
   SMTP_CONFIG = { ...SMTP_CONFIG, ...config };
+  
   // Save to localStorage for persistence
   if (typeof window !== 'undefined') {
     localStorage.setItem('smtp_config', JSON.stringify(SMTP_CONFIG));
+  }
+
+  // Try to save to backend
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/email/config`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(config)
+    });
+
+    const data = await response.json();
+    
+    if (data.success) {
+      return { success: true, message: data.data?.message || 'Configuration saved successfully' };
+    } else {
+      // Still saved locally, just couldn't sync to backend
+      return { success: true, message: 'Configuration saved locally. Backend sync requires admin login.' };
+    }
+  } catch (error) {
+    // Still saved locally
+    return { success: true, message: 'Configuration saved locally.' };
   }
 }
 
@@ -36,41 +119,71 @@ export function getSMTPConfig(): SMTPConfig {
   return SMTP_CONFIG;
 }
 
-// Test SMTP Connection
+// Fetch SMTP config from backend
+export async function fetchSMTPConfig(): Promise<SMTPConfig | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/email/config`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+
+    const data = await response.json();
+    
+    if (data.success && data.data) {
+      SMTP_CONFIG = {
+        ...SMTP_CONFIG,
+        host: data.data.host,
+        port: data.data.port,
+        username: data.data.username,
+        fromEmail: data.data.fromEmail,
+        fromName: data.data.fromName
+      };
+      return SMTP_CONFIG;
+    }
+  } catch (error) {
+    console.log('Could not fetch SMTP config from backend, using local config');
+  }
+  return SMTP_CONFIG;
+}
+
+// Test SMTP Connection - calls real backend API
 export async function testSMTPConnection(config?: SMTPConfig): Promise<{
   success: boolean;
   message: string;
 }> {
   const testConfig = config || SMTP_CONFIG;
   
-  await delay(1000); // Simulate connection test
-  
   try {
-    console.log('Testing SMTP connection to Zoho Mail:', {
+    console.log('Testing SMTP connection:', {
       host: testConfig.host,
       port: testConfig.port,
       username: testConfig.username
     });
-    
-    // In production, this would actually test the SMTP connection
-    // For now, simulate successful connection
-    const success = Math.random() > 0.1;
-    
-    if (success) {
+
+    // Call backend API to test connection
+    const response = await fetch(`${API_BASE_URL}/admin/email/test-connection`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(testConfig)
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
       return {
         success: true,
-        message: 'Successfully connected to Zoho Mail SMTP server'
+        message: data.data?.message || 'Successfully connected to SMTP server'
       };
     } else {
       return {
         success: false,
-        message: 'Failed to connect. Please check your SMTP credentials.'
+        message: data.error?.message || 'Failed to connect. Please check your SMTP credentials.'
       };
     }
   } catch (error) {
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Connection failed'
+      message: error instanceof Error ? error.message : 'Connection test failed'
     };
   }
 }

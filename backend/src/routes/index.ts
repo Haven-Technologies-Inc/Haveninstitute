@@ -1,16 +1,23 @@
 import { Router } from 'express';
 import authRoutes from './auth.routes';
-// Import other routes as they are created
-// import userRoutes from './user.routes';
-// import quizRoutes from './quiz.routes';
-// import questionRoutes from './question.routes';
-// import subscriptionRoutes from './subscription.routes';
-// import flashcardRoutes from './flashcard.routes';
-// import bookRoutes from './book.routes';
-// import forumRoutes from './forum.routes';
-// import analyticsRoutes from './analytics.routes';
-// import aiRoutes from './ai.routes';
-// import adminRoutes from './admin.routes';
+import adminRoutes from './admin.routes';
+import catRoutes from './cat.routes';
+import quizRoutes from './quiz.routes';
+import analyticsRoutes from './analytics.routes';
+import aiRoutes from './ai.routes';
+import studyGroupRoutes from './studyGroup.routes';
+import studyPlannerRoutes from './studyPlanner.routes';
+import forumRoutes from './forum.routes';
+import questionRoutes from './question.routes';
+import studyMaterialRoutes from './studyMaterial.routes';
+import flashcardRoutes from './flashcard.routes';
+import practiceRoutes from './practice.routes';
+import settingsRoutes from './settings.routes';
+import subscriptionRoutes from './subscription.routes';
+// New routes - temporarily disabled pending TypeScript fixes
+// import notificationRoutes from './notification.routes';
+// import uploadRoutes from './upload.routes';
+// import gamificationRoutes from './gamification.routes';
 
 const router = Router();
 
@@ -29,15 +36,22 @@ router.get('/health', (req, res) => {
 
 // API routes
 router.use('/auth', authRoutes);
-// router.use('/users', userRoutes);
-// router.use('/quiz', quizRoutes);
-// router.use('/questions', questionRoutes);
-// router.use('/subscriptions', subscriptionRoutes);
-// router.use('/flashcards', flashcardRoutes);
-// router.use('/books', bookRoutes);
-// router.use('/forum', forumRoutes);
-// router.use('/analytics', analyticsRoutes);
-// router.use('/ai', aiRoutes);
-// router.use('/admin', adminRoutes);
+router.use('/admin', adminRoutes);
+router.use('/cat', catRoutes);
+router.use('/quiz', quizRoutes);
+router.use('/analytics', analyticsRoutes);
+router.use('/ai', aiRoutes);
+router.use('/groups', studyGroupRoutes);
+router.use('/planner', studyPlannerRoutes);
+router.use('/forum', forumRoutes);
+router.use('/questions', questionRoutes);
+router.use('/materials', studyMaterialRoutes);
+router.use('/flashcards', flashcardRoutes);
+router.use('/practice', practiceRoutes);
+router.use('/settings', settingsRoutes);
+router.use('/subscriptions', subscriptionRoutes);
+// router.use('/notifications', notificationRoutes);
+// router.use('/uploads', uploadRoutes);
+// router.use('/gamification', gamificationRoutes);
 
 export default router;

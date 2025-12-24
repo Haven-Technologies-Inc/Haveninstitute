@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS questions (
     difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
     explanation TEXT,
     rationale TEXT,
-    references TEXT,
+    `references` TEXT,
     tags JSON,
 
     -- IRT Parameters (Item Response Theory)

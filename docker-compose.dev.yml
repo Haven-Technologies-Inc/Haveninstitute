@@ -1,0 +1,77 @@
+# Haven Institute - Development Docker Compose
+# For local development with hot reload
+
+version: '3.8'
+
+services:
+  # Frontend with hot reload
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: haven-frontend-dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:3001/api/v1
+      - VITE_WS_URL=http://localhost:3001
+    networks:
+      - haven-dev-network
+    depends_on:
+      - backend
+
+  # Backend with hot reload
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: haven-backend-dev
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=mariadb
+    networks:
+      - haven-dev-network
+    depends_on:
+      - mariadb
+
+  # MariaDB for development
+  mariadb:
+    image: mariadb:10.11
+    container_name: haven-mariadb-dev
+    environment:
+      - MYSQL_ROOT_PASSWORD=devroot123
+      - MYSQL_DATABASE=haven_institute
+      - MYSQL_USER=haven_user
+      - MYSQL_PASSWORD=haven_password_2024
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_dev_data:/var/lib/mysql
+    networks:
+      - haven-dev-network
+
+  # Redis for development
+  redis:
+    image: redis:7-alpine
+    container_name: haven-redis-dev
+    ports:
+      - "6379:6379"
+    networks:
+      - haven-dev-network
+
+networks:
+  haven-dev-network:
+    driver: bridge
+
+volumes:
+  mariadb_dev_data:

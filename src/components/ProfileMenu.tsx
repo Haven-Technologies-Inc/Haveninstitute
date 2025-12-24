@@ -33,6 +33,18 @@ export function ProfileMenu({ onClose, onNavigate }: ProfileMenuProps) {
     onClose();
   };
 
+  // Get user stats - use actual data if available, otherwise show placeholder
+  const userStats = {
+    quizzes: user?.stats?.quizzesCompleted ?? 0,
+    avgScore: user?.stats?.averageScore ?? 0,
+    studyTime: user?.stats?.totalStudyHours ?? 0,
+  };
+
+  // Format member since date
+  const memberSince = user?.createdAt 
+    ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
     { id: 'progress', label: 'My Progress', icon: Award },
@@ -74,7 +86,7 @@ export function ProfileMenu({ onClose, onNavigate }: ProfileMenuProps) {
           {getSubscriptionBadge()}
           <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
             <Calendar className="size-3" />
-            Member since {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+            Member since {memberSince}
           </p>
         </div>
       </div>
@@ -82,15 +94,15 @@ export function ProfileMenu({ onClose, onNavigate }: ProfileMenuProps) {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">12</p>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{userStats.quizzes}</p>
           <p className="text-xs text-gray-600 dark:text-gray-400">Quizzes</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">85%</p>
+          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{userStats.avgScore}%</p>
           <p className="text-xs text-gray-600 dark:text-gray-400">Avg Score</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">24h</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">{userStats.studyTime}h</p>
           <p className="text-xs text-gray-600 dark:text-gray-400">Study Time</p>
         </div>
       </div>
