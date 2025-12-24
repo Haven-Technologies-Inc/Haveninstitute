@@ -31,6 +31,9 @@ COPY package*.json ./
 # Install production dependencies only
 RUN npm ci --only=production && npm cache clean --force
 
+# Create logs directory with correct permissions
+RUN mkdir -p logs && chown nodejs:nodejs logs
+
 # Copy built application from builder
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 
