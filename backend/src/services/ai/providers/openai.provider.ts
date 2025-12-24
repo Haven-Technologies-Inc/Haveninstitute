@@ -24,7 +24,13 @@ export class OpenAIProvider implements IAIProvider {
 
     if (!this.apiKey) {
       console.warn('⚠️ OpenAI API key not configured');
+    } else {
+      console.log('✅ OpenAI API configured with model:', this.defaultModel);
     }
+  }
+
+  isConfigured(): boolean {
+    return !!this.apiKey && this.apiKey !== 'sk-xxxxx';
   }
 
   async chat(
