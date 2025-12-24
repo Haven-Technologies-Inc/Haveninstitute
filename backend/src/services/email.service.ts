@@ -33,11 +33,14 @@ class EmailService {
 
     if (emailProvider === 'zeptomail' || emailProvider === 'zoho') {
       // ZeptoMail (Zoho Transactional Email) SMTP Configuration
-      // Production settings for smtp.zeptomail.com
+      // Port 465 = SSL, Port 587 = STARTTLS
+      const port = Number(process.env.ZOHO_SMTP_PORT) || 587;
+      const useSSL = port === 465;
+      
       this.transporter = nodemailer.createTransport({
         host: process.env.ZOHO_SMTP_HOST || 'smtp.zeptomail.com',
-        port: Number(process.env.ZOHO_SMTP_PORT) || 465,
-        secure: true, // SSL/TLS required on port 465
+        port: port,
+        secure: useSSL, // true for 465, false for 587 (STARTTLS)
         auth: {
           user: process.env.ZOHO_SMTP_USER || 'emailapikey',
           pass: process.env.ZOHO_SMTP_PASSWORD || ''
