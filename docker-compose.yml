@@ -1,8 +1,6 @@
 # Haven Institute - Production Docker Compose
 # For deployment on Hetzner VPS
 
-version: '3.8'
-
 services:
   # Frontend Application
   frontend:
@@ -93,7 +91,7 @@ services:
 
   # Traefik Reverse Proxy (with automatic SSL)
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3.2
     container_name: haven-traefik
     restart: unless-stopped
     command:
