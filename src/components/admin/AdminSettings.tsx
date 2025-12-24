@@ -62,9 +62,9 @@ export function AdminSettings() {
   
   // SMTP Configuration
   const [smtpConfig, setSMTPConfig] = useState<SMTPConfig>({
-    host: 'smtp.zoho.com',
-    port: 465,
-    secure: true,
+    host: 'smtp.zeptomail.com',
+    port: 587,
+    secure: false,
     username: '',
     password: '',
     fromEmail: 'noreply@nursehaven.com',

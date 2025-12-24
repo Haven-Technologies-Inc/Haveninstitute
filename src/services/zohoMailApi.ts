@@ -52,8 +52,8 @@ export interface EmailStats {
 // Default configuration - can be updated via admin settings
 let SMTP_CONFIG: SMTPConfig = {
   host: 'smtp.zeptomail.com',
-  port: 465,
-  secure: true, // Use SSL/TLS
+  port: 587,
+  secure: false, // STARTTLS on port 587
   username: 'emailapikey',
   password: '',
   fromEmail: 'info@havenstudy.com',
