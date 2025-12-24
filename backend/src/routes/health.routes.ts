@@ -195,7 +195,7 @@ function getSystemInfo(): SystemInfo {
       total: Math.round(totalMemory / 1024 / 1024),
       percentage: Math.round((usedMemory / totalMemory) * 100)
     },
-    loadAverage: os.loadaverage().map(l => Math.round(l * 100) / 100)
+    loadAverage: os.loadavg().map(l => Math.round(l * 100) / 100)
   };
 }
 

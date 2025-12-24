@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/authenticate';
 import { SubscriptionService } from '../services/subscription.service';
 import { ResponseHandler } from '../utils/response';
 
@@ -6,7 +7,7 @@ const subscriptionService = new SubscriptionService();
 
 export class SubscriptionController {
   // Get available plans
-  static async getPlans(req: Request, res: Response) {
+  static async getPlans(req: AuthRequest, res: Response) {
     try {
       const plans = await subscriptionService.getPlans();
       return ResponseHandler.success(res, plans);
@@ -16,7 +17,7 @@ export class SubscriptionController {
   }
 
   // Get current subscription
-  static async getCurrentSubscription(req: Request, res: Response) {
+  static async getCurrentSubscription(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const subscription = await subscriptionService.getCurrentSubscription(userId);
@@ -27,7 +28,7 @@ export class SubscriptionController {
   }
 
   // Create checkout session
-  static async createCheckout(req: Request, res: Response) {
+  static async createCheckout(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { planType, billingPeriod } = req.body;
@@ -44,7 +45,7 @@ export class SubscriptionController {
   }
 
   // Cancel subscription
-  static async cancelSubscription(req: Request, res: Response) {
+  static async cancelSubscription(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { reason } = req.body;
@@ -57,7 +58,7 @@ export class SubscriptionController {
   }
 
   // Reactivate subscription
-  static async reactivateSubscription(req: Request, res: Response) {
+  static async reactivateSubscription(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const subscription = await subscriptionService.reactivateSubscription(userId);
@@ -68,7 +69,7 @@ export class SubscriptionController {
   }
 
   // Change plan
-  static async changePlan(req: Request, res: Response) {
+  static async changePlan(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { newPlanType, newBillingPeriod } = req.body;
@@ -85,7 +86,7 @@ export class SubscriptionController {
   }
 
   // Get payment history
-  static async getPaymentHistory(req: Request, res: Response) {
+  static async getPaymentHistory(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { page = '1', limit = '20' } = req.query;
@@ -102,7 +103,7 @@ export class SubscriptionController {
   }
 
   // Get billing portal URL
-  static async getBillingPortal(req: Request, res: Response) {
+  static async getBillingPortal(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const url = await subscriptionService.createBillingPortalSession(userId);
@@ -113,7 +114,7 @@ export class SubscriptionController {
   }
 
   // Handle Stripe webhook
-  static async handleWebhook(req: Request, res: Response) {
+  static async handleWebhook(req: AuthRequest, res: Response) {
     try {
       const signature = req.headers['stripe-signature'] as string;
       const payload = req.body;
@@ -127,7 +128,7 @@ export class SubscriptionController {
   }
 
   // Admin: Get all subscriptions
-  static async getAllSubscriptions(req: Request, res: Response) {
+  static async getAllSubscriptions(req: AuthRequest, res: Response) {
     try {
       const { status, planType, page = '1', limit = '20' } = req.query;
 
@@ -144,7 +145,7 @@ export class SubscriptionController {
   }
 
   // Admin: Get subscription stats
-  static async getSubscriptionStats(req: Request, res: Response) {
+  static async getSubscriptionStats(req: AuthRequest, res: Response) {
     try {
       const stats = await subscriptionService.getSubscriptionStats();
       return ResponseHandler.success(res, stats);
@@ -154,7 +155,7 @@ export class SubscriptionController {
   }
 
   // Admin: Update user subscription
-  static async adminUpdateSubscription(req: Request, res: Response) {
+  static async adminUpdateSubscription(req: AuthRequest, res: Response) {
     try {
       const { userId } = req.params;
       const updates = req.body;
