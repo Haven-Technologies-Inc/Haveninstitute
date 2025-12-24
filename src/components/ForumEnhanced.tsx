@@ -360,7 +360,7 @@ export function Forum({ onBack }: ForumProps) {
   // Post List View
   if (!selectedPost) {
     return (
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="text-2xl sm:text-3xl text-gray-900 dark:text-white flex items-center gap-3">
@@ -490,69 +490,70 @@ export function Forum({ onBack }: ForumProps) {
           </CardContent>
         </Card>
 
-        {/* Categories */}
-        <div className="flex gap-3 mb-6 overflow-x-auto pb-2">
+        {/* Categories - Horizontal scroll on mobile */}
+        <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0 scrollbar-hide">
           {categories.map(cat => {
             const Icon = cat.icon;
             return (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg whitespace-nowrap transition-all text-sm sm:text-base ${
                   selectedCategory === cat.id
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                    : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-purple-300'
+                    : 'bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-purple-300'
                 }`}
               >
-                <Icon className="size-4" />
-                {cat.name}
+                <Icon className="size-3.5 sm:size-4" />
+                <span className="hidden xs:inline sm:inline">{cat.name}</span>
+                <span className="xs:hidden">{cat.name.split(' ')[0]}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <MessageSquare className="size-8 text-purple-600" />
-                <div>
-                  <p className="text-2xl text-gray-900">{posts.length}</p>
-                  <p className="text-sm text-gray-600">Total Posts</p>
+        {/* Stats - Compact on mobile */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+          <Card className="shadow-sm">
+            <CardContent className="p-3 sm:pt-6 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <MessageSquare className="size-6 sm:size-8 text-purple-600 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">{posts.length}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">Total Posts</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <Users className="size-8 text-blue-600" />
-                <div>
-                  <p className="text-2xl text-gray-900">127</p>
-                  <p className="text-sm text-gray-600">Active Members</p>
+          <Card className="shadow-sm">
+            <CardContent className="p-3 sm:pt-6 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <CheckCircle className="size-6 sm:size-8 text-green-600 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">{posts.filter(p => p.isResolved).length}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">Resolved</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="size-8 text-green-600" />
-                <div>
-                  <p className="text-2xl text-gray-900">{posts.filter(p => p.isResolved).length}</p>
-                  <p className="text-sm text-gray-600">Resolved</p>
+          <Card className="shadow-sm hidden sm:block">
+            <CardContent className="p-3 sm:pt-6 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Users className="size-6 sm:size-8 text-blue-600 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">127</p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">Members</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <Flame className="size-8 text-orange-600" />
-                <div>
-                  <p className="text-2xl text-gray-900">45</p>
-                  <p className="text-sm text-gray-600">Hot Topics</p>
+          <Card className="shadow-sm hidden sm:block">
+            <CardContent className="p-3 sm:pt-6 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Flame className="size-6 sm:size-8 text-orange-600 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">45</p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">Hot Topics</p>
                 </div>
               </div>
             </CardContent>
@@ -560,41 +561,35 @@ export function Forum({ onBack }: ForumProps) {
         </div>
 
         {/* Posts List */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {filteredPosts.map(post => (
             <Card
               key={post.id}
               className="cursor-pointer hover:shadow-lg transition-all"
               onClick={() => setSelectedPost(post)}
             >
-              <CardContent className="pt-6">
-                <div className="flex gap-4">
-                  {/* Avatar */}
-                  <div className="shrink-0">
-                    <div className="size-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-xl">
+              <CardContent className="p-3 sm:pt-6 sm:p-6">
+                <div className="flex gap-3 sm:gap-4">
+                  {/* Avatar - Hidden on very small screens */}
+                  <div className="shrink-0 hidden xs:block">
+                    <div className="size-10 sm:size-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-lg sm:text-xl">
                       {post.author.name[0]}
                     </div>
                   </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4 mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          {post.isPinned && <Pin className="size-4 text-blue-600" />}
-                          {post.isResolved && <CheckCircle className="size-4 text-green-600" />}
-                          <h3 className="text-lg text-gray-900">{post.title}</h3>
+                    <div className="flex items-start justify-between gap-2 sm:gap-4 mb-1 sm:mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                          {post.isPinned && <Pin className="size-3.5 sm:size-4 text-blue-600 shrink-0" />}
+                          {post.isResolved && <CheckCircle className="size-3.5 sm:size-4 text-green-600 shrink-0" />}
+                          <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white truncate">{post.title}</h3>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>{post.author.name}</span>
-                          {post.author.verified && (
-                            <Badge variant="outline" className="text-xs">
-                              <CheckCircle className="size-3 mr-1" />
-                              Verified
-                            </Badge>
-                          )}
+                        <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 flex-wrap">
+                          <span className="font-medium">{post.author.name}</span>
                           {post.author.role === 'instructor' && (
-                            <Badge className="text-xs bg-blue-100 text-blue-800">Instructor</Badge>
+                            <Badge className="text-[10px] sm:text-xs bg-blue-100 text-blue-800 px-1.5 py-0">Instructor</Badge>
                           )}
                           <span>•</span>
                           <span>{formatTimeAgo(post.createdAt)}</span>
@@ -602,30 +597,35 @@ export function Forum({ onBack }: ForumProps) {
                       </div>
                     </div>
 
-                    <p className="text-gray-700 mb-3 line-clamp-2">{post.content}</p>
+                    <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 mb-2 sm:mb-3 line-clamp-2">{post.content}</p>
 
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {post.tags.map((tag, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
+                    {/* Tags - Show fewer on mobile */}
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                      {post.tags.slice(0, 3).map((tag, idx) => (
+                        <Badge key={idx} variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
                           {tag}
                         </Badge>
                       ))}
+                      {post.tags.length > 3 && (
+                        <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2">
+                          +{post.tags.length - 3}
+                        </Badge>
+                      )}
                     </div>
 
-                    {/* Stats */}
-                    <div className="flex items-center gap-6 text-sm text-gray-600">
+                    {/* Stats - Compact on mobile */}
+                    <div className="flex items-center gap-3 sm:gap-6 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                       <div className="flex items-center gap-1">
-                        <ThumbsUp className="size-4" />
+                        <ThumbsUp className="size-3.5 sm:size-4" />
                         <span>{post.likes}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <MessageSquare className="size-4" />
-                        <span>{post.replies.length} replies</span>
+                        <MessageSquare className="size-3.5 sm:size-4" />
+                        <span>{post.replies.length}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Users className="size-4" />
-                        <span>{post.views} views</span>
+                        <Users className="size-3.5 sm:size-4" />
+                        <span>{post.views}</span>
                       </div>
                     </div>
                   </div>
