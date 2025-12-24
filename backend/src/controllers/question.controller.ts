@@ -244,8 +244,8 @@ export class QuestionController {
 
       return ResponseHandler.success(res, {
         totalFound: parseResult.totalFound,
-        questions: parseResult.questions.slice(0, 50), // Return first 50 for preview
-        errors: parseResult.errors.slice(0, 10),
+        questions: parseResult.questions, // Return all questions (up to 500)
+        errors: parseResult.errors.slice(0, 20),
         message: `Found ${parseResult.totalFound} questions in ${file.originalname}`
       });
 
