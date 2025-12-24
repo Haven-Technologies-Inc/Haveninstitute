@@ -6,9 +6,36 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
-// Test SMTP Connection
+// Test SMTP Connection with provided config
 router.post('/email/test-connection', authenticate, authorizeRole(['admin']), async (req: Request, res: Response) => {
   try {
+    const { host, port, username, password, secure } = req.body;
+    
+    // If config provided, test with that config
+    if (host && username && password) {
+      const nodemailer = require('nodemailer');
+      const testTransporter = nodemailer.createTransport({
+        host: host,
+        port: port || 465,
+        secure: secure !== false,
+        auth: {
+          user: username,
+          pass: password
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000
+      });
+
+      await testTransporter.verify();
+      logger.info('SMTP connection test successful with provided config');
+      
+      return ResponseHandler.success(res, {
+        success: true,
+        message: 'Successfully connected to SMTP server'
+      });
+    }
+    
+    // Otherwise use default email service
     const isConnected = await emailService.verifyConnection();
     
     if (isConnected) {
