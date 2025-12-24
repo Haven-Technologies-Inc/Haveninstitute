@@ -41,13 +41,19 @@ export interface AuthUser {
   updatedAt: string;
 }
 
+export interface RedirectInfo {
+  path: string;
+  reason: 'admin_role' | 'onboarding_incomplete' | 'email_unverified' | 'low_performance' | 'trial_expired' | 'default';
+  priority: number;
+}
+
 export interface AuthResponse {
   success: boolean;
   data?: {
     user: AuthUser;
     token: string;
     refreshToken: string;
-    redirectPath?: string;
+    redirectPath?: RedirectInfo;
     expiresIn?: number;
     message?: string;
   };

@@ -1,6 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi, AuthUser } from '../../services/authApi';
+import { authApi, AuthUser, RedirectInfo } from '../../services/authApi';
 import { logger } from '../../utils/logger';
+
+export interface LoginResult {
+  user: User;
+  redirectPath?: RedirectInfo;
+}
 
 export interface User {
   id: string;
@@ -37,7 +42,7 @@ const mapAuthUserToUser = (authUser: AuthUser): User => ({
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   signup: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
@@ -87,7 +92,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const mappedUser = mapAuthUserToUser(response.data.user);
         setUser(mappedUser);
         localStorage.setItem('nursehaven_user', JSON.stringify(mappedUser));
-        return;
+        
+        // Return the redirect path from backend for intelligent redirection
+        return {
+          user: mappedUser,
+          redirectPath: response.data.redirectPath
+        };
       }
       
       throw new Error('Invalid email or password');

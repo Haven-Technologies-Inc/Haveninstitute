@@ -139,19 +139,78 @@ export class AuthService {
     };
   }
 
-  private determineRedirectPath(user: User): string {
-    const isAdmin = user.role === 'admin' || user.role === 'moderator' || user.role === 'instructor';
-    
-    if (isAdmin) {
-      return '/admin/dashboard';
+  /**
+   * Intelligent redirect path determination based on user state
+   * Priority order:
+   * 1. Admin/Staff roles → Admin dashboard
+   * 2. Onboarding incomplete → Onboarding flow
+   * 3. Email not verified → Verification reminder
+   * 4. Low CAT performance → Remediation plan
+   * 5. Default → User dashboard
+   */
+  private determineRedirectPath(user: User): { path: string; reason: string; priority: number } {
+    // Admin/Staff roles get admin dashboard
+    const adminRoles = ['admin', 'moderator', 'instructor', 'editor'];
+    if (adminRoles.includes(user.role)) {
+      return {
+        path: '/admin',
+        reason: 'admin_role',
+        priority: 1
+      };
     }
 
-    // Student-specific redirects
+    // Check onboarding status
     if (!user.hasCompletedOnboarding) {
-      return '/onboarding';
+      return {
+        path: '/onboarding',
+        reason: 'onboarding_incomplete',
+        priority: 2
+      };
     }
 
-    return '/dashboard';
+    // Check email verification (soft block - still allow access but show reminder)
+    if (!user.emailVerified) {
+      return {
+        path: '/app/dashboard',
+        reason: 'email_unverified',
+        priority: 3
+      };
+    }
+
+    // Check for performance-based redirect (CAT score < 60% needs remediation)
+    const onboardingData = this.parseOnboardingData(user.onboardingData);
+    if (onboardingData?.lastCatScore !== undefined && onboardingData.lastCatScore < 60) {
+      return {
+        path: '/app/study-plan',
+        reason: 'low_performance',
+        priority: 4
+      };
+    }
+
+    // Check subscription status for premium features
+    if (user.subscriptionTier === 'Free' && onboardingData?.trialExpired) {
+      return {
+        path: '/app/subscription',
+        reason: 'trial_expired',
+        priority: 5
+      };
+    }
+
+    // Default to dashboard
+    return {
+      path: '/app/dashboard',
+      reason: 'default',
+      priority: 10
+    };
+  }
+
+  private parseOnboardingData(data: string | null): any {
+    if (!data) return null;
+    try {
+      return typeof data === 'string' ? JSON.parse(data) : data;
+    } catch {
+      return null;
+    }
   }
 
   async refreshToken(oldRefreshToken: string, deviceInfo?: DeviceInfo) {

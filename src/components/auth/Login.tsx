@@ -50,30 +50,27 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
     }
 
     try {
-      await login(email, password);
+      const result = await login(email, password);
       
       // Show success message briefly before redirect
       setSuccess('Login successful! Redirecting...');
 
-      // Get user from localStorage after login
-      const storedUser = localStorage.getItem('nursehaven_user');
+      // Use intelligent redirect path from backend if available
+      const redirectPath = result?.redirectPath?.path || '/app/dashboard';
+      const redirectReason = result?.redirectPath?.reason;
       
       // Small delay to show success message
       setTimeout(() => {
-        if (storedUser) {
-          const loggedInUser = JSON.parse(storedUser);
-
-          // Intelligent redirect based on user role and state
-          if (loggedInUser.role === 'admin' || loggedInUser.role === 'moderator' || loggedInUser.role === 'instructor') {
-            navigate('/admin');
-          } else if (!loggedInUser.hasCompletedOnboarding) {
-            navigate('/onboarding');
-          } else {
-            navigate('/app/dashboard');
-          }
-        } else {
-          navigate('/app/dashboard');
+        // Show context-specific message based on redirect reason
+        if (redirectReason === 'onboarding_incomplete') {
+          setSuccess('Welcome! Let\'s complete your profile setup...');
+        } else if (redirectReason === 'email_unverified') {
+          setSuccess('Please verify your email for full access.');
+        } else if (redirectReason === 'low_performance') {
+          setSuccess('We\'ve prepared a personalized study plan for you!');
         }
+        
+        navigate(redirectPath);
       }, 500);
     } catch (err: any) {
       // Parse error message for user-friendly display
