@@ -48,6 +48,9 @@ jobs:
             echo "🏥 Health check..."
             curl -sf http://localhost:3001/health
             
+            echo "🌱 Running database seeders (admin user)..."
+            docker compose exec -T backend npm run seed || echo "Seeder skipped or already run"
+            
             docker image prune -f
             echo "✅ Deployment successful!"
 
