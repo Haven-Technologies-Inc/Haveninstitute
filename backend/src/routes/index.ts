@@ -14,10 +14,10 @@ import flashcardRoutes from './flashcard.routes';
 import practiceRoutes from './practice.routes';
 import settingsRoutes from './settings.routes';
 import subscriptionRoutes from './subscription.routes';
-// New routes - temporarily disabled pending TypeScript fixes
-// import notificationRoutes from './notification.routes';
-// import uploadRoutes from './upload.routes';
-// import gamificationRoutes from './gamification.routes';
+// Additional routes
+import notificationRoutes from './notification.routes';
+import uploadRoutes from './upload.routes';
+import gamificationRoutes from './gamification.routes';
 
 const router = Router();
 
@@ -50,8 +50,8 @@ router.use('/flashcards', flashcardRoutes);
 router.use('/practice', practiceRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/subscriptions', subscriptionRoutes);
-// router.use('/notifications', notificationRoutes);
-// router.use('/uploads', uploadRoutes);
-// router.use('/gamification', gamificationRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/uploads', uploadRoutes);
+router.use('/gamification', gamificationRoutes);
 
 export default router;
