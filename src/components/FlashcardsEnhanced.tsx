@@ -115,7 +115,7 @@ export function FlashcardsEnhanced({ onBack }: FlashcardsEnhancedProps) {
   // Topic Selection Screen
   if (!sessionStarted) {
     return (
-      <div className="max-w-6xl mx-auto p-4">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4">
         <Button variant="ghost" onClick={onBack} className="mb-6">
           <ArrowLeft className="mr-2 size-4" />
           Back to Dashboard
@@ -128,7 +128,7 @@ export function FlashcardsEnhanced({ onBack }: FlashcardsEnhancedProps) {
                 <Brain className="size-12 text-white" />
               </div>
             </div>
-            <CardTitle className="text-3xl">Flashcards</CardTitle>
+            <CardTitle className="text-2xl sm:text-3xl">Flashcards</CardTitle>
             <CardDescription className="text-lg">
               Master key nursing concepts through active recall
             </CardDescription>

@@ -385,21 +385,21 @@ export function CATTestEnhanced({ onComplete, onBack }: CATTestEnhancedProps) {
       : config.subjects.length;
 
     return (
-      <div className="max-w-6xl mx-auto p-4">
-        <Button variant="ghost" onClick={onBack} className="mb-6">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4">
+        <Button variant="ghost" onClick={onBack} className="mb-4 sm:mb-6">
           <ArrowLeft className="size-4 mr-2" />
           Back to Dashboard
         </Button>
 
-        <Card className="border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-purple-50 mb-6">
+        <Card className="border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 mb-4 sm:mb-6">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="p-4 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl">
-                <Brain className="size-12 text-white" />
+              <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl">
+                <Brain className="size-10 sm:size-12 text-white" />
               </div>
             </div>
-            <CardTitle className="text-3xl">NCLEX-CAT Configuration</CardTitle>
-            <CardDescription className="text-lg">
+            <CardTitle className="text-2xl sm:text-3xl dark:text-white">NCLEX-CAT Configuration</CardTitle>
+            <CardDescription className="text-base sm:text-lg">
               Customize your Computer Adaptive Test experience
             </CardDescription>
           </CardHeader>

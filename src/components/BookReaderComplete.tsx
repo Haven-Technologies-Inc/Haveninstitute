@@ -712,13 +712,13 @@ Questions often present ethical dilemmas. Always choose the answer that respects
     );
 
     return (
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
           <div>
-            <h1 className="text-3xl mb-2">📚 My Book Library</h1>
-            <p className="text-gray-600">Your NCLEX study books and resources</p>
+            <h1 className="text-2xl sm:text-3xl mb-2 dark:text-white">📚 My Book Library</h1>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Your NCLEX study books and resources</p>
           </div>
-          <Button variant="outline" onClick={onBack}>
+          <Button variant="outline" onClick={onBack} className="w-full sm:w-auto">
             <ChevronLeft className="size-4 mr-2" />
             Back to Dashboard
           </Button>
@@ -741,8 +741,8 @@ Questions often present ethical dilemmas. Always choose the answer that respects
 
         {/* My Books */}
         <div className="mb-8">
-          <h2 className="text-2xl mb-4 flex items-center gap-2">
-            <BookMarked className="size-6 text-blue-600" />
+          <h2 className="text-xl sm:text-2xl mb-4 flex items-center gap-2 dark:text-white">
+            <BookMarked className="size-5 sm:size-6 text-blue-600" />
             My Books ({ownedBooks.length})
           </h2>
           {filteredOwnedBooks.length > 0 ? (
@@ -811,8 +811,8 @@ Questions often present ethical dilemmas. Always choose the answer that respects
 
         {/* Available Books */}
         <div>
-          <h2 className="text-2xl mb-4 flex items-center gap-2">
-            <ShoppingCart className="size-6 text-purple-600" />
+          <h2 className="text-xl sm:text-2xl mb-4 flex items-center gap-2 dark:text-white">
+            <ShoppingCart className="size-5 sm:size-6 text-purple-600" />
             Available for Purchase ({availableBooks.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

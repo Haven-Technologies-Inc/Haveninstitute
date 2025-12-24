@@ -32,14 +32,14 @@ export function ProgressDashboard() {
   const goals = dashboard?.goals || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-3xl font-bold">{stats?.questionsAnswered || 0}</p>
+                <p className="text-2xl sm:text-3xl font-bold">{stats?.questionsAnswered || 0}</p>
                 <p className="text-sm opacity-80">Questions Answered</p>
               </div>
               <Brain className="w-10 h-10 opacity-60" />
@@ -51,7 +51,7 @@ export function ProgressDashboard() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-3xl font-bold">{stats?.quizAccuracy || 0}%</p>
+                <p className="text-2xl sm:text-3xl font-bold">{stats?.quizAccuracy || 0}%</p>
                 <p className="text-sm opacity-80">Quiz Accuracy</p>
               </div>
               <Target className="w-10 h-10 opacity-60" />
@@ -63,7 +63,7 @@ export function ProgressDashboard() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-3xl font-bold">{streak?.current || 0}</p>
+                <p className="text-2xl sm:text-3xl font-bold">{streak?.current || 0}</p>
                 <p className="text-sm opacity-80">Day Streak</p>
               </div>
               <Flame className="w-10 h-10 opacity-60" />
@@ -75,7 +75,7 @@ export function ProgressDashboard() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-3xl font-bold">{stats?.totalStudyTime || 0}</p>
+                <p className="text-2xl sm:text-3xl font-bold">{stats?.totalStudyTime || 0}</p>
                 <p className="text-sm opacity-80">Minutes Studied</p>
               </div>
               <Clock className="w-10 h-10 opacity-60" />

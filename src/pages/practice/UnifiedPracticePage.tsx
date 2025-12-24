@@ -181,19 +181,19 @@ export default function UnifiedPracticePage() {
   const estimatedTime = Math.ceil((questionCount * (timed ? timePerQuestion : 90)) / 60);
 
   return (
-    <div className="max-w-6xl mx-auto p-4 pb-24">
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 pb-24">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/app/dashboard')}>
+      <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/app/dashboard')} title="Back to dashboard">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Brain className="w-7 h-7 text-blue-600" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Brain className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
             NCLEX Practice
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Configure your practice session with NextGen NCLEX question types
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+            Configure your practice session
           </p>
         </div>
       </div>

@@ -48,14 +48,14 @@ export function SubscriptionManager({ onBack }: SubscriptionManagerProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl mb-1">Subscription & Billing</h1>
-              <p className="text-gray-600">Manage your subscription, payment methods, and billing</p>
+              <h1 className="text-xl sm:text-2xl mb-1 dark:text-white">Subscription & Billing</h1>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Manage your subscription, payment methods, and billing</p>
             </div>
-            <Button variant="outline" onClick={onBack}>
+            <Button variant="outline" onClick={onBack} className="w-full sm:w-auto">
               Back to Dashboard
             </Button>
           </div>
@@ -64,7 +64,7 @@ export function SubscriptionManager({ onBack }: SubscriptionManagerProps) {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-8">
+          <TabsList className="flex flex-wrap justify-center gap-1 sm:grid sm:grid-cols-4 mb-6 sm:mb-8 h-auto p-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="plans">Change Plan</TabsTrigger>
             <TabsTrigger value="payment">Payment Methods</TabsTrigger>

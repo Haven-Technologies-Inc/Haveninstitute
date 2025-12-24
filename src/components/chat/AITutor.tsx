@@ -194,15 +194,15 @@ export function AITutor() {
   return (
     <div className="flex flex-col h-[calc(100vh-120px)] bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-xl overflow-hidden shadow-xl">
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
+      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-3 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">AI NCLEX Tutor</h1>
-              <p className="text-sm text-white/80">Your personal study assistant</p>
+              <h1 className="text-lg sm:text-xl font-bold text-white">AI NCLEX Tutor</h1>
+              <p className="text-xs sm:text-sm text-white/80 hidden sm:block">Your personal study assistant</p>
             </div>
           </div>
           
