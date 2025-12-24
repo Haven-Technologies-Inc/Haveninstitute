@@ -30,13 +30,13 @@ interface ChatMessage {
 }
 
 interface TypingUser {
-  oderId: string;
+  userId: string;
   name: string;
   groupId: string;
 }
 
 interface OnlineUser {
-  oderId: string;
+  userId: string;
   name: string;
   socketId: string;
   joinedAt: Date;
@@ -44,7 +44,7 @@ interface OnlineUser {
 
 class WebSocketService {
   private io: Server | null = null;
-  private onlineUsers: Map<string, OnlineUser> = new Map(); // oderId -> OnlineUser
+  private onlineUsers: Map<string, OnlineUser> = new Map(); // userId -> OnlineUser
   private groupRooms: Map<string, Set<string>> = new Map(); // groupId -> Set<socketId>
   private typingUsers: Map<string, Map<string, TypingUser>> = new Map(); // groupId -> Map<userId, TypingUser>
   private heartbeatInterval: NodeJS.Timeout | null = null;
@@ -124,7 +124,7 @@ class WebSocketService {
       // Track online user
       if (socket.userId && socket.user) {
         this.onlineUsers.set(socket.userId, {
-          oderId: socket.userId,
+          userId: socket.userId,
           name: `${socket.user.firstName} ${socket.user.lastName}`,
           socketId: socket.id,
           joinedAt: new Date()
@@ -244,7 +244,7 @@ class WebSocketService {
 
     // Notify others
     socket.to(`group:${groupId}`).emit('user_left', {
-      oderId: socket.userId,
+      userId: socket.userId,
       userName: `${socket.user?.firstName} ${socket.user?.lastName}`,
       groupId
     });
@@ -262,7 +262,7 @@ class WebSocketService {
     try {
       // Verify membership
       const member = await StudyGroupMember.findOne({
-        where: { groupId: data.groupId, oderId: socket.userId, status: 'active' }
+        where: { groupId: data.groupId, userId: socket.userId, status: 'active' }
       });
 
       if (!member) {
@@ -318,7 +318,7 @@ class WebSocketService {
     }
 
     this.typingUsers.get(groupId)!.set(socket.userId, {
-      oderId: socket.userId,
+      userId: socket.userId,
       name: `${socket.user.firstName} ${socket.user.lastName}`,
       groupId
     });
