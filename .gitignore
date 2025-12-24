@@ -8,6 +8,18 @@ package-lock.json
 .env.development
 .env.production
 .env.staging
+.env.docker
+*.env.production*
+backend/.env
+backend/.env.local
+backend/.env.production
+
+# SQL scripts with sensitive data
+*.sql
+
+# Sensitive utility scripts
+gen-hash.js
+register-admin.json
 
 # Build output
 dist/
