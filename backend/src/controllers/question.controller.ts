@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { questionService, QuestionFilters, PaginationOptions } from '../services/question.service';
 import { ResponseHandler, errorCodes } from '../utils/response';
+import { documentParserService } from '../services/documentParser.service';
+import { logger } from '../utils/logger';
 
 export class QuestionController {
   /**
@@ -155,6 +157,106 @@ export class QuestionController {
       return ResponseHandler.success(res, stats);
     } catch (error) {
       return ResponseHandler.error(res, errorCodes.SYS_INTERNAL_ERROR, error instanceof Error ? error.message : 'Failed to retrieve statistics', 500);
+    }
+  }
+
+  /**
+   * Import questions from uploaded document file (PDF, Word, Excel)
+   * Supports up to 500 questions per upload
+   */
+  async importFromFile(req: Request, res: Response) {
+    try {
+      const file = req.file;
+      if (!file) {
+        return ResponseHandler.error(res, errorCodes.VAL_INVALID_INPUT, 'No file uploaded', 400);
+      }
+
+      const { category, difficulty, questionType } = req.body;
+      
+      logger.info(`Processing uploaded file: ${file.originalname} (${file.size} bytes)`);
+
+      // Parse the document
+      const parseResult = await documentParserService.parseDocument(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      if (parseResult.questions.length === 0) {
+        return ResponseHandler.error(
+          res, 
+          errorCodes.VAL_INVALID_INPUT, 
+          `No valid questions found in the document. ${parseResult.errors.length > 0 ? 'Errors: ' + parseResult.errors.slice(0, 5).join('; ') : ''}`,
+          400
+        );
+      }
+
+      // Apply default category/difficulty if provided
+      const questionsToImport = parseResult.questions.map(q => ({
+        ...q,
+        category: q.category || category || 'safe_effective_care',
+        difficulty: q.difficulty || difficulty || 'medium',
+        questionType: q.questionType || questionType || 'multiple_choice',
+      }));
+
+      // Import questions to database
+      const importResult = await questionService.bulkImport(questionsToImport);
+
+      logger.info(`Imported ${importResult.success} questions from ${file.originalname}`);
+
+      return ResponseHandler.success(res, {
+        parsed: parseResult.totalFound,
+        imported: importResult.success,
+        failed: importResult.failed,
+        errors: [...parseResult.errors, ...importResult.errors.map(e => `Row ${e.row}: ${e.message}`)].slice(0, 20),
+        message: `Successfully imported ${importResult.success} questions from ${file.originalname}`
+      });
+
+    } catch (error) {
+      logger.error('File import error:', error);
+      return ResponseHandler.error(
+        res, 
+        errorCodes.SYS_INTERNAL_ERROR, 
+        error instanceof Error ? error.message : 'Failed to import questions from file', 
+        500
+      );
+    }
+  }
+
+  /**
+   * Parse document and return preview (without saving)
+   */
+  async parseFilePreview(req: Request, res: Response) {
+    try {
+      const file = req.file;
+      if (!file) {
+        return ResponseHandler.error(res, errorCodes.VAL_INVALID_INPUT, 'No file uploaded', 400);
+      }
+
+      logger.info(`Parsing file for preview: ${file.originalname}`);
+
+      // Parse the document
+      const parseResult = await documentParserService.parseDocument(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      return ResponseHandler.success(res, {
+        totalFound: parseResult.totalFound,
+        questions: parseResult.questions.slice(0, 50), // Return first 50 for preview
+        errors: parseResult.errors.slice(0, 10),
+        message: `Found ${parseResult.totalFound} questions in ${file.originalname}`
+      });
+
+    } catch (error) {
+      logger.error('File parse error:', error);
+      return ResponseHandler.error(
+        res, 
+        errorCodes.SYS_INTERNAL_ERROR, 
+        error instanceof Error ? error.message : 'Failed to parse file', 
+        500
+      );
     }
   }
 }

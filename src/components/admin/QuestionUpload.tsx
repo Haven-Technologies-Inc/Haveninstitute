@@ -12,9 +12,13 @@ import {
   AlertCircle,
   X,
   Plus,
-  Save
+  Save,
+  Loader2
 } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
+import { toast } from 'sonner';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
 interface ParsedQuestion {
   id: string;
@@ -80,79 +84,119 @@ export function QuestionUpload() {
 
   const parseFile = async () => {
     if (!selectedFile || !category) {
-      alert('Please select a file and category');
+      toast.error('Please select a file and category');
       return;
     }
 
     setParsing(true);
     setUploadStatus('idle');
 
-    // Simulate file parsing (in production, this would be a backend API call)
-    setTimeout(() => {
-      const mockParsedQuestions: ParsedQuestion[] = [
-        {
-          id: `q-${Date.now()}-1`,
-          question: "A nurse is preparing to administer digoxin to a client. Which assessment is the priority before administration?",
-          options: [
-            "Blood pressure",
-            "Apical pulse for 1 full minute",
-            "Respiratory rate",
-            "Temperature"
-          ],
-          correctAnswer: 1,
-          explanation: "Digoxin affects heart rate and rhythm. The apical pulse should be checked for one full minute before administration. If the pulse is below 60 bpm, hold the medication and notify the provider.",
-          category: category,
-          difficulty: difficulty,
-          questionType: questionType,
-          source: selectedFile.name
-        },
-        {
-          id: `q-${Date.now()}-2`,
-          question: "Which assessment findings indicate a client may be experiencing lithium toxicity?",
-          options: [
-            "Dry mouth and fine hand tremors",
-            "Coarse tremors, confusion, and severe diarrhea",
-            "Increased energy and decreased sleep",
-            "Mild nausea and slight headache"
-          ],
-          correctAnswer: 1,
-          explanation: "Coarse tremors, confusion, and severe diarrhea are signs of lithium toxicity. Therapeutic lithium levels are 0.6-1.2 mEq/L. Fine tremors and dry mouth are common side effects at therapeutic levels.",
-          category: category,
-          difficulty: difficulty,
-          questionType: questionType,
-          source: selectedFile.name
-        },
-        {
-          id: `q-${Date.now()}-3`,
-          question: "A client with chronic kidney disease should limit intake of which nutrient?",
-          options: [
-            "Carbohydrates",
-            "Potassium",
-            "Vitamin C",
-            "Fiber"
-          ],
-          correctAnswer: 1,
-          explanation: "Clients with chronic kidney disease should limit potassium intake because the kidneys cannot adequately excrete it, leading to hyperkalemia. Sodium and phosphorus should also be restricted.",
-          category: category,
-          difficulty: difficulty,
-          questionType: questionType,
-          source: selectedFile.name
-        }
-      ];
+    try {
+      const token = localStorage.getItem('haven_token');
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('category', category);
+      formData.append('difficulty', difficulty);
+      formData.append('questionType', questionType);
 
-      setParsedQuestions(mockParsedQuestions);
-      setParsing(false);
+      // Call backend API to parse and preview questions
+      const response = await fetch(`${API_BASE_URL}/questions/import/preview`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to parse file');
+      }
+
+      // Transform backend response to frontend format
+      const transformedQuestions: ParsedQuestion[] = data.data.questions.map((q: any, index: number) => ({
+        id: `q-${Date.now()}-${index}`,
+        question: q.text,
+        options: q.options.map((opt: any) => opt.text),
+        correctAnswer: q.correctAnswers.length > 1 
+          ? q.correctAnswers.map((a: string) => a.charCodeAt(0) - 65)
+          : q.correctAnswers[0]?.charCodeAt(0) - 65 || 0,
+        explanation: q.explanation || '',
+        category: q.category || category,
+        difficulty: q.difficulty || difficulty,
+        questionType: q.questionType || questionType,
+        source: q.source || selectedFile.name,
+      }));
+
+      setParsedQuestions(transformedQuestions);
       setUploadStatus('success');
-    }, 2000);
+      
+      toast.success(`Found ${data.data.totalFound} questions in the document`);
+      
+      if (data.data.errors && data.data.errors.length > 0) {
+        toast.warning(`${data.data.errors.length} rows had parsing issues`);
+      }
+
+    } catch (error) {
+      console.error('Parse error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to parse file');
+      setUploadStatus('error');
+    } finally {
+      setParsing(false);
+    }
   };
 
-  const handleSaveQuestions = () => {
-    // In production, this would send questions to the backend
-    console.log('Saving questions:', parsedQuestions);
-    alert(`Successfully saved ${parsedQuestions.length} questions to the database!`);
-    setParsedQuestions([]);
-    setSelectedFile(null);
-    setUploadStatus('idle');
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveQuestions = async () => {
+    if (parsedQuestions.length === 0) {
+      toast.error('No questions to save');
+      return;
+    }
+
+    setSaving(true);
+    
+    try {
+      const token = localStorage.getItem('haven_token');
+      const formData = new FormData();
+      formData.append('file', selectedFile!);
+      formData.append('category', category);
+      formData.append('difficulty', difficulty);
+      formData.append('questionType', questionType);
+
+      // Call backend API to import questions
+      const response = await fetch(`${API_BASE_URL}/questions/import/file`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to save questions');
+      }
+
+      toast.success(`Successfully imported ${data.data.imported} questions to the question bank!`);
+      
+      if (data.data.failed > 0) {
+        toast.warning(`${data.data.failed} questions failed to import`);
+      }
+
+      // Reset state
+      setParsedQuestions([]);
+      setSelectedFile(null);
+      setUploadStatus('idle');
+
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save questions');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleManualSave = () => {
@@ -388,9 +432,18 @@ export function QuestionUpload() {
                       Review and edit questions before saving to database
                     </CardDescription>
                   </div>
-                  <Button onClick={handleSaveQuestions}>
-                    <Save className="size-4 mr-2" />
-                    Save All ({parsedQuestions.length})
+                  <Button onClick={handleSaveQuestions} disabled={saving}>
+                    {saving ? (
+                      <>
+                        <Loader2 className="size-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="size-4 mr-2" />
+                        Save All ({parsedQuestions.length})
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardHeader>
