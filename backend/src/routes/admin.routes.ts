@@ -1,7 +1,8 @@
-import { Router, Request, Response } from 'express';
-import { authenticate, authorizeRole } from '../middleware/authenticate';
+import { Router, Response } from 'express';
+import { authenticate, authorizeRole, AuthRequest } from '../middleware/authenticate';
 import { ResponseHandler } from '../utils/response';
 import emailService from '../services/email.service';
+import { adminService } from '../services/admin.service';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -135,7 +136,7 @@ router.post('/email/config', authenticate, authorizeRole(['admin']), async (req:
 });
 
 // Get current SMTP configuration (without password)
-router.get('/email/config', authenticate, authorizeRole(['admin']), async (req: Request, res: Response) => {
+router.get('/email/config', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
   try {
     ResponseHandler.success(res, {
       host: process.env.ZOHO_SMTP_HOST || 'smtp.zeptomail.com',
@@ -148,6 +149,182 @@ router.get('/email/config', authenticate, authorizeRole(['admin']), async (req: 
   } catch (error: any) {
     logger.error('Failed to get SMTP config:', error);
     ResponseHandler.error(res, 'CONFIG_FETCH_FAILED', error.message || 'Failed to get configuration', 500);
+  }
+});
+
+// ==================== USER MANAGEMENT ====================
+
+// Get all users with filtering and pagination
+router.get('/users', authenticate, authorizeRole(['admin', 'moderator']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { search, role, subscriptionTier, isActive, emailVerified, page = '1', limit = '20' } = req.query;
+
+    const result = await adminService.getUsers(
+      {
+        search: search as string,
+        role: role as string,
+        subscriptionTier: subscriptionTier as string,
+        isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+        emailVerified: emailVerified === 'true' ? true : emailVerified === 'false' ? false : undefined
+      },
+      parseInt(page as string),
+      parseInt(limit as string)
+    );
+
+    ResponseHandler.success(res, result);
+  } catch (error: any) {
+    logger.error('Failed to get users:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch users', 500);
+  }
+});
+
+// Get user statistics
+router.get('/users/stats', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await adminService.getUserStats();
+    ResponseHandler.success(res, stats);
+  } catch (error: any) {
+    logger.error('Failed to get user stats:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch stats', 500);
+  }
+});
+
+// Get single user
+router.get('/users/:id', authenticate, authorizeRole(['admin', 'moderator']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await adminService.getUserById(id);
+
+    if (!user) {
+      return ResponseHandler.error(res, 'NOT_FOUND', 'User not found', 404);
+    }
+
+    ResponseHandler.success(res, user);
+  } catch (error: any) {
+    logger.error('Failed to get user:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch user', 500);
+  }
+});
+
+// Create new user
+router.post('/users', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { email, fullName, role, password, sendInvite, subscriptionTier } = req.body;
+
+    if (!email || !fullName) {
+      return ResponseHandler.error(res, 'VALIDATION_ERROR', 'Email and full name are required', 400);
+    }
+
+    const result = await adminService.createUser({
+      email,
+      fullName,
+      role: role || 'student',
+      password,
+      sendInvite: sendInvite !== false,
+      subscriptionTier
+    });
+
+    ResponseHandler.success(res, {
+      user: result.user,
+      tempPassword: result.tempPassword,
+      message: result.tempPassword 
+        ? 'User created successfully. Invite email sent.' 
+        : 'User created with provided password.'
+    }, 201);
+  } catch (error: any) {
+    logger.error('Failed to create user:', error);
+    ResponseHandler.error(res, 'CREATE_ERROR', error.message || 'Failed to create user', 400);
+  }
+});
+
+// Update user
+router.put('/users/:id', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { email, fullName, role, subscriptionTier, isActive, emailVerified } = req.body;
+
+    const user = await adminService.updateUser(id, {
+      email,
+      fullName,
+      role,
+      subscriptionTier,
+      isActive,
+      emailVerified
+    });
+
+    ResponseHandler.success(res, { user, message: 'User updated successfully' });
+  } catch (error: any) {
+    logger.error('Failed to update user:', error);
+    ResponseHandler.error(res, 'UPDATE_ERROR', error.message || 'Failed to update user', 400);
+  }
+});
+
+// Delete user
+router.delete('/users/:id', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent self-deletion
+    if (id === req.userId) {
+      return ResponseHandler.error(res, 'FORBIDDEN', 'Cannot delete your own account', 403);
+    }
+
+    await adminService.deleteUser(id);
+    ResponseHandler.success(res, { message: 'User deleted successfully' });
+  } catch (error: any) {
+    logger.error('Failed to delete user:', error);
+    ResponseHandler.error(res, 'DELETE_ERROR', error.message || 'Failed to delete user', 400);
+  }
+});
+
+// Reset user password
+router.post('/users/:id/reset-password', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { sendEmail = true } = req.body;
+
+    const newPassword = await adminService.resetUserPassword(id, sendEmail);
+
+    ResponseHandler.success(res, {
+      message: sendEmail ? 'Password reset and email sent' : 'Password reset successfully',
+      tempPassword: newPassword
+    });
+  } catch (error: any) {
+    logger.error('Failed to reset password:', error);
+    ResponseHandler.error(res, 'RESET_ERROR', error.message || 'Failed to reset password', 400);
+  }
+});
+
+// Toggle user active status
+router.post('/users/:id/toggle-status', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent self-deactivation
+    if (id === req.userId) {
+      return ResponseHandler.error(res, 'FORBIDDEN', 'Cannot change your own status', 403);
+    }
+
+    const user = await adminService.toggleUserStatus(id);
+    ResponseHandler.success(res, {
+      user,
+      message: `User ${user.isActive ? 'activated' : 'deactivated'} successfully`
+    });
+  } catch (error: any) {
+    logger.error('Failed to toggle user status:', error);
+    ResponseHandler.error(res, 'UPDATE_ERROR', error.message || 'Failed to update status', 400);
+  }
+});
+
+// Resend invite email
+router.post('/users/:id/resend-invite', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    await adminService.resendInvite(id);
+    ResponseHandler.success(res, { message: 'Invite email resent successfully' });
+  } catch (error: any) {
+    logger.error('Failed to resend invite:', error);
+    ResponseHandler.error(res, 'EMAIL_ERROR', error.message || 'Failed to resend invite', 400);
   }
 });
 

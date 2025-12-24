@@ -1,9 +1,20 @@
 // Role-Based User Management API
 // Comprehensive user management with role-based access control
+// Now integrated with real backend API
 
-export type UserRole = 'super_admin' | 'admin' | 'moderator' | 'instructor' | 'user';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+
+const getHeaders = (): HeadersInit => {
+  const token = localStorage.getItem('haven_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+export type UserRole = 'super_admin' | 'admin' | 'moderator' | 'instructor' | 'user' | 'student' | 'editor';
 export type UserStatus = 'active' | 'inactive' | 'suspended' | 'banned';
-export type SubscriptionPlan = 'free' | 'pro' | 'premium';
+export type SubscriptionPlan = 'free' | 'pro' | 'premium' | 'Free' | 'Pro' | 'Premium';
 
 export interface Permission {
   id: string;
