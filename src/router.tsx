@@ -11,6 +11,7 @@ const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const SignupPage = lazy(() => import('./pages/auth/SignupPage'));
 const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage'));
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
+const OnboardingPage = lazy(() => import('./pages/auth/OnboardingPage'));
 
 // Dashboard
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
@@ -178,6 +179,14 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<PageLoader />}>
         <ResetPasswordPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/onboarding',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <OnboardingPage />
       </Suspense>
     ),
   },
