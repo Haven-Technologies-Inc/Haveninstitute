@@ -185,106 +185,102 @@ export function QuestionManager() {
           {/* Results Summary */}
           <div className="flex items-center justify-between pt-4 border-t">
             <p className="text-gray-600">
-              Showing {filteredQuestions.length} of {questions.length} questions
+              {loading ? 'Loading...' : `Showing ${questions.length} questions`}
             </p>
             <div className="flex gap-2">
-              <Badge variant="outline">{questions.filter(q => q.status === 'active').length} Active</Badge>
-              <Badge variant="outline">{questions.filter(q => q.status === 'draft').length} Draft</Badge>
-              <Badge variant="outline">{questions.filter(q => q.status === 'archived').length} Archived</Badge>
+              <Badge variant="outline">{stats?.active || 0} Active</Badge>
+              <Badge variant="outline">{stats?.inactive || 0} Inactive</Badge>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Loading State */}
+      {loading && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Loader2 className="size-12 text-gray-400 mx-auto mb-4 animate-spin" />
+            <p className="text-gray-600">Loading questions...</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Questions List */}
-      <div className="space-y-4">
-        {filteredQuestions.map(question => (
-          <Card key={question.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline">{question.id}</Badge>
-                    <Badge 
-                      className={
-                        question.status === 'active' ? 'bg-green-100 text-green-800' :
-                        question.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }
-                    >
-                      {question.status}
-                    </Badge>
-                    <Badge variant="secondary">{question.difficulty}</Badge>
-                    <Badge variant="outline">{question.questionType}</Badge>
+      {!loading && (
+        <div className="space-y-4">
+          {questions.map(question => (
+            <Card key={question.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <Badge variant="outline" className="text-xs">{question.id.slice(0, 8)}...</Badge>
+                      <Badge 
+                        className={
+                          question.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }
+                      >
+                        {question.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <Badge variant="secondary">{question.difficulty}</Badge>
+                      <Badge variant="outline">{QUESTION_TYPE_LABELS[question.questionType]}</Badge>
+                    </div>
+                    
+                    <p className="text-gray-900 dark:text-white mb-2 line-clamp-2">{question.text}</p>
+                    
+                    <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 flex-wrap">
+                      <span>{CATEGORY_LABELS[question.category]}</span>
+                      <span>•</span>
+                      <span>Used {question.timesAnswered} times</span>
+                      <span>•</span>
+                      <span className={getSuccessRate(question) >= 70 ? 'text-green-600' : getSuccessRate(question) >= 50 ? 'text-yellow-600' : 'text-red-600'}>
+                        {getSuccessRate(question)}% success
+                      </span>
+                    </div>
                   </div>
-                  
-                  <p className="text-gray-900 mb-2">{question.question}</p>
-                  
-                  <div className="flex items-center gap-4 text-gray-600">
-                    <span>{CATEGORY_LABELS[question.category]}</span>
-                    <span>•</span>
-                    <span>Used {question.timesUsed} times</span>
-                    <span>•</span>
-                    <span className={question.correctRate >= 70 ? 'text-green-600' : question.correctRate >= 50 ? 'text-yellow-600' : 'text-red-600'}>
-                      {question.correctRate}% correct rate
-                    </span>
-                    <span>•</span>
-                    <span>Modified {question.lastModified}</span>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedQuestion(question); }} title="View">
+                      <Eye className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedQuestion(question); setEditMode(true); }} title="Edit">
+                      <Edit className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(question.id); }} title="Delete">
+                      <Trash2 className="size-4 text-red-500" />
+                    </Button>
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedQuestion(question)}>
-                    <Eye className="size-4" />
+                {/* Quick Actions */}
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); handleStatusChange(question.id, true); }}
+                    disabled={question.isActive}
+                  >
+                    <CheckCircle2 className="size-3 mr-1" />
+                    Activate
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => {
-                    setSelectedQuestion(question);
-                    setEditMode(true);
-                  }}>
-                    <Edit className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(question.id)}>
-                    <Trash2 className="size-4 text-red-500" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); handleStatusChange(question.id, false); }}
+                    disabled={!question.isActive}
+                  >
+                    Deactivate
                   </Button>
                 </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="flex gap-2 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleStatusChange(question.id, 'active')}
-                  disabled={question.status === 'active'}
-                >
-                  <CheckCircle2 className="size-3 mr-1" />
-                  Activate
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleStatusChange(question.id, 'draft')}
-                  disabled={question.status === 'draft'}
-                >
-                  Draft
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleStatusChange(question.id, 'archived')}
-                  disabled={question.status === 'archived'}
-                >
-                  Archive
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* No Results */}
-      {filteredQuestions.length === 0 && (
+      {!loading && questions.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center">
             <Search className="size-12 text-gray-400 mx-auto mb-4" />
@@ -316,7 +312,7 @@ export function QuestionManager() {
               
               <div>
                 <label className="text-gray-700 mb-2 block">Question Text</label>
-                <Textarea value={selectedQuestion.question} disabled={!editMode} rows={3} />
+                <Textarea value={selectedQuestion.text} disabled={!editMode} rows={3} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
