@@ -19,36 +19,25 @@ jobs:
           username: ${{ secrets.HETZNER_USERNAME }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
           port: 22
-          script_stop: true
+          command_timeout: 10m
           script: |
-            set -e
-            echo "🚀 Starting deployment..."
-            
             cd ~/apps/Haveninstitute
             
-            # Pull latest changes
             echo "📥 Pulling latest code..."
             git fetch origin main
             git reset --hard origin/main
             
-            # Fix Dockerfile for npm install
-            sed -i 's/npm ci/npm install/g' backend/Dockerfile
-            
-            # Rebuild and restart services
             echo "🔨 Rebuilding containers..."
-            docker compose up -d --build --force-recreate
+            sed -i 's/npm ci/npm install/g' backend/Dockerfile
+            docker compose up -d --build backend frontend
             
-            # Wait for services to start
-            echo "⏳ Waiting for services to start..."
-            sleep 15
+            echo "⏳ Waiting for services..."
+            sleep 20
             
-            # Health check
-            echo "🏥 Running health check..."
-            curl -sf http://localhost:3001/health || exit 1
+            echo "🏥 Health check..."
+            curl -sf http://localhost:3001/health
             
-            # Clean up old images
             docker image prune -f
-            
             echo "✅ Deployment successful!"
 
   notify:
