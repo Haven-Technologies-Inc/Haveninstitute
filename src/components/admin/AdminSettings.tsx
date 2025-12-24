@@ -33,8 +33,10 @@ import {
   getSMTPConfig, 
   updateSMTPConfig, 
   testSMTPConnection,
+  fetchSMTPConfig,
   type SMTPConfig 
 } from '../../services/zohoMailApi';
+import { adminApi } from '../../services/adminApi';
 import {
   getAllAIIntegrations,
   saveAIIntegration,
@@ -52,8 +54,11 @@ import { toast } from 'sonner';
 export function AdminSettings() {
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showStripeSecret, setShowStripeSecret] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState('');
+  const [emailServiceStatus, setEmailServiceStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
   
   // SMTP Configuration
   const [smtpConfig, setSMTPConfig] = useState<SMTPConfig>({
@@ -105,8 +110,20 @@ export function AdminSettings() {
 
   useEffect(() => {
     // Load saved configurations
-    const savedSMTP = getSMTPConfig();
-    setSMTPConfig(savedSMTP);
+    const loadConfig = async () => {
+      // Try to fetch from backend first
+      try {
+        const backendConfig = await fetchSMTPConfig();
+        if (backendConfig) {
+          setSMTPConfig(prev => ({ ...prev, ...backendConfig }));
+        }
+      } catch {
+        // Fall back to local storage
+        const savedSMTP = getSMTPConfig();
+        setSMTPConfig(savedSMTP);
+      }
+    };
+    loadConfig();
     
     const savedStripe = localStorage.getItem('stripe_config');
     if (savedStripe) {
@@ -145,13 +162,38 @@ export function AdminSettings() {
       const result = await testSMTPConnection(smtpConfig);
       if (result.success) {
         toast.success(result.message);
+        setEmailServiceStatus('connected');
       } else {
         toast.error(result.message);
+        setEmailServiceStatus('disconnected');
       }
     } catch (error) {
       toast.error('Failed to test SMTP connection');
+      setEmailServiceStatus('disconnected');
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!testEmailAddress || !testEmailAddress.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    setSendingTestEmail(true);
+    try {
+      const result = await adminApi.sendTestEmail(testEmailAddress);
+      if (result.success) {
+        toast.success(result.message || `Test email sent to ${testEmailAddress}`);
+        setTestEmailAddress('');
+      } else {
+        toast.error('Failed to send test email');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send test email. Check SMTP configuration.');
+    } finally {
+      setSendingTestEmail(false);
     }
   };
 
@@ -401,7 +443,31 @@ export function AdminSettings() {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          {/* Email Service Status */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border dark:border-gray-700 rounded-lg">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Connection Status</p>
+              <Badge className={
+                emailServiceStatus === 'connected' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mt-1' :
+                emailServiceStatus === 'disconnected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 mt-1' :
+                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 mt-1'
+              }>
+                {emailServiceStatus === 'connected' ? '✓ Connected' : 
+                 emailServiceStatus === 'disconnected' ? '✗ Disconnected' : 
+                 'Unknown'}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Provider</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white mt-1">ZeptoMail</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">From Address</p>
+              <p className="text-sm text-gray-900 dark:text-white mt-1 truncate">{smtpConfig.fromEmail || 'Not configured'}</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={handleSaveSMTP} disabled={loading}>
               {loading ? (
                 <>
@@ -422,9 +488,42 @@ export function AdminSettings() {
                   Testing...
                 </>
               ) : (
-                'Test Connection'
+                <>
+                  <RefreshCw className="size-4 mr-2" />
+                  Test Connection
+                </>
               )}
             </Button>
+          </div>
+
+          {/* Send Test Email Section */}
+          <div className="border-t dark:border-gray-700 pt-4 mt-4">
+            <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Send Test Email</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              Send a test email to verify your SMTP configuration is working correctly.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                type="email"
+                value={testEmailAddress}
+                onChange={(e) => setTestEmailAddress(e.target.value)}
+                placeholder="Enter recipient email address"
+                className="flex-1 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              />
+              <Button onClick={handleSendTestEmail} disabled={sendingTestEmail || !testEmailAddress}>
+                {sendingTestEmail ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="size-4 mr-2" />
+                    Send Test
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
