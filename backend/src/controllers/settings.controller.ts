@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/authenticate';
 import { SettingsService } from '../services/settings.service';
 import { ResponseHandler } from '../utils/response';
 
@@ -6,7 +7,7 @@ const settingsService = new SettingsService();
 
 export class SettingsController {
   // Get user settings
-  static async getSettings(req: Request, res: Response) {
+  static async getSettings(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const settings = await settingsService.getSettings(userId);
@@ -17,7 +18,7 @@ export class SettingsController {
   }
 
   // Update notification preferences
-  static async updateNotificationPreferences(req: Request, res: Response) {
+  static async updateNotificationPreferences(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const preferences = req.body;
@@ -29,7 +30,7 @@ export class SettingsController {
   }
 
   // Update study preferences
-  static async updateStudyPreferences(req: Request, res: Response) {
+  static async updateStudyPreferences(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const preferences = req.body;
@@ -41,7 +42,7 @@ export class SettingsController {
   }
 
   // Update display preferences
-  static async updateDisplayPreferences(req: Request, res: Response) {
+  static async updateDisplayPreferences(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const preferences = req.body;
@@ -53,7 +54,7 @@ export class SettingsController {
   }
 
   // Update privacy settings
-  static async updatePrivacySettings(req: Request, res: Response) {
+  static async updatePrivacySettings(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const privacy = req.body;
@@ -65,7 +66,7 @@ export class SettingsController {
   }
 
   // Get user profile
-  static async getProfile(req: Request, res: Response) {
+  static async getProfile(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const profile = await settingsService.getProfile(userId);
@@ -76,7 +77,7 @@ export class SettingsController {
   }
 
   // Update user profile
-  static async updateProfile(req: Request, res: Response) {
+  static async updateProfile(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const updates = req.body;
@@ -88,7 +89,7 @@ export class SettingsController {
   }
 
   // Change password
-  static async changePassword(req: Request, res: Response) {
+  static async changePassword(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { currentPassword, newPassword } = req.body;
@@ -108,7 +109,7 @@ export class SettingsController {
   }
 
   // Update email
-  static async updateEmail(req: Request, res: Response) {
+  static async updateEmail(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { newEmail, password } = req.body;
@@ -125,7 +126,7 @@ export class SettingsController {
   }
 
   // Get active sessions
-  static async getSessions(req: Request, res: Response) {
+  static async getSessions(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const sessions = await settingsService.getSessions(userId);
@@ -136,7 +137,7 @@ export class SettingsController {
   }
 
   // Revoke session
-  static async revokeSession(req: Request, res: Response) {
+  static async revokeSession(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -149,7 +150,7 @@ export class SettingsController {
   }
 
   // Revoke all sessions except current
-  static async revokeAllSessions(req: Request, res: Response) {
+  static async revokeAllSessions(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const currentToken = req.headers.authorization?.split(' ')[1];
@@ -162,7 +163,7 @@ export class SettingsController {
   }
 
   // Enable 2FA
-  static async enable2FA(req: Request, res: Response) {
+  static async enable2FA(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const result = await settingsService.enable2FA(userId);
@@ -173,7 +174,7 @@ export class SettingsController {
   }
 
   // Verify and activate 2FA
-  static async verify2FA(req: Request, res: Response) {
+  static async verify2FA(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { token } = req.body;
@@ -194,7 +195,7 @@ export class SettingsController {
   }
 
   // Disable 2FA
-  static async disable2FA(req: Request, res: Response) {
+  static async disable2FA(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { password } = req.body;
@@ -211,7 +212,7 @@ export class SettingsController {
   }
 
   // Export user data (GDPR)
-  static async exportData(req: Request, res: Response) {
+  static async exportData(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const data = await settingsService.exportUserData(userId);
@@ -225,7 +226,7 @@ export class SettingsController {
   }
 
   // Delete account
-  static async deleteAccount(req: Request, res: Response) {
+  static async deleteAccount(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { password, confirmation } = req.body;

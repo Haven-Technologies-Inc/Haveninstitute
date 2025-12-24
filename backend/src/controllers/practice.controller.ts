@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/authenticate';
 import { NCLEXSimulatorService } from '../services/nclex-simulator.service';
 import { QuickPracticeService } from '../services/quick-practice.service';
 import { ResponseHandler } from '../utils/response';
