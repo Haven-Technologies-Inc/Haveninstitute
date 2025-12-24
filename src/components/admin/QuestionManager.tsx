@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -9,122 +9,105 @@ import {
   Edit,
   Trash2,
   Eye,
-  Filter,
   Download,
   CheckCircle2,
-  XCircle
+  XCircle,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
-
-interface Question {
-  id: string;
-  question: string;
-  category: string;
-  difficulty: string;
-  questionType: string;
-  status: 'active' | 'draft' | 'archived';
-  timesUsed: number;
-  correctRate: number;
-  lastModified: string;
-}
-
-const mockQuestions: Question[] = [
-  {
-    id: 'q-1001',
-    question: 'A nurse is preparing to administer digoxin to a client. Which assessment is the priority?',
-    category: 'pharmacological-therapies',
-    difficulty: 'medium',
-    questionType: 'multiple-choice',
-    status: 'active',
-    timesUsed: 234,
-    correctRate: 67,
-    lastModified: '2024-01-15'
-  },
-  {
-    id: 'q-1002',
-    question: 'Which intervention is priority for a client experiencing anaphylaxis?',
-    category: 'physiological-adaptation',
-    difficulty: 'hard',
-    questionType: 'multiple-choice',
-    status: 'active',
-    timesUsed: 189,
-    correctRate: 45,
-    lastModified: '2024-01-14'
-  },
-  {
-    id: 'q-1003',
-    question: 'A client with COPD should be taught to use pursed-lip breathing to:',
-    category: 'basic-care-comfort',
-    difficulty: 'easy',
-    questionType: 'multiple-choice',
-    status: 'active',
-    timesUsed: 456,
-    correctRate: 82,
-    lastModified: '2024-01-13'
-  },
-  {
-    id: 'q-1004',
-    question: 'Select all safety precautions for a client with seizure disorder:',
-    category: 'safety-infection-control',
-    difficulty: 'medium',
-    questionType: 'select-all',
-    status: 'active',
-    timesUsed: 312,
-    correctRate: 58,
-    lastModified: '2024-01-12'
-  },
-  {
-    id: 'q-1005',
-    question: 'Which lab value indicates lithium toxicity?',
-    category: 'psychosocial-integrity',
-    difficulty: 'hard',
-    questionType: 'multiple-choice',
-    status: 'draft',
-    timesUsed: 0,
-    correctRate: 0,
-    lastModified: '2024-01-11'
-  }
-];
-
-const CATEGORY_LABELS: Record<string, string> = {
-  'management-of-care': 'Management of Care',
-  'safety-infection-control': 'Safety & Infection Control',
-  'health-promotion-maintenance': 'Health Promotion',
-  'psychosocial-integrity': 'Psychosocial Integrity',
-  'basic-care-comfort': 'Basic Care & Comfort',
-  'pharmacological-therapies': 'Pharmacological Therapies',
-  'reduction-risk-potential': 'Risk Reduction',
-  'physiological-adaptation': 'Physiological Adaptation'
-};
+import { toast } from 'sonner';
+import {
+  getQuestions,
+  getQuestionStatistics,
+  deleteQuestion as apiDeleteQuestion,
+  toggleQuestionStatus,
+  exportQuestionsToCSV,
+  CATEGORY_LABELS,
+  QUESTION_TYPE_LABELS,
+  type Question,
+  type QuestionStatistics,
+  type NCLEXCategory
+} from '../../services/questionBankApi';
 
 export function QuestionManager() {
-  const [questions, setQuestions] = useState<Question[]>(mockQuestions);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [stats, setStats] = useState<QuestionStatistics | null>(null);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterDifficulty, setFilterDifficulty] = useState('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const filteredQuestions = questions.filter(q => {
-    const matchesSearch = q.question.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         q.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || q.category === filterCategory;
-    const matchesStatus = filterStatus === 'all' || q.status === filterStatus;
-    const matchesDifficulty = filterDifficulty === 'all' || q.difficulty === filterDifficulty;
-    
-    return matchesSearch && matchesCategory && matchesStatus && matchesDifficulty;
-  });
+  const loadQuestions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const filters: any = {};
+      if (filterCategory !== 'all') filters.category = filterCategory as NCLEXCategory;
+      if (filterStatus !== 'all') filters.isActive = filterStatus === 'active';
+      if (filterDifficulty !== 'all') filters.difficulty = filterDifficulty;
+      if (searchQuery) filters.search = searchQuery;
 
-  const handleDelete = (id: string) => {
+      const [questionsRes, statsRes] = await Promise.all([
+        getQuestions(filters, { page, limit: 20 }),
+        getQuestionStatistics()
+      ]);
+
+      setQuestions(questionsRes.questions);
+      setTotalPages(questionsRes.totalPages);
+      setStats(statsRes);
+    } catch (error) {
+      console.error('Failed to load questions:', error);
+      toast.error('Failed to load questions');
+    } finally {
+      setLoading(false);
+    }
+  }, [filterCategory, filterStatus, filterDifficulty, searchQuery, page]);
+
+  useEffect(() => {
+    loadQuestions();
+  }, [loadQuestions]);
+
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this question?')) {
-      setQuestions(questions.filter(q => q.id !== id));
+      try {
+        await apiDeleteQuestion(id);
+        toast.success('Question deleted');
+        loadQuestions();
+      } catch (error) {
+        toast.error('Failed to delete question');
+      }
     }
   };
 
-  const handleStatusChange = (id: string, newStatus: 'active' | 'draft' | 'archived') => {
-    setQuestions(questions.map(q => 
-      q.id === id ? { ...q, status: newStatus } : q
-    ));
+  const handleStatusChange = async (id: string, isActive: boolean) => {
+    try {
+      await toggleQuestionStatus(id, isActive);
+      toast.success(`Question ${isActive ? 'activated' : 'deactivated'}`);
+      loadQuestions();
+    } catch (error) {
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handleExport = () => {
+    const csv = exportQuestionsToCSV(questions);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'questions.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Questions exported');
+  };
+
+  const getSuccessRate = (q: Question) => {
+    if (q.timesAnswered === 0) return 0;
+    return Math.round((q.timesCorrect / q.timesAnswered) * 100);
   };
 
   return (

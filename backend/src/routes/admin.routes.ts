@@ -3,6 +3,7 @@ import { authenticate, authorizeRole, AuthRequest } from '../middleware/authenti
 import { ResponseHandler } from '../utils/response';
 import emailService from '../services/email.service';
 import { adminService } from '../services/admin.service';
+import { revenueService } from '../services/revenue.service';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -325,6 +326,107 @@ router.post('/users/:id/resend-invite', authenticate, authorizeRole(['admin']), 
   } catch (error: any) {
     logger.error('Failed to resend invite:', error);
     ResponseHandler.error(res, 'EMAIL_ERROR', error.message || 'Failed to resend invite', 400);
+  }
+});
+
+// ==================== REVENUE & BILLING ====================
+
+// Get revenue metrics
+router.get('/revenue/metrics', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const metrics = await revenueService.getRevenueMetrics();
+    ResponseHandler.success(res, metrics);
+  } catch (error: any) {
+    logger.error('Failed to get revenue metrics:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch metrics', 500);
+  }
+});
+
+// Get subscription metrics
+router.get('/revenue/subscriptions', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const metrics = await revenueService.getSubscriptionMetrics();
+    ResponseHandler.success(res, metrics);
+  } catch (error: any) {
+    logger.error('Failed to get subscription metrics:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch metrics', 500);
+  }
+});
+
+// Get customer metrics
+router.get('/revenue/customers', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const metrics = await revenueService.getCustomerMetrics();
+    ResponseHandler.success(res, metrics);
+  } catch (error: any) {
+    logger.error('Failed to get customer metrics:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch metrics', 500);
+  }
+});
+
+// Get revenue chart data
+router.get('/revenue/chart', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { period = 'month' } = req.query;
+    const chartData = await revenueService.getRevenueChartData(period as any);
+    ResponseHandler.success(res, chartData);
+  } catch (error: any) {
+    logger.error('Failed to get chart data:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch chart data', 500);
+  }
+});
+
+// Get revenue forecast
+router.get('/revenue/forecast', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { months = '6' } = req.query;
+    const forecast = await revenueService.getRevenueForecast(parseInt(months as string));
+    ResponseHandler.success(res, forecast);
+  } catch (error: any) {
+    logger.error('Failed to get forecast:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch forecast', 500);
+  }
+});
+
+// Get all transactions
+router.get('/revenue/transactions', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { page, limit, status, type, dateFrom, dateTo, userId, minAmount, maxAmount, subscriptionPlan } = req.query;
+    
+    const transactions = await revenueService.getTransactions({
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      status: status as string,
+      type: type as string,
+      dateFrom: dateFrom as string,
+      dateTo: dateTo as string,
+      userId: userId as string,
+      minAmount: minAmount ? parseFloat(minAmount as string) : undefined,
+      maxAmount: maxAmount ? parseFloat(maxAmount as string) : undefined,
+      subscriptionPlan: subscriptionPlan as string
+    });
+    
+    ResponseHandler.success(res, transactions);
+  } catch (error: any) {
+    logger.error('Failed to get transactions:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch transactions', 500);
+  }
+});
+
+// Process refund
+router.post('/revenue/refund', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { transactionId, amount, reason } = req.body;
+    
+    if (!transactionId || !amount) {
+      return ResponseHandler.error(res, 'VALIDATION_ERROR', 'Transaction ID and amount are required', 400);
+    }
+    
+    await revenueService.processRefund(transactionId, amount, reason || 'Admin initiated refund');
+    ResponseHandler.success(res, { message: 'Refund processed successfully' });
+  } catch (error: any) {
+    logger.error('Failed to process refund:', error);
+    ResponseHandler.error(res, 'REFUND_ERROR', error.message || 'Failed to process refund', 400);
   }
 });
 
