@@ -133,7 +133,7 @@ export class ForumPost extends Model {
   status!: 'open' | 'closed' | 'resolved' | 'archived';
 
   @Column({
-    type: DataType.ARRAY(DataType.STRING),
+    type: DataType.JSON,
     defaultValue: []
   })
   tags!: string[];

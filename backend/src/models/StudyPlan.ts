@@ -47,16 +47,16 @@ export class StudyPlan extends Model {
   })
   status!: 'active' | 'paused' | 'completed' | 'archived';
 
-  @Column({ type: DataType.ARRAY(DataType.STRING), defaultValue: [] })
+  @Column({ type: DataType.JSON, defaultValue: [] })
   focusAreas!: string[];
 
-  @Column({ type: DataType.ARRAY(DataType.STRING), defaultValue: [] })
+  @Column({ type: DataType.JSON, defaultValue: [] })
   weakAreas!: string[];
 
   @Column({ type: DataType.FLOAT, defaultValue: 2 })
   dailyStudyHours!: number;
 
-  @Column(DataType.JSONB)
+  @Column(DataType.JSON)
   preferences?: {
     preferredTimes: string[];
     studyDays: string[];
@@ -65,7 +65,7 @@ export class StudyPlan extends Model {
     includeWeekends: boolean;
   };
 
-  @Column(DataType.JSONB)
+  @Column(DataType.JSON)
   progress?: {
     totalTasks: number;
     completedTasks: number;
@@ -80,7 +80,7 @@ export class StudyPlan extends Model {
   @Column({ type: DataType.BOOLEAN, defaultValue: false })
   isAIGenerated!: boolean;
 
-  @Column(DataType.JSONB)
+  @Column(DataType.JSON)
   aiInsights?: {
     generatedAt: string;
     recommendations: string[];
@@ -158,7 +158,7 @@ export class StudyPlanTask extends Model {
   @Column({ type: DataType.INTEGER, defaultValue: 0 })
   sortOrder!: number;
 
-  @Column(DataType.JSONB)
+  @Column(DataType.JSON)
   metadata?: {
     resourceId?: string;
     resourceType?: string;
@@ -207,7 +207,7 @@ export class StudyPlanMilestone extends Model {
   @Column(DataType.DATE)
   achievedAt?: Date;
 
-  @Column(DataType.JSONB)
+  @Column(DataType.JSON)
   criteria?: {
     type: 'score' | 'tasks' | 'time' | 'custom';
     target: number;

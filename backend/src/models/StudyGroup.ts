@@ -51,10 +51,10 @@ export class StudyGroup extends Model {
   })
   visibility!: 'public' | 'private' | 'invite_only';
 
-  @Column({ type: DataType.ARRAY(DataType.STRING), defaultValue: [] })
+  @Column({ type: DataType.JSON, defaultValue: [] })
   focusAreas!: string[];
 
-  @Column({ type: DataType.ARRAY(DataType.STRING), defaultValue: [] })
+  @Column({ type: DataType.JSON, defaultValue: [] })
   tags!: string[];
 
   @Column({ type: DataType.INTEGER, defaultValue: 50 })
@@ -69,7 +69,7 @@ export class StudyGroup extends Model {
   @Column({ type: DataType.BOOLEAN, defaultValue: true })
   isActive!: boolean;
 
-  @Column(DataType.JSONB)
+  @Column(DataType.JSON)
   settings?: {
     allowMemberInvites: boolean;
     requireApproval: boolean;
@@ -83,7 +83,7 @@ export class StudyGroup extends Model {
     };
   };
 
-  @Column(DataType.JSONB)
+  @Column(DataType.JSON)
   stats?: {
     totalMessages: number;
     totalSessions: number;
@@ -192,7 +192,7 @@ export class StudyGroupMessage extends Model {
   })
   type!: 'text' | 'question' | 'resource' | 'announcement' | 'poll';
 
-  @Column(DataType.JSONB)
+  @Column(DataType.JSON)
   metadata?: {
     attachments?: { url: string; type: string; name: string }[];
     pollOptions?: { id: string; text: string; votes: number }[];
@@ -262,10 +262,10 @@ export class StudySession extends Model {
   })
   status!: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 
-  @Column({ type: DataType.ARRAY(DataType.STRING), defaultValue: [] })
+  @Column({ type: DataType.JSON, defaultValue: [] })
   topics!: string[];
 
-  @Column(DataType.JSONB)
+  @Column(DataType.JSON)
   resources?: {
     type: 'quiz' | 'flashcard' | 'document' | 'video';
     id: string;
