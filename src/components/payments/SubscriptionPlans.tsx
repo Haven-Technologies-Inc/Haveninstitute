@@ -139,7 +139,7 @@ export function SubscriptionPlans({ onSelectPlan, currentPlan = 'free' }: Subscr
       </div>
 
       {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-7xl mx-auto md:items-stretch">
         {plans.map((plan) => {
           const Icon = plan.icon;
           const isCurrentPlan = currentPlan === plan.id;
@@ -148,8 +148,8 @@ export function SubscriptionPlans({ onSelectPlan, currentPlan = 'free' }: Subscr
           return (
             <Card 
               key={plan.id}
-              className={`relative border-2 transition-all hover:shadow-xl ${
-                plan.popular ? 'border-blue-500 shadow-lg scale-105' : 'border-gray-200'
+              className={`relative border-2 transition-all hover:shadow-xl flex flex-col h-full ${
+                plan.popular ? 'border-blue-500 shadow-lg md:scale-105' : 'border-gray-200'
               }`}
             >
               {plan.popular && (

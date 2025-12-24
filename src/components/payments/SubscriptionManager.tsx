@@ -113,7 +113,7 @@ export function SubscriptionManager({ onBack }: SubscriptionManagerProps) {
                   </div>
                 </div>
 
-                <div className="flex gap-3 mt-6 pt-6 border-t">
+                <div className="flex flex-wrap gap-2 sm:gap-3 mt-6 pt-6 border-t">
                   <Button onClick={() => setActiveTab('plans')}>
                     <Zap className="size-4 mr-2" />
                     Change Plan
@@ -160,7 +160,7 @@ export function SubscriptionManager({ onBack }: SubscriptionManagerProps) {
             </Card>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
               <Card className="border-2">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-2">
