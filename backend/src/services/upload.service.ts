@@ -31,19 +31,30 @@ const ALLOWED_MIME_TYPES: Record<UploadType, string[]> = {
 };
 
 export class UploadService {
+  private uploadEnabled = true;
+
   constructor() {
     this.ensureUploadDirectory();
   }
 
   private ensureUploadDirectory(): void {
     const directories = ['', 'avatars', 'attachments', 'materials', 'questions', 'other'];
-    directories.forEach((dir) => {
-      const fullPath = path.join(UPLOAD_DIR, dir);
-      if (!fs.existsSync(fullPath)) {
-        fs.mkdirSync(fullPath, { recursive: true });
-        logger.info(`Created upload directory: ${fullPath}`);
-      }
-    });
+    try {
+      directories.forEach((dir) => {
+        const fullPath = path.join(UPLOAD_DIR, dir);
+        if (!fs.existsSync(fullPath)) {
+          fs.mkdirSync(fullPath, { recursive: true });
+          logger.info(`Created upload directory: ${fullPath}`);
+        }
+      });
+    } catch (error) {
+      logger.warn(`Could not create upload directories: ${error}. File uploads will be disabled.`);
+      this.uploadEnabled = false;
+    }
+  }
+
+  isEnabled(): boolean {
+    return this.uploadEnabled;
   }
 
   private getSubdirectory(uploadType: UploadType): string {
