@@ -56,7 +56,7 @@ export const aiApi = {
 
   // Stream chat with fetch
   async *chatStream(message: string, sessionId?: string): AsyncGenerator<{ chunk: string; done: boolean; sessionId?: string }> {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('haven_token');
     const response = await fetch(`${api.defaults.baseURL}/ai/chat/stream`, {
       method: 'POST',
       headers: {
