@@ -43,6 +43,7 @@ export interface UpdateQuestionInput extends Partial<CreateQuestionInput> {
 export interface BulkImportResult {
   success: number;
   failed: number;
+  duplicatesSkipped: number;
   errors: { row: number; message: string }[];
 }
 
@@ -186,17 +187,79 @@ class QuestionService {
   }
 
   /**
-   * Bulk import questions from JSON array
+   * Normalize question text for duplicate comparison
+   */
+  private normalizeText(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '') // Remove punctuation
+      .replace(/\s+/g, ' ')    // Normalize whitespace
+      .trim();
+  }
+
+  /**
+   * Check if a question already exists in the database (by similar text)
+   */
+  async checkDuplicateInDatabase(questionText: string): Promise<boolean> {
+    const normalizedText = this.normalizeText(questionText);
+    
+    // Get first few words for initial filtering (performance optimization)
+    const searchWords = normalizedText.split(' ').slice(0, 5).join(' ');
+    
+    if (searchWords.length < 10) return false;
+    
+    // Search for similar questions
+    const potentialMatches = await Question.findAll({
+      where: {
+        text: { [Op.like]: `%${searchWords}%` }
+      },
+      limit: 10
+    });
+
+    // Check similarity with each potential match
+    for (const existing of potentialMatches) {
+      const existingNormalized = this.normalizeText(existing.text);
+      
+      // Simple word-based similarity
+      const words1 = new Set(normalizedText.split(' '));
+      const words2 = new Set(existingNormalized.split(' '));
+      const intersection = new Set([...words1].filter(x => words2.has(x)));
+      const union = new Set([...words1, ...words2]);
+      const similarity = intersection.size / union.size;
+      
+      if (similarity > 0.85) {
+        return true; // Found a duplicate
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Bulk import questions from JSON array with duplicate detection
    */
   async bulkImport(questions: CreateQuestionInput[]): Promise<BulkImportResult> {
     const result: BulkImportResult = {
       success: 0,
       failed: 0,
+      duplicatesSkipped: 0,
       errors: [],
     };
 
     for (let i = 0; i < questions.length; i++) {
       try {
+        // Check for duplicate in database
+        const isDuplicate = await this.checkDuplicateInDatabase(questions[i].text);
+        
+        if (isDuplicate) {
+          result.duplicatesSkipped++;
+          result.errors.push({
+            row: i + 1,
+            message: 'Duplicate question - already exists in database',
+          });
+          continue;
+        }
+        
         await this.createQuestion(questions[i]);
         result.success++;
       } catch (error) {

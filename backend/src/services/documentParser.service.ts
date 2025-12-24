@@ -15,11 +15,87 @@ interface ParsedQuestion {
 interface ParseResult {
   questions: ParsedQuestion[];
   totalFound: number;
+  duplicatesRemoved: number;
   errors: string[];
 }
 
 class DocumentParserService {
   private maxQuestions = 500;
+
+  /**
+   * Normalize question text for duplicate comparison
+   * Removes extra whitespace, punctuation variations, and lowercases
+   */
+  private normalizeText(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '') // Remove punctuation
+      .replace(/\s+/g, ' ')    // Normalize whitespace
+      .trim();
+  }
+
+  /**
+   * Generate a hash/fingerprint for a question to detect duplicates
+   */
+  private getQuestionFingerprint(question: ParsedQuestion): string {
+    const normalizedText = this.normalizeText(question.text);
+    // Include first 2 options to help identify similar questions
+    const optionsText = question.options
+      .slice(0, 2)
+      .map(o => this.normalizeText(o.text))
+      .join('|');
+    return `${normalizedText}::${optionsText}`;
+  }
+
+  /**
+   * Check similarity between two question texts (simple Jaccard similarity)
+   */
+  private calculateSimilarity(text1: string, text2: string): number {
+    const words1 = new Set(this.normalizeText(text1).split(' '));
+    const words2 = new Set(this.normalizeText(text2).split(' '));
+    
+    const intersection = new Set([...words1].filter(x => words2.has(x)));
+    const union = new Set([...words1, ...words2]);
+    
+    return intersection.size / union.size;
+  }
+
+  /**
+   * Remove duplicate questions from array
+   */
+  private removeDuplicates(questions: ParsedQuestion[]): { unique: ParsedQuestion[]; duplicatesRemoved: number } {
+    const seen = new Map<string, number>(); // fingerprint -> index
+    const unique: ParsedQuestion[] = [];
+    let duplicatesRemoved = 0;
+
+    for (const question of questions) {
+      const fingerprint = this.getQuestionFingerprint(question);
+      
+      // Check exact fingerprint match
+      if (seen.has(fingerprint)) {
+        duplicatesRemoved++;
+        continue;
+      }
+
+      // Check for high similarity with existing questions (>85% similar)
+      let isDuplicate = false;
+      for (const existingQ of unique) {
+        const similarity = this.calculateSimilarity(question.text, existingQ.text);
+        if (similarity > 0.85) {
+          duplicatesRemoved++;
+          isDuplicate = true;
+          break;
+        }
+      }
+
+      if (!isDuplicate) {
+        seen.set(fingerprint, unique.length);
+        unique.push(question);
+      }
+    }
+
+    return { unique, duplicatesRemoved };
+  }
 
   /**
    * Parse uploaded document based on file type
@@ -196,9 +272,17 @@ class DocumentParserService {
     
     logger.info(`Parsed ${questions.length} questions from Excel file ${filename}`);
     
+    // Remove duplicates
+    const { unique, duplicatesRemoved } = this.removeDuplicates(questions);
+    
+    if (duplicatesRemoved > 0) {
+      logger.info(`Removed ${duplicatesRemoved} duplicate questions from Excel file`);
+    }
+    
     return {
-      questions,
-      totalFound: questions.length,
+      questions: unique,
+      totalFound: unique.length,
+      duplicatesRemoved,
       errors
     };
   }
@@ -211,15 +295,8 @@ class DocumentParserService {
     const lines = content.split('\n').map(l => l.trim()).filter(l => l);
     
     if (lines.length < 2) {
-      return { questions: [], totalFound: 0, errors: ['CSV file is empty or has no data rows'] };
+      return { questions: [], totalFound: 0, duplicatesRemoved: 0, errors: ['CSV file is empty or has no data rows'] };
     }
-    
-    // Convert to Excel-like format and use Excel parser logic
-    const XLSX = require('xlsx');
-    const workbook = XLSX.read(content, { type: 'string' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
     
     // Use same logic as Excel parser
     return this.parseExcel(buffer, filename);
@@ -283,9 +360,17 @@ class DocumentParserService {
     
     logger.info(`Parsed ${questions.length} questions from text content of ${filename}`);
     
+    // Remove duplicates
+    const { unique, duplicatesRemoved } = this.removeDuplicates(questions);
+    
+    if (duplicatesRemoved > 0) {
+      logger.info(`Removed ${duplicatesRemoved} duplicate questions from text content`);
+    }
+    
     return {
-      questions,
-      totalFound: questions.length,
+      questions: unique,
+      totalFound: unique.length,
+      duplicatesRemoved,
       errors
     };
   }

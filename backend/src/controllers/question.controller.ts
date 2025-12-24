@@ -204,12 +204,15 @@ export class QuestionController {
 
       logger.info(`Imported ${importResult.success} questions from ${file.originalname}`);
 
+      const duplicatesTotal = (parseResult.duplicatesRemoved || 0) + (importResult.duplicatesSkipped || 0);
+      
       return ResponseHandler.success(res, {
         parsed: parseResult.totalFound,
         imported: importResult.success,
         failed: importResult.failed,
+        duplicatesSkipped: duplicatesTotal,
         errors: [...parseResult.errors, ...importResult.errors.map(e => `Row ${e.row}: ${e.message}`)].slice(0, 20),
-        message: `Successfully imported ${importResult.success} questions from ${file.originalname}`
+        message: `Successfully imported ${importResult.success} questions from ${file.originalname}${duplicatesTotal > 0 ? ` (${duplicatesTotal} duplicates skipped)` : ''}`
       });
 
     } catch (error) {
@@ -244,9 +247,10 @@ export class QuestionController {
 
       return ResponseHandler.success(res, {
         totalFound: parseResult.totalFound,
+        duplicatesRemoved: parseResult.duplicatesRemoved || 0,
         questions: parseResult.questions, // Return all questions (up to 500)
         errors: parseResult.errors.slice(0, 20),
-        message: `Found ${parseResult.totalFound} questions in ${file.originalname}`
+        message: `Found ${parseResult.totalFound} questions in ${file.originalname}${parseResult.duplicatesRemoved ? ` (${parseResult.duplicatesRemoved} duplicates removed)` : ''}`
       });
 
     } catch (error) {
