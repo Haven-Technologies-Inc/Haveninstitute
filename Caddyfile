@@ -1,0 +1,23 @@
+# Haven Institute - Caddy Configuration
+# Automatic HTTPS with Let's Encrypt
+
+# Main domain - Frontend
+havenstudy.com {
+    reverse_proxy frontend:80
+}
+
+www.havenstudy.com {
+    redir https://havenstudy.com{uri} permanent
+}
+
+# API subdomain - Backend
+api.havenstudy.com {
+    reverse_proxy backend:3001
+    
+    # WebSocket support
+    @websockets {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    reverse_proxy @websockets backend:3001
+}
