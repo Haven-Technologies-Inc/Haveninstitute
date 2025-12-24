@@ -9,6 +9,8 @@ import { lazy, Suspense } from 'react';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const SignupPage = lazy(() => import('./pages/auth/SignupPage'));
+const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 
 // Dashboard
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
@@ -161,6 +163,22 @@ export const router = createBrowserRouter([
           <SignupPage />
         </Suspense>
       </PublicRoute>
+    ),
+  },
+  {
+    path: '/verify-email',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <VerifyEmailPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/reset-password',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <ResetPasswordPage />
+      </Suspense>
     ),
   },
 

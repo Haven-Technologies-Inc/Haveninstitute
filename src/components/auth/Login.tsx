@@ -21,6 +21,7 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Forgot password state
@@ -33,29 +34,70 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setIsLoading(true);
+
+    // Basic validation
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      setIsLoading(false);
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password.');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       await login(email, password);
+      
+      // Show success message briefly before redirect
+      setSuccess('Login successful! Redirecting...');
 
       // Get user from localStorage after login
       const storedUser = localStorage.getItem('nursehaven_user');
-      if (storedUser) {
-        const loggedInUser = JSON.parse(storedUser);
+      
+      // Small delay to show success message
+      setTimeout(() => {
+        if (storedUser) {
+          const loggedInUser = JSON.parse(storedUser);
 
-        // Intelligent redirect based on user role and state
-        if (loggedInUser.role === 'admin' || loggedInUser.role === 'moderator' || loggedInUser.role === 'instructor') {
-          navigate('/admin');
-        } else if (!loggedInUser.hasCompletedOnboarding) {
-          navigate('/onboarding');
+          // Intelligent redirect based on user role and state
+          if (loggedInUser.role === 'admin' || loggedInUser.role === 'moderator' || loggedInUser.role === 'instructor') {
+            navigate('/admin');
+          } else if (!loggedInUser.hasCompletedOnboarding) {
+            navigate('/onboarding');
+          } else {
+            navigate('/app/dashboard');
+          }
         } else {
           navigate('/app/dashboard');
         }
-      } else {
-        navigate('/app/dashboard');
+      }, 500);
+    } catch (err: any) {
+      // Parse error message for user-friendly display
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (err?.message) {
+        errorMessage = err.message;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+      
+      // Make error messages more user-friendly
+      if (errorMessage.toLowerCase().includes('invalid') || 
+          errorMessage.toLowerCase().includes('credentials') ||
+          errorMessage.toLowerCase().includes('password')) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (errorMessage.toLowerCase().includes('network') || 
+                 errorMessage.toLowerCase().includes('fetch')) {
+        errorMessage = 'Unable to connect to server. Please check your internet connection.';
+      } else if (errorMessage.toLowerCase().includes('not found')) {
+        errorMessage = 'No account found with this email. Please sign up first.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -111,9 +153,16 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <Alert className="bg-red-50 border-red-200">
-                  <AlertCircle className="size-4 text-red-600" />
-                  <AlertDescription className="text-red-800">{error}</AlertDescription>
+                <Alert className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800">
+                  <AlertCircle className="size-4 text-red-600 dark:text-red-400" />
+                  <AlertDescription className="text-red-800 dark:text-red-300">{error}</AlertDescription>
+                </Alert>
+              )}
+              
+              {success && (
+                <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
+                  <CheckCircle className="size-4 text-green-600 dark:text-green-400" />
+                  <AlertDescription className="text-green-800 dark:text-green-300">{success}</AlertDescription>
                 </Alert>
               )}
 
@@ -181,6 +230,7 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
                   type="button"
                   onClick={onSwitchToSignup}
                   className="text-blue-600 hover:underline"
+                  title="Create a new account"
                 >
                   Sign up for free
                 </button>
