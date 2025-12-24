@@ -37,11 +37,9 @@ export async function connectDatabase(): Promise<void> {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully');
 
-    // Sync disabled - CAT tables need manual migration due to FK constraints
-    // if (process.env.NODE_ENV === 'development') {
-    //   await sequelize.sync({ alter: false });
-    //   console.log('✅ Database synchronized');
-    // }
+    // Sync tables on startup
+    await sequelize.sync({ alter: true });
+    console.log('✅ Database synchronized');
   } catch (error) {
     console.error('❌ Unable to connect to the database:', error);
     throw error;
