@@ -44,7 +44,7 @@ jobs:
             
             # Health check
             echo "🏥 Running health check..."
-            curl -sf http://localhost:3001/api/v1/health || exit 1
+            curl -sf http://localhost:3001/health || exit 1
             
             # Clean up old images
             docker image prune -f
