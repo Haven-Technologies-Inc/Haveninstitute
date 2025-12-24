@@ -146,15 +146,15 @@ export function Dashboard({
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* Welcome Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl mb-2 dark:text-white">Welcome back, {user?.name?.split(' ')[0]}! 👋</h1>
-        <p className="text-xl text-gray-600 dark:text-gray-400">Let's continue your journey to NCLEX success</p>
+      <div className="mb-4 sm:mb-8">
+        <h1 className="text-2xl sm:text-4xl mb-2 dark:text-white">Welcome back, {user?.name?.split(' ')[0]}! 👋</h1>
+        <p className="text-base sm:text-xl text-gray-600 dark:text-gray-400">Let's continue your journey to NCLEX success</p>
       </div>
 
       {/* Key Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {/* NCLEX Confidence */}
         <Card className="bg-gradient-to-br from-blue-600 to-purple-600 text-white border-0 dark:from-blue-700 dark:to-purple-700">
           <CardHeader className="pb-2">

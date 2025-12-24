@@ -361,17 +361,17 @@ export function Forum({ onBack }: ForumProps) {
   if (!selectedPost) {
     return (
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-3xl text-gray-900 flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl">
-                <MessageSquare className="size-7 text-white" />
+            <h2 className="text-2xl sm:text-3xl text-gray-900 dark:text-white flex items-center gap-3">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl">
+                <MessageSquare className="size-5 sm:size-7 text-white" />
               </div>
               Community Forum
             </h2>
-            <p className="text-gray-600 mt-1">Connect with fellow nursing students and instructors</p>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">Connect with fellow nursing students and instructors</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Dialog open={showNewPostDialog} onOpenChange={setShowNewPostDialog}>
               <DialogTrigger asChild>
                 <Button className="bg-gradient-to-r from-purple-600 to-pink-600">
@@ -455,29 +455,32 @@ export function Forum({ onBack }: ForumProps) {
                   className="pl-10"
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant={sortBy === 'recent' ? 'default' : 'outline'}
                   onClick={() => setSortBy('recent')}
                   size="sm"
+                  className="text-xs sm:text-sm"
                 >
-                  <Clock className="mr-2 size-4" />
+                  <Clock className="mr-1 sm:mr-2 size-3 sm:size-4" />
                   Recent
                 </Button>
                 <Button
                   variant={sortBy === 'popular' ? 'default' : 'outline'}
                   onClick={() => setSortBy('popular')}
                   size="sm"
+                  className="text-xs sm:text-sm"
                 >
-                  <Flame className="mr-2 size-4" />
+                  <Flame className="mr-1 sm:mr-2 size-3 sm:size-4" />
                   Popular
                 </Button>
                 <Button
                   variant={sortBy === 'unanswered' ? 'default' : 'outline'}
                   onClick={() => setSortBy('unanswered')}
                   size="sm"
+                  className="text-xs sm:text-sm"
                 >
-                  <AlertCircle className="mr-2 size-4" />
+                  <AlertCircle className="mr-1 sm:mr-2 size-3 sm:size-4" />
                   Unanswered
                 </Button>
               </div>
