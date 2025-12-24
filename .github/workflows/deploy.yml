@@ -27,15 +27,30 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             
-            echo "🔧 Ensuring CORS configuration..."
+            echo "🔧 Ensuring production configuration..."
             if [ -f backend/.env.production ]; then
-              # Update CORS_ORIGIN if it exists, otherwise add it
+              # Update CORS_ORIGIN
               if grep -q "^CORS_ORIGIN=" backend/.env.production; then
                 sed -i 's|^CORS_ORIGIN=.*|CORS_ORIGIN=https://havenstudy.com,https://www.havenstudy.com|' backend/.env.production
               else
                 echo "CORS_ORIGIN=https://havenstudy.com,https://www.havenstudy.com" >> backend/.env.production
               fi
-              echo "✓ CORS configured for production"
+              
+              # Update FRONTEND_URL for email links
+              if grep -q "^FRONTEND_URL=" backend/.env.production; then
+                sed -i 's|^FRONTEND_URL=.*|FRONTEND_URL=https://havenstudy.com|' backend/.env.production
+              else
+                echo "FRONTEND_URL=https://havenstudy.com" >> backend/.env.production
+              fi
+              
+              # Ensure email is enabled
+              if grep -q "^ENABLE_EMAIL=" backend/.env.production; then
+                sed -i 's|^ENABLE_EMAIL=.*|ENABLE_EMAIL=true|' backend/.env.production
+              else
+                echo "ENABLE_EMAIL=true" >> backend/.env.production
+              fi
+              
+              echo "✓ Production environment configured"
             fi
             
             echo "🔨 Rebuilding containers..."
