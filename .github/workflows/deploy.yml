@@ -53,9 +53,15 @@ jobs:
               echo "✓ Production environment configured"
             fi
             
-            echo "🔨 Rebuilding containers..."
+            echo "🧹 Clearing caches..."
+            docker compose down frontend backend || true
+            docker builder prune -f || true
+            docker system prune -f || true
+            
+            echo "🔨 Rebuilding containers from scratch..."
             sed -i 's/npm ci/npm install/g' backend/Dockerfile
-            docker compose up -d --build backend frontend
+            docker compose build --no-cache backend frontend
+            docker compose up -d backend frontend
             
             echo "⏳ Waiting for services..."
             sleep 20
