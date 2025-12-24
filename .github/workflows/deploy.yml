@@ -27,6 +27,18 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             
+            echo "🗑️ Cleaning up unnecessary files on server..."
+            # Remove documentation files
+            rm -f *.md 2>/dev/null || true
+            rm -f *.sql 2>/dev/null || true
+            rm -f gen-hash.js register-admin.json 2>/dev/null || true
+            rm -f .env.docker .env.staging .env.production.example 2>/dev/null || true
+            rm -rf src/*.md src/guidelines 2>/dev/null || true
+            rm -f backend/*.md 2>/dev/null || true
+            rm -f backend/.env.production.example backend/.env.staging 2>/dev/null || true
+            # Keep only README.md
+            echo "✓ Server files cleaned"
+            
             echo "🔧 Ensuring production configuration..."
             if [ -f backend/.env.production ]; then
               # Update CORS_ORIGIN
