@@ -254,14 +254,15 @@ class DocumentParserService {
         const category = categoryCol >= 0 ? String(row[categoryCol] || '').trim() : undefined;
         const difficulty = difficultyCol >= 0 ? String(row[difficultyCol] || '').trim() : undefined;
         
+        const cleanedText = this.cleanQuestionText(questionText);
         questions.push({
-          text: this.cleanQuestionText(questionText),
+          text: cleanedText,
           options,
           correctAnswers,
           explanation,
           category: this.normalizeCategory(category),
           difficulty: this.normalizeDifficulty(difficulty),
-          questionType: correctAnswers.length > 1 ? 'select_all' : 'multiple_choice',
+          questionType: this.detectQuestionType(cleanedText, options, correctAnswers),
           source: filename
         });
         
@@ -413,12 +414,13 @@ class DocumentParserService {
     // Extract explanation
     const explanation = this.extractExplanation(block);
     
+    const finalCorrectAnswers = correctAnswers.length > 0 ? correctAnswers : ['A']; // Default to A if not found
     return {
       text: questionText,
       options,
-      correctAnswers: correctAnswers.length > 0 ? correctAnswers : ['A'], // Default to A if not found
+      correctAnswers: finalCorrectAnswers,
       explanation,
-      questionType: correctAnswers.length > 1 ? 'select_all' : 'multiple_choice'
+      questionType: this.detectQuestionType(questionText, options, finalCorrectAnswers)
     };
   }
 
@@ -518,30 +520,165 @@ class DocumentParserService {
   }
 
   /**
-   * Normalize category to match NCLEX categories
+   * Normalize category to match official NCLEX 8 Client Needs categories
    */
   private normalizeCategory(category?: string): string {
-    if (!category) return 'safe_effective_care';
+    if (!category) return 'management_of_care';
     
     const normalized = category.toLowerCase().replace(/[^a-z]/g, '');
     
+    // Map various input formats to official 8 NCLEX categories
     const categoryMap: Record<string, string> = {
-      'managementofcare': 'safe_effective_care',
-      'safetyinfectioncontrol': 'safe_effective_care',
+      // Management of Care (17-23%)
+      'managementofcare': 'management_of_care',
+      'management': 'management_of_care',
+      'caremanagement': 'management_of_care',
+      'casemanagement': 'management_of_care',
+      'delegation': 'management_of_care',
+      'advocacy': 'management_of_care',
+      'ethics': 'management_of_care',
+      'legal': 'management_of_care',
+      
+      // Safety and Infection Control (9-15%)
+      'safetyinfectioncontrol': 'safety_infection_control',
+      'safetyandinfectioncontrol': 'safety_infection_control',
+      'safety': 'safety_infection_control',
+      'infectioncontrol': 'safety_infection_control',
+      'standardprecautions': 'safety_infection_control',
+      'emergencyresponse': 'safety_infection_control',
+      
+      // Health Promotion and Maintenance (6-12%)
       'healthpromotion': 'health_promotion',
       'healthpromotionmaintenance': 'health_promotion',
-      'psychosocial': 'psychosocial',
-      'psychosocialintegrity': 'psychosocial',
-      'basiccarecomfort': 'physiological_basic',
-      'physiologicalbasic': 'physiological_basic',
-      'pharmacological': 'physiological_complex',
-      'pharmacologicaltherapies': 'physiological_complex',
-      'riskreduction': 'physiological_complex',
-      'physiologicaladaptation': 'physiological_complex',
-      'physiologicalcomplex': 'physiological_complex',
+      'healthpromotionandmaintenance': 'health_promotion',
+      'wellness': 'health_promotion',
+      'prevention': 'health_promotion',
+      'screening': 'health_promotion',
+      'immunizations': 'health_promotion',
+      'pediatrics': 'health_promotion',
+      'maternal': 'health_promotion',
+      'newborn': 'health_promotion',
+      
+      // Psychosocial Integrity (6-12%)
+      'psychosocial': 'psychosocial_integrity',
+      'psychosocialintegrity': 'psychosocial_integrity',
+      'mentalhealth': 'psychosocial_integrity',
+      'psychiatricnursing': 'psychosocial_integrity',
+      'coping': 'psychosocial_integrity',
+      'grief': 'psychosocial_integrity',
+      'therapeutic': 'psychosocial_integrity',
+      'communication': 'psychosocial_integrity',
+      'endoflife': 'psychosocial_integrity',
+      
+      // Basic Care and Comfort (6-12%)
+      'basiccarecomfort': 'basic_care_comfort',
+      'basiccareandcomfort': 'basic_care_comfort',
+      'basiccare': 'basic_care_comfort',
+      'comfort': 'basic_care_comfort',
+      'nutrition': 'basic_care_comfort',
+      'elimination': 'basic_care_comfort',
+      'mobility': 'basic_care_comfort',
+      'hygiene': 'basic_care_comfort',
+      'sleep': 'basic_care_comfort',
+      'fundamentals': 'basic_care_comfort',
+      
+      // Pharmacological and Parenteral Therapies (12-18%)
+      'pharmacological': 'pharmacological_therapies',
+      'pharmacologicaltherapies': 'pharmacological_therapies',
+      'pharmacologicalandparenteraltherapies': 'pharmacological_therapies',
+      'pharmacology': 'pharmacological_therapies',
+      'medications': 'pharmacological_therapies',
+      'ivtherapy': 'pharmacological_therapies',
+      'bloodproducts': 'pharmacological_therapies',
+      'painmanagement': 'pharmacological_therapies',
+      
+      // Reduction of Risk Potential (9-15%)
+      'riskreduction': 'risk_reduction',
+      'reductionofriskpotential': 'risk_reduction',
+      'riskpotential': 'risk_reduction',
+      'diagnostictests': 'risk_reduction',
+      'labvalues': 'risk_reduction',
+      'complications': 'risk_reduction',
+      'vitalsigns': 'risk_reduction',
+      'assessment': 'risk_reduction',
+      
+      // Physiological Adaptation (11-17%)
+      'physiologicaladaptation': 'physiological_adaptation',
+      'adaptation': 'physiological_adaptation',
+      'medsurg': 'physiological_adaptation',
+      'medicalsurgical': 'physiological_adaptation',
+      'acutecare': 'physiological_adaptation',
+      'chroniccare': 'physiological_adaptation',
+      'emergencies': 'physiological_adaptation',
+      'fluidelectrolyte': 'physiological_adaptation',
+      'hemodynamics': 'physiological_adaptation',
+      'pathophysiology': 'physiological_adaptation',
+      
+      // Legacy mappings for backward compatibility
+      'safeeffectivecare': 'management_of_care',
+      'physiologicalbasic': 'basic_care_comfort',
+      'physiologicalcomplex': 'physiological_adaptation',
     };
     
-    return categoryMap[normalized] || 'safe_effective_care';
+    return categoryMap[normalized] || 'management_of_care';
+  }
+
+  /**
+   * Detect question type based on content analysis
+   */
+  private detectQuestionType(questionText: string, options: { id: string; text: string }[], correctAnswers: string[]): string {
+    const text = questionText.toLowerCase();
+    
+    // Select All That Apply (SATA) - multiple correct answers
+    if (correctAnswers.length > 1) {
+      return 'select_all';
+    }
+    
+    // Ordered Response / Drag & Drop
+    if (text.includes('order') || text.includes('sequence') || text.includes('priority') || 
+        text.includes('arrange') || text.includes('rank') || text.includes('first action')) {
+      return 'ordered_response';
+    }
+    
+    // Hot Spot - image-based
+    if (text.includes('click') || text.includes('identify on') || text.includes('point to') ||
+        text.includes('locate on') || text.includes('image') || text.includes('diagram')) {
+      return 'hot_spot';
+    }
+    
+    // Cloze/Drop-down - fill in blanks
+    if (text.includes('fill in') || text.includes('blank') || text.includes('complete the') ||
+        text.includes('___') || text.includes('dropdown')) {
+      return 'cloze_dropdown';
+    }
+    
+    // Matrix/Grid - table selection
+    if (text.includes('matrix') || text.includes('grid') || text.includes('table') ||
+        text.includes('for each') || text.includes('indicate whether')) {
+      return 'matrix';
+    }
+    
+    // Highlight - text selection
+    if (text.includes('highlight') || text.includes('select the text') || 
+        text.includes('click on the finding') || text.includes('select the phrase')) {
+      return 'highlight';
+    }
+    
+    // Bow-Tie - clinical reasoning
+    if (text.includes('bow-tie') || text.includes('bowtie') || 
+        (text.includes('cause') && text.includes('action')) ||
+        (text.includes('condition') && text.includes('intervention'))) {
+      return 'bow_tie';
+    }
+    
+    // Case Study - extended scenario
+    if (text.includes('case study') || text.includes('unfolding case') ||
+        text.length > 500 || text.includes('scenario continues')) {
+      return 'case_study';
+    }
+    
+    // Default to multiple choice
+    return 'multiple_choice';
   }
 
   /**

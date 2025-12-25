@@ -9,22 +9,28 @@ import {
   UpdatedAt
 } from 'sequelize-typescript';
 
-// NCLEX-RN Client Needs Categories
+// NCLEX-RN Client Needs Categories (Official 8 areas tested)
 export type NCLEXCategory = 
-  | 'safe_effective_care'      // Safe and Effective Care Environment
-  | 'health_promotion'         // Health Promotion and Maintenance
-  | 'psychosocial'            // Psychosocial Integrity
-  | 'physiological_basic'     // Physiological Integrity: Basic Care
-  | 'physiological_complex';  // Physiological Integrity: Complex Care
+  | 'management_of_care'           // Management of Care (17-23%)
+  | 'safety_infection_control'     // Safety and Infection Control (9-15%)
+  | 'health_promotion'             // Health Promotion and Maintenance (6-12%)
+  | 'psychosocial_integrity'       // Psychosocial Integrity (6-12%)
+  | 'basic_care_comfort'           // Basic Care and Comfort (6-12%)
+  | 'pharmacological_therapies'    // Pharmacological and Parenteral Therapies (12-18%)
+  | 'risk_reduction'               // Reduction of Risk Potential (9-15%)
+  | 'physiological_adaptation';    // Physiological Adaptation (11-17%)
 
-// Question types matching NCLEX format
+// NextGEN NCLEX Question Types (All 9 types)
 export type QuestionType = 
-  | 'multiple_choice'    // Single best answer
-  | 'select_all'         // Multiple correct answers
-  | 'ordered_response'   // Drag and drop ordering
-  | 'fill_blank'         // Fill in the blank
-  | 'hot_spot'           // Click on image area
-  | 'chart_exhibit';     // Review chart data
+  | 'multiple_choice'      // Traditional single answer
+  | 'select_all'           // Multiple Response (SATA)
+  | 'ordered_response'     // Drag and drop ordering
+  | 'cloze_dropdown'       // Fill in blanks with dropdowns
+  | 'hot_spot'             // Click on image areas
+  | 'matrix'               // Grid/table selection
+  | 'highlight'            // Select text in a passage
+  | 'bow_tie'              // Clinical reasoning diagram
+  | 'case_study';          // Extended scenario with multiple questions
 
 // Bloom's Taxonomy levels
 export type BloomLevel = 'remember' | 'understand' | 'apply' | 'analyze' | 'evaluate' | 'create';

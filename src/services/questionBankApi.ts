@@ -19,21 +19,28 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
   return data.data;
 };
 
-// NCLEX Categories
+// NCLEX Client Needs Categories (Official 8 areas tested)
 export type NCLEXCategory = 
-  | 'safe_effective_care'
-  | 'health_promotion'
-  | 'psychosocial'
-  | 'physiological_basic'
-  | 'physiological_complex';
+  | 'management_of_care'           // Management of Care (17-23%)
+  | 'safety_infection_control'     // Safety and Infection Control (9-15%)
+  | 'health_promotion'             // Health Promotion and Maintenance (6-12%)
+  | 'psychosocial_integrity'       // Psychosocial Integrity (6-12%)
+  | 'basic_care_comfort'           // Basic Care and Comfort (6-12%)
+  | 'pharmacological_therapies'    // Pharmacological and Parenteral Therapies (12-18%)
+  | 'risk_reduction'               // Reduction of Risk Potential (9-15%)
+  | 'physiological_adaptation';    // Physiological Adaptation (11-17%)
 
+// NextGEN NCLEX Question Types (All 9 types)
 export type QuestionType = 
-  | 'multiple_choice'
-  | 'select_all'
-  | 'ordered_response'
-  | 'fill_blank'
-  | 'hot_spot'
-  | 'chart_exhibit';
+  | 'multiple_choice'      // Traditional single answer
+  | 'select_all'           // Multiple Response (SATA)
+  | 'ordered_response'     // Drag and drop ordering
+  | 'cloze_dropdown'       // Fill in blanks with dropdowns
+  | 'hot_spot'             // Click on image areas
+  | 'matrix'               // Grid/table selection
+  | 'highlight'            // Select text in a passage
+  | 'bow_tie'              // Clinical reasoning diagram
+  | 'case_study';          // Extended scenario with multiple questions
 
 export type BloomLevel = 'remember' | 'understand' | 'apply' | 'analyze' | 'evaluate' | 'create';
 export type Difficulty = 'easy' | 'medium' | 'hard';
@@ -122,22 +129,29 @@ export interface BulkImportResult {
   errors: { row: number; message: string }[];
 }
 
-// Category labels for display
+// Category labels for display (Official NCLEX Client Needs)
 export const CATEGORY_LABELS: Record<NCLEXCategory, string> = {
-  'safe_effective_care': 'Safe & Effective Care',
-  'health_promotion': 'Health Promotion',
-  'psychosocial': 'Psychosocial Integrity',
-  'physiological_basic': 'Physiological Basic',
-  'physiological_complex': 'Physiological Complex'
+  'management_of_care': 'Management of Care',
+  'safety_infection_control': 'Safety & Infection Control',
+  'health_promotion': 'Health Promotion & Maintenance',
+  'psychosocial_integrity': 'Psychosocial Integrity',
+  'basic_care_comfort': 'Basic Care & Comfort',
+  'pharmacological_therapies': 'Pharmacological Therapies',
+  'risk_reduction': 'Reduction of Risk Potential',
+  'physiological_adaptation': 'Physiological Adaptation'
 };
 
+// NextGEN NCLEX Question Type labels
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   'multiple_choice': 'Multiple Choice',
-  'select_all': 'Select All That Apply',
-  'ordered_response': 'Ordered Response',
-  'fill_blank': 'Fill in the Blank',
+  'select_all': 'Select All That Apply (SATA)',
+  'ordered_response': 'Ordered Response / Drag & Drop',
+  'cloze_dropdown': 'Drop-Down Cloze',
   'hot_spot': 'Hot Spot',
-  'chart_exhibit': 'Chart/Exhibit'
+  'matrix': 'Matrix / Grid',
+  'highlight': 'Highlight Text',
+  'bow_tie': 'Bow-Tie',
+  'case_study': 'Case Study / Unfolding'
 };
 
 export const BLOOM_LEVEL_LABELS: Record<BloomLevel, string> = {
