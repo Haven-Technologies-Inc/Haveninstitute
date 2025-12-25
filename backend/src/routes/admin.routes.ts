@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { authenticate, authorizeRole, AuthRequest } from '../middleware/authenticate';
 import { ResponseHandler } from '../utils/response';
 import emailService from '../services/email.service';

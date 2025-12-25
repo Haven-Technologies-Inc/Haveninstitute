@@ -137,6 +137,24 @@ export class AuthController {
       next(error);
     }
   };
+
+  updateProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const result = await authService.updateProfile(req.userId!, req.body);
+      ResponseHandler.success(res, result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updatePreferences = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const result = await authService.updatePreferences(req.userId!, req.body);
+      ResponseHandler.success(res, result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export default new AuthController();

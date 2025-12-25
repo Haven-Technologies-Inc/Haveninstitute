@@ -20,7 +20,7 @@ export class SubscriptionController {
   static async getCurrentSubscription(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
-      const subscription = await subscriptionService.getCurrentSubscription(userId);
+      const subscription = await subscriptionService.getSubscription(userId);
       return ResponseHandler.success(res, subscription);
     } catch (error: any) {
       return ResponseHandler.error(res, 'INTERNAL_ERROR', error.message, 500);
@@ -31,13 +31,24 @@ export class SubscriptionController {
   static async createCheckout(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
-      const { planType, billingPeriod } = req.body;
+      const { planType, billingPeriod, successUrl, cancelUrl } = req.body;
 
       if (!planType || !billingPeriod) {
         return ResponseHandler.error(res, 'VALIDATION_ERROR', 'Plan type and billing period required', 400);
       }
 
-      const session = await subscriptionService.createCheckoutSession(userId, planType, billingPeriod);
+      // Use default URLs if not provided
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const finalSuccessUrl = successUrl || `${frontendUrl}/app/account/subscription?success=true`;
+      const finalCancelUrl = cancelUrl || `${frontendUrl}/app/account/subscription?canceled=true`;
+
+      const session = await subscriptionService.createCheckoutSession(
+        userId, 
+        planType, 
+        billingPeriod,
+        finalSuccessUrl,
+        finalCancelUrl
+      );
       return ResponseHandler.success(res, session);
     } catch (error: any) {
       return ResponseHandler.error(res, 'INTERNAL_ERROR', error.message, 500);
@@ -48,9 +59,9 @@ export class SubscriptionController {
   static async cancelSubscription(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
-      const { reason } = req.body;
+      const { cancelImmediately } = req.body;
 
-      await subscriptionService.cancelSubscription(userId, reason);
+      await subscriptionService.cancelSubscription(userId, cancelImmediately === true);
       return ResponseHandler.success(res, { message: 'Subscription cancelled' });
     } catch (error: any) {
       return ResponseHandler.error(res, 'INTERNAL_ERROR', error.message, 500);

@@ -15,6 +15,9 @@ import { UserSettings } from './UserSettings';
 import { StudyPlan, StudyPlanTask, StudyPlanMilestone } from './StudyPlan';
 import { StudyGroup, StudyGroupMember, StudyGroupMessage, StudySession } from './StudyGroup';
 import { ForumCategory, ForumPost, ForumComment, ForumReaction, ForumBookmark } from './Forum';
+import { Achievement, UserAchievement } from './Achievement';
+import { Notification } from './Notification';
+import { FileUpload } from './FileUpload';
 
 // Re-export models
 export {
@@ -23,7 +26,9 @@ export {
   StudyMaterial, UserStudyMaterial, FlashcardDeck, Flashcard,
   UserFlashcardProgress, Subscription, PaymentTransaction,
   UserSettings, StudyPlan, StudyPlanTask, StudyPlanMilestone, StudyGroup,
-  StudyGroupMember, StudyGroupMessage, StudySession, ForumCategory, ForumPost, ForumComment, ForumReaction, ForumBookmark
+  StudyGroupMember, StudyGroupMessage, StudySession, ForumCategory, ForumPost, 
+  ForumComment, ForumReaction, ForumBookmark,
+  Achievement, UserAchievement, Notification, FileUpload
 };
 
 // Re-export types
@@ -34,6 +39,9 @@ export type { GoalType, GoalPeriod } from './StudyGoal';
 export type { ActivityType } from './StudyActivity';
 export type { MaterialType, MaterialCategory } from './StudyMaterial';
 export type { PlanType, SubscriptionStatus, BillingPeriod, PaymentStatus } from './Subscription';
+export type { AchievementCategory } from './Achievement';
+export type { NotificationType } from './Notification';
+export type { UploadType } from './FileUpload';
 
 // Model array for Sequelize
 export const models = [
@@ -66,4 +74,8 @@ export const models = [
   ForumComment,
   ForumReaction,
   ForumBookmark,
+  Achievement,
+  UserAchievement,
+  Notification,
+  FileUpload,
 ];

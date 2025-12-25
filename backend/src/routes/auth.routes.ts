@@ -113,4 +113,18 @@ router.get('/sessions', authenticate, authController.getActiveSessions);
  */
 router.delete('/sessions/:sessionId', authenticate, authController.revokeSession);
 
+/**
+ * @route   PUT /api/v1/auth/profile
+ * @desc    Update user profile
+ * @access  Private
+ */
+router.put('/profile', authenticate, authController.updateProfile);
+
+/**
+ * @route   PUT /api/v1/auth/preferences
+ * @desc    Update user preferences
+ * @access  Private
+ */
+router.put('/preferences', authenticate, authController.updatePreferences);
+
 export default router;

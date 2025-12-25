@@ -53,6 +53,13 @@ const SubscriptionPage = lazy(() => import('./pages/account/SubscriptionPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const QuestionManagementPage = lazy(() => import('./pages/admin/QuestionManagementPage'));
 
+// Admin Components (used as pages)
+const UserManagement = lazy(() => import('./components/admin/UserManagement'));
+const ContentManagement = lazy(() => import('./components/admin/ContentManagement'));
+const AdminAnalytics = lazy(() => import('./components/admin/AdminAnalyticsEnhanced'));
+const AdminSettings = lazy(() => import('./components/admin/AdminSettings'));
+const BillingRevenue = lazy(() => import('./components/admin/BillingRevenue'));
+
 // Layouts
 import { UserLayout } from './components/UserLayout';
 import { AdminLayout } from './components/admin/AdminLayout';
@@ -321,6 +328,56 @@ export const router = createBrowserRouter([
       <AdminRoute>
         <Suspense fallback={<PageLoader />}>
           <QuestionManagementPage />
+        </Suspense>
+      </AdminRoute>
+    ),
+  },
+  {
+    path: '/admin/users',
+    element: (
+      <AdminRoute>
+        <Suspense fallback={<PageLoader />}>
+          <UserManagement />
+        </Suspense>
+      </AdminRoute>
+    ),
+  },
+  {
+    path: '/admin/content',
+    element: (
+      <AdminRoute>
+        <Suspense fallback={<PageLoader />}>
+          <ContentManagement />
+        </Suspense>
+      </AdminRoute>
+    ),
+  },
+  {
+    path: '/admin/analytics',
+    element: (
+      <AdminRoute>
+        <Suspense fallback={<PageLoader />}>
+          <AdminAnalytics />
+        </Suspense>
+      </AdminRoute>
+    ),
+  },
+  {
+    path: '/admin/settings',
+    element: (
+      <AdminRoute>
+        <Suspense fallback={<PageLoader />}>
+          <AdminSettings />
+        </Suspense>
+      </AdminRoute>
+    ),
+  },
+  {
+    path: '/admin/billing',
+    element: (
+      <AdminRoute>
+        <Suspense fallback={<PageLoader />}>
+          <BillingRevenue />
         </Suspense>
       </AdminRoute>
     ),

@@ -1,28 +1,23 @@
 import { Router, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/authenticate';
 import { ResponseHandler } from '../utils/response';
+import { gamificationService } from '../services/gamification.service';
 
 const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
 
-// Get user stats - returns placeholder data until gamification service is fully integrated
+// Get user stats
 router.get('/stats', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const userId = req.userId!;
+    const stats = await gamificationService.getUserStats(userId);
+    const levelProgress = gamificationService.pointsToNextLevel(stats.totalPoints);
+    
     ResponseHandler.success(res, {
-      questionsAnswered: 0,
-      quizzesCompleted: 0,
-      catTestsCompleted: 0,
-      catTestsPassed: 0,
-      flashcardsReviewed: 0,
-      studyStreak: 0,
-      perfectQuizzes: 0,
-      groupsJoined: 0,
-      forumLikesReceived: 0,
-      totalPoints: 0,
-      level: 1,
-      levelProgress: { current: 0, needed: 100, progress: 0 },
+      ...stats,
+      levelProgress,
     });
   } catch (error) {
     next(error);
@@ -32,11 +27,9 @@ router.get('/stats', async (req: AuthRequest, res: Response, next: NextFunction)
 // Get user achievements
 router.get('/achievements', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    ResponseHandler.success(res, {
-      earned: [],
-      inProgress: [],
-      locked: [],
-    });
+    const userId = req.userId!;
+    const achievements = await gamificationService.getUserAchievements(userId);
+    ResponseHandler.success(res, achievements);
   } catch (error) {
     next(error);
   }
@@ -45,7 +38,9 @@ router.get('/achievements', async (req: AuthRequest, res: Response, next: NextFu
 // Check for new achievements
 router.post('/check-achievements', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    ResponseHandler.success(res, { newAchievements: [] });
+    const userId = req.userId!;
+    const newAchievements = await gamificationService.checkAchievements(userId);
+    ResponseHandler.success(res, { newAchievements });
   } catch (error) {
     next(error);
   }
@@ -54,7 +49,12 @@ router.post('/check-achievements', async (req: AuthRequest, res: Response, next:
 // Get leaderboard
 router.get('/leaderboard', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    ResponseHandler.success(res, []);
+    const { period = 'all', limit = '50' } = req.query;
+    const leaderboard = await gamificationService.getLeaderboard(
+      period as 'all' | 'monthly' | 'weekly',
+      parseInt(limit as string)
+    );
+    ResponseHandler.success(res, leaderboard);
   } catch (error) {
     next(error);
   }
@@ -63,7 +63,15 @@ router.get('/leaderboard', async (req: AuthRequest, res: Response, next: NextFun
 // Get user rank
 router.get('/rank', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    ResponseHandler.success(res, { rank: 0, totalPoints: 0, level: 1 });
+    const userId = req.userId!;
+    const stats = await gamificationService.getUserStats(userId);
+    const rank = await gamificationService.getUserRank(userId);
+    
+    ResponseHandler.success(res, { 
+      rank, 
+      totalPoints: stats.totalPoints, 
+      level: stats.level 
+    });
   } catch (error) {
     next(error);
   }
@@ -72,7 +80,26 @@ router.get('/rank', async (req: AuthRequest, res: Response, next: NextFunction) 
 // Get study streak
 router.get('/streak', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    ResponseHandler.success(res, { streak: 0 });
+    const userId = req.userId!;
+    const streak = await gamificationService.calculateStreak(userId);
+    ResponseHandler.success(res, { streak });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Award points (internal use - for other services to call)
+router.post('/award-points', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId!;
+    const { action, metadata } = req.body;
+    
+    if (!action) {
+      return ResponseHandler.error(res, 'VALIDATION_ERROR', 'Action is required', 400);
+    }
+    
+    const points = await gamificationService.awardPoints(userId, action, metadata);
+    ResponseHandler.success(res, { pointsAwarded: points });
   } catch (error) {
     next(error);
   }

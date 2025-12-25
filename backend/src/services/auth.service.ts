@@ -602,6 +602,84 @@ export class AuthService {
     logger.info(`Cleaned up ${deleted} expired sessions`);
     return deleted;
   }
+
+  async updateProfile(userId: string, profileData: {
+    fullName?: string;
+    bio?: string;
+    phoneNumber?: string;
+    avatarUrl?: string;
+  }) {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      throw {
+        status: 404,
+        code: errorCodes.AUTH_USER_NOT_FOUND,
+        message: 'User not found'
+      };
+    }
+
+    const updateFields: any = {};
+    if (profileData.fullName) updateFields.fullName = profileData.fullName;
+    if (profileData.bio !== undefined) updateFields.bio = profileData.bio;
+    if (profileData.phoneNumber !== undefined) updateFields.phoneNumber = profileData.phoneNumber;
+    if (profileData.avatarUrl !== undefined) updateFields.avatarUrl = profileData.avatarUrl;
+
+    await user.update(updateFields);
+    logger.info(`Profile updated for user: ${user.email}`);
+
+    return {
+      message: 'Profile updated successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        bio: user.bio,
+        phoneNumber: user.phoneNumber,
+        avatarUrl: user.avatarUrl
+      }
+    };
+  }
+
+  async updatePreferences(userId: string, preferences: {
+    preferredStudyTime?: string;
+    nclexType?: 'RN' | 'PN';
+    examDate?: string;
+    targetScore?: number;
+    weakAreas?: string[];
+    goals?: string[];
+  }) {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      throw {
+        status: 404,
+        code: errorCodes.AUTH_USER_NOT_FOUND,
+        message: 'User not found'
+      };
+    }
+
+    const updateFields: any = {};
+    if (preferences.preferredStudyTime) updateFields.preferredStudyTime = preferences.preferredStudyTime;
+    if (preferences.nclexType) updateFields.nclexType = preferences.nclexType;
+    if (preferences.examDate) updateFields.examDate = new Date(preferences.examDate);
+    if (preferences.targetScore !== undefined) updateFields.targetScore = preferences.targetScore;
+    if (preferences.weakAreas) updateFields.weakAreas = JSON.stringify(preferences.weakAreas);
+    if (preferences.goals) updateFields.goals = JSON.stringify(preferences.goals);
+
+    await user.update(updateFields);
+    logger.info(`Preferences updated for user: ${user.email}`);
+
+    return {
+      message: 'Preferences updated successfully',
+      preferences: {
+        preferredStudyTime: user.preferredStudyTime,
+        nclexType: user.nclexType,
+        examDate: user.examDate,
+        targetScore: user.targetScore,
+        weakAreas: user.weakAreas || [],
+        goals: user.goals || []
+      }
+    };
+  }
 }
 
 export default new AuthService();
