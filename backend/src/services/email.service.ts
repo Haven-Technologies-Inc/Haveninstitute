@@ -54,7 +54,7 @@ class EmailService {
         socketTimeout: 30000 // 30 seconds for sending
       });
 
-      logger.info(`Email service initialized with ZeptoMail (${process.env.ZOHO_SMTP_HOST || 'smtp.zeptomail.com'}:${process.env.ZOHO_SMTP_PORT || 465})`);
+      logger.info(`Email service initialized with ZeptoMail (${process.env.ZOHO_SMTP_HOST || 'smtp.zeptomail.com'}:${port}, secure=${useSSL})`);
     } else {
       // Generic SMTP Configuration (fallback)
       this.transporter = nodemailer.createTransport({
