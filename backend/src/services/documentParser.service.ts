@@ -20,7 +20,7 @@ interface ParseResult {
 }
 
 class DocumentParserService {
-  private maxQuestions = 500;
+  private maxQuestions = 1000;
 
   /**
    * Normalize question text for duplicate comparison
