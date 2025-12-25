@@ -47,6 +47,13 @@ router.post('/study-plan', (req, res, next) => aiController.generateStudyPlan(re
 router.post('/explain', (req, res, next) => aiController.explainQuestion(req, res, next));
 
 /**
+ * @route   POST /api/v1/ai/explain-question/:questionId
+ * @desc    Generate AI explanation for a question by ID and optionally save it
+ * @access  Private
+ */
+router.post('/explain-question/:questionId', (req, res, next) => aiController.explainQuestionById(req, res, next));
+
+/**
  * @route   POST /api/v1/ai/clinical-analysis
  * @desc    Analyze clinical scenario using CJMM
  * @access  Private

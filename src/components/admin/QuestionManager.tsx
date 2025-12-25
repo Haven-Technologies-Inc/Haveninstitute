@@ -65,6 +65,8 @@ export function QuestionManager() {
   const [saving, setSaving] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [generatingExplanation, setGeneratingExplanation] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
 
   const loadQuestions = useCallback(async () => {
     setLoading(true);
@@ -219,6 +221,46 @@ export function QuestionManager() {
   const openViewModal = (question: Question) => {
     setSelectedQuestion(question);
     setEditMode(false);
+    setAiExplanation(null);
+  };
+
+  // Generate AI explanation for a question
+  const generateAIExplanation = async (questionId: string, saveToDb: boolean = false) => {
+    setGeneratingExplanation(true);
+    setAiExplanation(null);
+    
+    try {
+      const token = localStorage.getItem('haven_token');
+      const response = await fetch(`${API_BASE_URL}/ai/explain-question/${questionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ saveToQuestion: saveToDb }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to generate explanation');
+      }
+      
+      const result = await response.json();
+      setAiExplanation(result.data.explanation);
+      
+      if (saveToDb) {
+        toast.success('AI explanation generated and saved!');
+        // Refresh question data
+        loadQuestions();
+      } else {
+        toast.success('AI explanation generated!');
+      }
+    } catch (error) {
+      console.error('Failed to generate AI explanation:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to generate explanation');
+    } finally {
+      setGeneratingExplanation(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -704,18 +746,60 @@ export function QuestionManager() {
               )}
 
               {/* Explanation */}
-              {(selectedQuestion.explanation || editMode) && (
-                <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Explanation / Rationale</label>
-                  <Textarea 
-                    value={editMode ? (editedQuestion.explanation || '') : (selectedQuestion.explanation || 'No explanation provided')} 
-                    onChange={(e) => setEditedQuestion({...editedQuestion, explanation: e.target.value})}
-                    disabled={!editMode} 
-                    rows={3}
-                    className="resize-none"
-                  />
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Explanation / Rationale</label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => generateAIExplanation(selectedQuestion.id, false)}
+                    disabled={generatingExplanation}
+                    className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                  >
+                    {generatingExplanation ? (
+                      <>
+                        <Loader2 className="size-3 mr-1 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Settings className="size-3 mr-1" />
+                        Generate AI Explanation
+                      </>
+                    )}
+                  </Button>
                 </div>
-              )}
+                
+                {/* Show AI generated explanation if available */}
+                {aiExplanation && (
+                  <div className="mb-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-purple-600 dark:text-purple-400">AI Generated Explanation</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => generateAIExplanation(selectedQuestion.id, true)}
+                        disabled={generatingExplanation}
+                        className="text-xs"
+                      >
+                        Save to Question
+                      </Button>
+                    </div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-h-64 overflow-y-auto">
+                      {aiExplanation}
+                    </div>
+                  </div>
+                )}
+                
+                <Textarea 
+                  value={editMode ? (editedQuestion.explanation || '') : (selectedQuestion.explanation || 'No explanation provided')} 
+                  onChange={(e) => setEditedQuestion({...editedQuestion, explanation: e.target.value})}
+                  disabled={!editMode} 
+                  rows={3}
+                  className="resize-none"
+                  placeholder="Click 'Generate AI Explanation' to create a rationale for this question"
+                />
+              </div>
 
               {/* Metadata Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

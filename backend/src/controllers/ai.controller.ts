@@ -186,6 +186,64 @@ export class AIController {
   }
 
   /**
+   * Generate and save explanation for a question by ID
+   * POST /api/v1/ai/explain-question/:questionId
+   */
+  async explainQuestionById(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.userId;
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const { questionId } = req.params;
+      const { saveToQuestion, provider } = req.body;
+
+      // Import Question model dynamically to avoid circular deps
+      const { Question } = await import('../models');
+
+      // Fetch question from database
+      const question = await Question.findByPk(questionId);
+      if (!question) {
+        return res.status(404).json({ message: 'Question not found' });
+      }
+
+      // Build correct answer text from options
+      const options = question.options as { id: string; text: string }[];
+      const correctAnswers = question.correctAnswers as string[];
+      const correctAnswerText = correctAnswers
+        .map(id => {
+          const opt = options.find(o => o.id === id);
+          return opt ? `${id.toUpperCase()}. ${opt.text}` : id;
+        })
+        .join('; ');
+
+      // Generate explanation
+      const explanation = await aiService.explainQuestion({
+        questionText: question.text,
+        correctAnswer: correctAnswerText,
+        topic: question.category || 'Nursing'
+      }, provider as AIProvider);
+
+      // Optionally save to question
+      if (saveToQuestion) {
+        await question.update({ explanation });
+      }
+
+      res.json({ 
+        success: true, 
+        data: {
+          explanation,
+          saved: saveToQuestion || false
+        }
+      });
+    } catch (error: any) {
+      console.error('Explain question by ID error:', error);
+      res.status(500).json({ message: error.message || 'Failed to generate explanation' });
+    }
+  }
+
+  /**
    * Analyze clinical scenario
    * POST /api/v1/ai/clinical-analysis
    */
