@@ -43,7 +43,7 @@ const mapAuthUserToUser = (authUser: AuthUser): User => ({
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<LoginResult>;
-  signup: (email: string, password: string, fullName: string) => Promise<void>;
+  signup: (email: string, password: string, fullName?: string) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   isLoading: boolean;
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signup = async (email: string, password: string, fullName: string) => {
+  const signup = async (email: string, password: string, fullName?: string) => {
     setIsLoading(true);
     try {
       // Use backend API for registration

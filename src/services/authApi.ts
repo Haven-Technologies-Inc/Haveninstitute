@@ -14,7 +14,7 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
-  fullName: string;
+  fullName?: string;
   nclexType?: 'RN' | 'PN';
 }
 

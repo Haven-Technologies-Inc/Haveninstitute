@@ -3,7 +3,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Alert, AlertDescription } from '../ui/alert';
-import { Mail, Lock, User, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { Logo } from '../ui/Logo';
 import { PrivacyPolicy, TermsOfUse } from '../legal';
@@ -15,7 +15,6 @@ interface SignupProps {
 
 export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
   const { signup } = useAuth();
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -46,8 +45,8 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
 
     setIsLoading(true);
     try {
-      await signup(email, password, fullName);
-      // After successful signup, the AuthContext will trigger onboarding
+      await signup(email, password);
+      // After successful signup, user will complete profile after email verification
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed. Please try again.');
     } finally {
@@ -89,21 +88,6 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
                   <AlertDescription className="text-red-800">{error}</AlertDescription>
                 </Alert>
               )}
-
-              <div>
-                <label className="text-gray-700 mb-2 block">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Jane Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
 
               <div>
                 <label className="text-gray-700 mb-2 block">Email Address</label>
