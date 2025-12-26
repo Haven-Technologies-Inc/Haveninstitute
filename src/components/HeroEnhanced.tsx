@@ -32,6 +32,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { LogoIcon } from './ui/Logo';
+import { PrivacyPolicy, TermsOfUse } from './legal';
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -55,6 +56,8 @@ const stats = [
 export function HeroEnhanced({ onGetStarted }: HeroProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfUse, setShowTermsOfUse] = useState(false);
   const { isDarkMode, toggleDarkMode } = useDarkMode();
 
   // Mouse parallax effect
@@ -896,40 +899,81 @@ export function HeroEnhanced({ onGetStarted }: HeroProps) {
               </p>
             </div>
             
-            {[
-              {
-                title: 'Product',
-                links: ['Features', 'Pricing', 'Bookstore', 'AI Tools']
-              },
-              {
-                title: 'Company',
-                links: ['About', 'Blog', 'Careers', 'Contact']
-              },
-              {
-                title: 'Legal',
-                links: ['Privacy', 'Terms', 'Security', 'Cookies']
-              }
-            ].map((section, index) => (
-              <div key={index}>
-                <h4 className="mb-4">{section.title}</h4>
-                <ul className="space-y-2">
-                  {section.links.map((link) => (
-                    <li key={link}>
-                      <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
-                        {link}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            <div>
+              <h4 className="mb-4">Product</h4>
+              <ul className="space-y-2">
+                {['Features', 'Pricing', 'Bookstore', 'AI Tools'].map((link) => (
+                  <li key={link}>
+                    <a href={`#${link.toLowerCase().replace(' ', '-')}`} className="text-gray-400 hover:text-white transition-colors text-sm">
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="mb-4">Company</h4>
+              <ul className="space-y-2">
+                {['About', 'Blog', 'Careers', 'Contact'].map((link) => (
+                  <li key={link}>
+                    <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="mb-4">Legal</h4>
+              <ul className="space-y-2">
+                <li>
+                  <button 
+                    onClick={() => setShowPrivacyPolicy(true)}
+                    className="text-gray-400 hover:text-white transition-colors text-sm"
+                  >
+                    Privacy Policy
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => setShowTermsOfUse(true)}
+                    className="text-gray-400 hover:text-white transition-colors text-sm"
+                  >
+                    Terms of Use
+                  </button>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+                    Security
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+                    Cookies
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
           
-          <div className="border-t border-gray-800 pt-8 text-center text-gray-400 text-sm">
-            <p>© 2024 Haven Institute. All rights reserved.</p>
+          <div className="border-t border-gray-800 pt-8 text-center text-gray-400 text-sm space-y-2">
+            <p>Powered by Haven Technologies Inc.</p>
+            <p>&copy; 2024 Haven Institute. All rights reserved.</p>
           </div>
         </div>
       </footer>
+
+      {/* Legal Modals */}
+      <PrivacyPolicy 
+        isOpen={showPrivacyPolicy} 
+        onClose={() => setShowPrivacyPolicy(false)} 
+      />
+      <TermsOfUse 
+        isOpen={showTermsOfUse} 
+        onClose={() => setShowTermsOfUse(false)} 
+      />
     </div>
   );
 }
