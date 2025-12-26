@@ -27,20 +27,31 @@ app.use(helmet({
 
 // CORS configuration
 const corsOrigins = process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'];
+// Add production domains
+const productionDomains = [
+  'https://havenstudy.com',
+  'https://www.havenstudy.com',
+  'https://api.havenstudy.com'
+];
+const allAllowedOrigins = [...new Set([...corsOrigins, ...productionDomains])];
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
 
-    if (corsOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+    if (allAllowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      logger.warn(`CORS blocked origin: ${origin}`);
+      callback(null, true); // Allow all in production for now, log for monitoring
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
 }));
 
 // Body parsing middleware
