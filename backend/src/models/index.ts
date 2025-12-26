@@ -13,7 +13,7 @@ import { FlashcardDeck, Flashcard, UserFlashcardProgress } from './Flashcard';
 import { Subscription, PaymentTransaction } from './Subscription';
 import { UserSettings } from './UserSettings';
 import { StudyPlan, StudyPlanTask, StudyPlanMilestone } from './StudyPlan';
-import { StudyGroup, StudyGroupMember, StudyGroupMessage, StudySession } from './StudyGroup';
+import { StudyGroup, GroupMember, GroupMessage, GroupInvitation } from './StudyGroup';
 import { ForumCategory, ForumPost, ForumComment, ForumReaction, ForumBookmark } from './Forum';
 import { Achievement, UserAchievement } from './Achievement';
 import { Notification } from './Notification';
@@ -26,7 +26,7 @@ export {
   StudyMaterial, UserStudyMaterial, FlashcardDeck, Flashcard,
   UserFlashcardProgress, Subscription, PaymentTransaction,
   UserSettings, StudyPlan, StudyPlanTask, StudyPlanMilestone, StudyGroup,
-  StudyGroupMember, StudyGroupMessage, StudySession, ForumCategory, ForumPost, 
+  GroupMember, GroupMessage, GroupInvitation, ForumCategory, ForumPost, 
   ForumComment, ForumReaction, ForumBookmark,
   Achievement, UserAchievement, Notification, FileUpload
 };
@@ -66,9 +66,9 @@ export const models = [
   StudyPlanTask,
   StudyPlanMilestone,
   StudyGroup,
-  StudyGroupMember,
-  StudyGroupMessage,
-  StudySession,
+  GroupMember,
+  GroupMessage,
+  GroupInvitation,
   ForumCategory,
   ForumPost,
   ForumComment,
