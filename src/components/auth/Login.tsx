@@ -4,7 +4,24 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Alert, AlertDescription } from '../ui/alert';
-import { Mail, Lock, AlertCircle, Heart, ArrowLeft, CheckCircle, X, Eye, EyeOff, GraduationCap } from 'lucide-react';
+import { 
+  Mail, 
+  Lock, 
+  AlertCircle, 
+  ArrowLeft, 
+  CheckCircle, 
+  X, 
+  Eye, 
+  EyeOff, 
+  GraduationCap,
+  BookOpen,
+  Brain,
+  Trophy,
+  Users,
+  Sparkles,
+  Target,
+  Shield
+} from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { authApi } from '../../services/authApi';
 import { Logo } from '../ui/Logo';
@@ -115,141 +132,233 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
     }
   };
 
+  const features = [
+    { icon: Brain, title: 'AI-Powered Learning', desc: 'Personalized study paths' },
+    { icon: Target, title: 'Adaptive Testing', desc: 'CAT-style practice exams' },
+    { icon: BookOpen, title: '5000+ Questions', desc: 'Comprehensive question bank' },
+    { icon: Trophy, title: 'Track Progress', desc: 'Detailed analytics' },
+  ];
+
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center p-4 transition-colors`}>
-      <div className="w-full max-w-md">
-        {/* Back to Home Button */}
-        <div className="mb-4">
-          <Button
-            variant="ghost"
+    <div className="min-h-screen flex">
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 p-12 flex-col justify-between relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-300 rounded-full blur-3xl" />
+        </div>
+        
+        {/* Content */}
+        <div className="relative z-10">
+          <button 
             onClick={onBackToHome}
-            className="gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+            className="flex items-center gap-2 text-white/80 hover:text-white transition-colors mb-8"
+            title="Back to Home"
           >
             <ArrowLeft className="size-4" />
-            Back to Home
-          </Button>
-        </div>
-
-        {/* Logo & Header */}
-        <div className="text-center mb-8">
-          <div className="flex flex-col items-center gap-2">
-            <Logo size="xl" showText={false} />
+            <span>Back to Home</span>
+          </button>
+          
+          <div className="flex items-center gap-3 mb-2">
+            <Logo size="lg" showText={false} />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Haven Institute</h1>
-              <p className="text-gray-600 dark:text-gray-400">Excellence in NCLEX Preparation</p>
+              <h1 className="text-3xl font-bold text-white">Haven Institute</h1>
+              <p className="text-blue-200">Excellence in NCLEX Preparation</p>
             </div>
           </div>
         </div>
 
-        {/* Login Card */}
-        <Card className="shadow-xl border-2 dark:bg-gray-800 dark:border-gray-700">
-          <CardHeader>
-            <CardTitle>Welcome Back</CardTitle>
-            <CardDescription>Sign in to continue your NCLEX preparation journey</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <Alert className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800">
-                  <AlertCircle className="size-4 text-red-600 dark:text-red-400" />
-                  <AlertDescription className="text-red-800 dark:text-red-300">{error}</AlertDescription>
-                </Alert>
-              )}
-              
-              {success && (
-                <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
-                  <CheckCircle className="size-4 text-green-600 dark:text-green-400" />
-                  <AlertDescription className="text-green-800 dark:text-green-300">{success}</AlertDescription>
-                </Alert>
-              )}
+        <div className="relative z-10 space-y-8">
+          <div>
+            <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
+              Your Path to<br />NCLEX Success<br />Starts Here
+            </h2>
+            <p className="text-blue-100 text-lg max-w-md">
+              Join thousands of nursing students who have passed their NCLEX exam with our AI-powered preparation platform.
+            </p>
+          </div>
 
-              <div>
-                <label className="text-gray-700 dark:text-gray-300 mb-2 block">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
-                  <Input
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+          {/* Feature Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            {features.map((feature, idx) => (
+              <div key={idx} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                <feature.icon className="size-8 text-white mb-2" />
+                <h3 className="text-white font-semibold">{feature.title}</h3>
+                <p className="text-blue-200 text-sm">{feature.desc}</p>
               </div>
+            ))}
+          </div>
+        </div>
 
-              <div>
-                <label className="text-gray-700 dark:text-gray-300 mb-2 block">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </div>
+        {/* Stats */}
+        <div className="relative z-10 flex gap-8">
+          <div>
+            <p className="text-3xl font-bold text-white">95%</p>
+            <p className="text-blue-200 text-sm">Pass Rate</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-white">50K+</p>
+            <p className="text-blue-200 text-sm">Students</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-white">4.9★</p>
+            <p className="text-blue-200 text-sm">Rating</p>
+          </div>
+        </div>
+      </div>
 
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="rounded" />
-                  <span className="text-gray-600">Remember me</span>
-                </label>
-                <button
-                  type="button"
-                  className="text-blue-600 hover:underline"
-                  onClick={() => setShowForgotPassword(true)}
-                >
-                  Forgot password?
-                </button>
-              </div>
+      {/* Right Panel - Login Form */}
+      <div className="flex-1 flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
+        <div className="w-full max-w-md">
+          {/* Mobile Back Button */}
+          <div className="lg:hidden mb-6">
+            <button 
+              onClick={onBackToHome}
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              title="Back to Home"
+            >
+              <ArrowLeft className="size-4" />
+              <span>Back to Home</span>
+            </button>
+          </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Signing in...' : 'Sign In'}
-              </Button>
-            </form>
-
-            {/* Signup Link */}
-            <div className="mt-6 text-center">
-              <p className="text-gray-600">
-                Don't have an account?{' '}
-                <button
-                  type="button"
-                  onClick={onSwitchToSignup}
-                  className="text-blue-600 hover:underline"
-                  title="Create a new account"
-                >
-                  Sign up for free
-                </button>
-              </p>
+          {/* Mobile Logo */}
+          <div className="lg:hidden text-center mb-8">
+            <div className="flex flex-col items-center gap-2">
+              <Logo size="xl" showText={false} />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Haven Institute</h1>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Features Preview */}
-        <div className="mt-6 text-center text-gray-600">
-          <div className="flex items-center justify-center gap-6">
-            <div className="flex items-center gap-2">
-              <Heart className="size-4 text-red-500" />
+          {/* Welcome Text */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome back</h2>
+            <p className="text-gray-600 dark:text-gray-400">Sign in to continue your NCLEX preparation journey</p>
+          </div>
+
+          {/* Login Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <Alert className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800">
+                <AlertCircle className="size-4 text-red-600 dark:text-red-400" />
+                <AlertDescription className="text-red-800 dark:text-red-300">{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {success && (
+              <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
+                <CheckCircle className="size-4 text-green-600 dark:text-green-400" />
+                <AlertDescription className="text-green-800 dark:text-green-300">{success}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 size-5 text-gray-400" />
+                <Input
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-11 h-12 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 size-5 text-gray-400" />
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-11 pr-11 h-12 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-blue-500"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm text-gray-600 dark:text-gray-400">Remember me</span>
+              </label>
+              <button
+                type="button"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                onClick={() => setShowForgotPassword(true)}
+              >
+                Forgot password?
+              </button>
+            </div>
+
+            <Button 
+              type="submit" 
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-lg shadow-blue-500/25" 
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin size-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Signing in...
+                </span>
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200 dark:border-gray-700" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-gray-50 dark:bg-gray-900 text-gray-500">New to Haven Institute?</span>
+            </div>
+          </div>
+
+          {/* Sign Up Link */}
+          <button
+            type="button"
+            onClick={onSwitchToSignup}
+            className="w-full h-12 border-2 border-gray-200 dark:border-gray-700 rounded-lg font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+            title="Create a new account"
+          >
+            <Users className="size-5" />
+            Create an Account
+          </button>
+
+          {/* Trust Badges */}
+          <div className="mt-8 flex items-center justify-center gap-6 text-gray-400 dark:text-gray-500">
+            <div className="flex items-center gap-1 text-xs">
+              <Shield className="size-4" />
+              <span>Secure Login</span>
+            </div>
+            <div className="flex items-center gap-1 text-xs">
+              <Sparkles className="size-4" />
               <span>AI-Powered</span>
             </div>
-            <span>•</span>
-            <div className="flex items-center gap-2">
-              <GraduationCap className="size-4 text-blue-500" />
-              <span>CAT Testing</span>
+            <div className="flex items-center gap-1 text-xs">
+              <GraduationCap className="size-4" />
+              <span>NCLEX Ready</span>
             </div>
-            <span>•</span>
-            <span>1000+ Questions</span>
           </div>
         </div>
       </div>
