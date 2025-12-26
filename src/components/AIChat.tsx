@@ -1,9 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Textarea } from './ui/textarea';
 import { 
   Sparkles, 
   Send, 
@@ -12,60 +9,64 @@ import {
   Brain,
   BookOpen,
   Zap,
-  Clock,
-  CheckCircle2,
-  X,
-  Download,
   Copy,
-  RotateCcw,
   Lightbulb,
   HelpCircle,
-  MessageSquare,
   List,
-  FileCheck
+  FileCheck,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from './auth/AuthContext';
+import * as aiApi from '../services/api/ai.api';
 
-type ChatMode = 'study' | 'learn';
+type ChatMode = 'tutor' | 'questions' | 'clinical';
 type Message = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  type?: 'text' | 'questions' | 'summary' | 'document';
+  type?: 'text' | 'questions' | 'summary' | 'document' | 'error';
+  isStreaming?: boolean;
 };
 
 export function AIChat() {
   const { user } = useAuth();
-  const [mode, setMode] = useState<ChatMode>('study');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: `Hi ${user?.name}! 👋 I'm your AI study assistant. I can help you with:\n\n• Study Mode: Get explanations, clarifications, and study tips\n• Learn Mode: Interactive learning with questions and exercises\n• Upload documents to generate questions and summaries\n\nHow can I help you today?`,
-      timestamp: new Date(),
-      type: 'text'
-    }
-  ]);
+  const [mode, setMode] = useState<ChatMode>('tutor');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [showUploadZone, setShowUploadZone] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const scrollToBottom = () => {
+  // Initialize with welcome message
+  useEffect(() => {
+    const welcomeMessage: Message = {
+      id: 'welcome',
+      role: 'assistant',
+      content: `Hello ${user?.name || 'there'}! 👋 I'm your **NCLEX AI Tutor**, here to help you succeed on your nursing exam.\n\n**I can help you with:**\n\n• **Tutor Mode**: Ask questions about nursing concepts, get detailed explanations, and receive study guidance\n• **Questions Mode**: Generate practice NCLEX-style questions on any topic\n• **Clinical Mode**: Analyze clinical scenarios using the Clinical Judgment Model\n\n**How can I assist you today?**`,
+      timestamp: new Date(),
+      type: 'text'
+    };
+    setMessages([welcomeMessage]);
+  }, [user?.name]);
+
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
+  // Send message to AI backend
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
 
-    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -75,163 +76,204 @@ export function AIChat() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputMessage;
     setInputMessage('');
-    setIsTyping(true);
+    setIsLoading(true);
+    setError(null);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(inputMessage, mode);
-      setMessages(prev => [...prev, aiResponse]);
-      setIsTyping(false);
-    }, 1500);
+    try {
+      let response: string;
+
+      if (mode === 'tutor') {
+        // Use AI chat endpoint
+        const result = await aiApi.chat({
+          message: currentInput,
+          sessionId: sessionId || undefined
+        });
+        setSessionId(result.sessionId);
+        response = result.response;
+      } else if (mode === 'questions') {
+        // Generate questions based on topic
+        const result = await aiApi.generateQuestions({
+          topic: currentInput,
+          category: 'physiological_basic',
+          difficulty: 'medium',
+          count: 3
+        });
+        response = formatQuestionsResponse(result.questions);
+      } else {
+        // Clinical analysis
+        const result = await aiApi.analyzeClinicalScenario({
+          scenario: currentInput
+        });
+        response = result.analysis;
+      }
+
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: response,
+        timestamp: new Date(),
+        type: mode === 'questions' ? 'questions' : 'text'
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (err: any) {
+      console.error('AI Chat error:', err);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `I apologize, but I encountered an error processing your request. ${err.response?.data?.message || err.message || 'Please try again.'}`,
+        timestamp: new Date(),
+        type: 'error'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const generateAIResponse = (query: string, currentMode: ChatMode): Message => {
-    const lowerQuery = query.toLowerCase();
-
-    // Study Mode responses
-    if (currentMode === 'study') {
-      if (lowerQuery.includes('cardiac') || lowerQuery.includes('heart')) {
-        return {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: `Great question about cardiac care! 🫀\n\n**Key Points:**\n\n1. **Cardiac Cycle**: Understand systole (contraction) and diastole (relaxation)\n2. **Common Conditions**: MI, CHF, Arrhythmias\n3. **Critical Meds**: Beta-blockers, ACE inhibitors, Anticoagulants\n4. **Assessment**: Vital signs, heart sounds, ECG monitoring\n\n**NCLEX Tip**: Focus on priority interventions - remember ABCs (Airway, Breathing, Circulation)!\n\nWould you like me to generate practice questions on this topic?`,
-          timestamp: new Date(),
-          type: 'text'
-        };
-      }
-
-      if (lowerQuery.includes('pharmacology') || lowerQuery.includes('medication')) {
-        return {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: `Let's break down pharmacology! 💊\n\n**Study Strategy:**\n\n1. **Drug Classifications**: Group medications by class (e.g., beta-blockers)\n2. **Mechanism of Action**: How the drug works\n3. **Key Side Effects**: What to monitor\n4. **Nursing Implications**: Assessment & patient teaching\n\n**Memory Tip**: Use suffix patterns:\n• -olol = Beta-blockers (propranolol)\n• -pril = ACE inhibitors (lisinopril)\n• -sartan = ARBs (losartan)\n\nWhat specific drug class would you like to focus on?`,
-          timestamp: new Date(),
-          type: 'text'
-        };
-      }
+  // Format questions into readable response
+  const formatQuestionsResponse = (questions: aiApi.GeneratedQuestion[]): string => {
+    if (!questions || questions.length === 0) {
+      return 'I was unable to generate questions for that topic. Please try a different nursing topic.';
     }
 
-    // Learn Mode responses
-    if (currentMode === 'learn') {
-      if (lowerQuery.includes('quiz') || lowerQuery.includes('question')) {
-        return {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: `Perfect! Let me create a mini-quiz for you:\n\n**Question 1:** A client with heart failure is prescribed furosemide (Lasix). Which assessment finding is most important to report?\n\nA) Blood pressure 128/82 mmHg\nB) Serum potassium 2.8 mEq/L\nC) Urine output 50 mL/hour\nD) Heart rate 76 bpm\n\n**Correct Answer:** B) Serum potassium 2.8 mEq/L\n\n**Rationale:** Furosemide is a loop diuretic that causes potassium loss. A K+ of 2.8 is below normal (3.5-5.0) and can lead to dangerous arrhythmias.\n\nWould you like more practice questions?`,
-          timestamp: new Date(),
-          type: 'questions'
-        };
-      }
-    }
+    let response = `📝 **Generated ${questions.length} NCLEX-Style Questions**\n\n`;
+    
+    questions.forEach((q, idx) => {
+      response += `**Question ${idx + 1}:** ${q.text}\n\n`;
+      q.options.forEach(opt => {
+        response += `${opt.id.toUpperCase()}) ${opt.text}\n`;
+      });
+      response += `\n**Correct Answer:** ${q.correctAnswers.join(', ').toUpperCase()}\n`;
+      response += `**Rationale:** ${q.explanation}\n`;
+      response += `**Category:** ${q.category} | **Difficulty:** ${q.difficulty}\n\n---\n\n`;
+    });
 
-    // Default response
-    return {
-      id: Date.now().toString(),
-      role: 'assistant',
-      content: mode === 'study' 
-        ? `I understand you're asking about "${query}". Let me help you with that!\n\nIn Study Mode, I can:\n• Explain complex concepts simply\n• Provide mnemonics and memory tips\n• Break down difficult topics\n• Offer study strategies\n\nCould you be more specific about what you'd like to learn?`
-        : `Great! In Learn Mode, I can create interactive content for "${query}".\n\nI can:\n• Generate practice questions\n• Create flashcards\n• Design case studies\n• Provide hands-on exercises\n\nWhat would you like to do first?`,
-      timestamp: new Date(),
-      type: 'text'
-    };
+    response += 'Would you like more questions on this topic or a different area?';
+    return response;
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setUploadedFile(file);
       setShowUploadZone(false);
 
-      // Add message about file upload
       const uploadMessage: Message = {
         id: Date.now().toString(),
         role: 'user',
-        content: `Uploaded: ${file.name}`,
+        content: `📄 Uploaded: ${file.name}`,
         timestamp: new Date(),
         type: 'document'
       };
-
       setMessages(prev => [...prev, uploadMessage]);
-      setIsTyping(true);
 
-      // Simulate processing
-      setTimeout(() => {
-        const processMessage: Message = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: `✅ Document processed successfully!\n\n**File:** ${file.name}\n**Size:** ${(file.size / 1024).toFixed(2)} KB\n\nWhat would you like me to do?\n\n1. **Generate Questions** - Create practice questions from this content\n2. **Create Summary** - Get a concise summary of key points\n3. **Extract Concepts** - Identify main topics and definitions\n\nClick a button below or type your choice!`,
-          timestamp: new Date(),
-          type: 'text'
-        };
-        setMessages(prev => [...prev, processMessage]);
-        setIsTyping(false);
-      }, 2000);
+      // For now, show options - actual file processing would need backend support
+      const processMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `✅ Document received: **${file.name}** (${(file.size / 1024).toFixed(2)} KB)\n\nWhat would you like me to do with this content?\n\n• Type "summarize" to get a summary\n• Type "generate questions" to create practice questions\n• Or ask me any specific questions about the content`,
+        timestamp: new Date(),
+        type: 'text'
+      };
+      setMessages(prev => [...prev, processMessage]);
     }
   };
 
-  const handleGenerateQuestions = () => {
-    setIsTyping(true);
-
-    setTimeout(() => {
+  const handleGenerateQuestions = async () => {
+    setIsLoading(true);
+    try {
+      const result = await aiApi.generateQuestions({
+        topic: 'nursing fundamentals',
+        category: 'safe_effective_care',
+        difficulty: 'medium',
+        count: 5
+      });
+      
       const questionsMessage: Message = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: `📝 **Generated 5 Questions from Document**\n\n**Question 1:** What is the primary function of the cardiovascular system?\nA) Digestion\nB) Transport of oxygen and nutrients\nC) Hormone production\nD) Temperature regulation\n\n**Question 2:** Which chamber of the heart receives oxygenated blood from the lungs?\nA) Right atrium\nB) Right ventricle\nC) Left atrium\nD) Left ventricle\n\n**Question 3:** What is the normal range for adult heart rate?\nA) 40-60 bpm\nB) 60-100 bpm\nC) 100-120 bpm\nD) 120-140 bpm\n\n**Question 4:** Which blood vessel carries blood away from the heart?\nA) Vein\nB) Artery\nC) Capillary\nD) Venule\n\n**Question 5:** What is the term for high blood pressure?\nA) Hypotension\nB) Hypertension\nC) Tachycardia\nD) Bradycardia\n\n**Answers:** 1-B, 2-C, 3-B, 4-B, 5-B\n\nWould you like explanations for these answers?`,
+        content: formatQuestionsResponse(result.questions),
         timestamp: new Date(),
         type: 'questions'
       };
       setMessages(prev => [...prev, questionsMessage]);
-      setIsTyping(false);
-    }, 2000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGenerateSummary = () => {
-    setIsTyping(true);
+  const handleGenerateSummary = async () => {
+    if (!uploadedFile) return;
+    
+    setIsLoading(true);
+    try {
+      const result = await aiApi.summarizeContent({
+        content: `Content from file: ${uploadedFile.name}`,
+        topic: 'nursing'
+      });
 
-    setTimeout(() => {
       const summaryMessage: Message = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: `📄 **Document Summary**\n\n**Main Topics Covered:**\n\n1. **Cardiovascular Anatomy**\n   • Four chambers: atria and ventricles\n   • Major vessels: aorta, vena cava, pulmonary arteries/veins\n   • Valves: mitral, tricuspid, aortic, pulmonary\n\n2. **Cardiac Physiology**\n   • Cardiac cycle: systole and diastole\n   • Blood flow pathway through the heart\n   • Electrical conduction system\n\n3. **Common Disorders**\n   • Hypertension (elevated blood pressure)\n   • Myocardial infarction (heart attack)\n   • Heart failure (pump dysfunction)\n   • Arrhythmias (irregular rhythms)\n\n4. **Nursing Assessment**\n   • Vital signs monitoring\n   • Heart sounds auscultation\n   • ECG interpretation basics\n   • Patient symptoms evaluation\n\n**Key Takeaway:** Understanding cardiovascular function is essential for NCLEX success and safe patient care.\n\nWould you like me to expand on any of these topics?`,
+        content: `📄 **Summary**\n\n${result.summary}\n\n**Key Points:**\n${result.keyPoints.map(p => `• ${p}`).join('\n')}`,
         timestamp: new Date(),
         type: 'summary'
       };
       setMessages(prev => [...prev, summaryMessage]);
-      setIsTyping(false);
-    }, 2000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const quickActions = [
     { 
       label: 'Explain a concept', 
       icon: Lightbulb, 
-      prompt: 'Can you explain the difference between heart failure and cardiac arrest?' 
+      prompt: 'Explain the difference between heart failure and cardiac arrest, including nursing interventions for each.' 
     },
     { 
-      label: 'Study tips', 
+      label: 'Pharmacology help', 
       icon: Brain, 
-      prompt: 'What are the best strategies for studying pharmacology?' 
+      prompt: 'Explain the mechanism of action, nursing implications, and patient teaching for beta-blockers.' 
     },
     { 
       label: 'Practice questions', 
       icon: HelpCircle, 
-      prompt: 'Give me practice questions on cardiac nursing' 
+      prompt: 'Generate 3 NCLEX-style questions about fluid and electrolyte balance.' 
     },
     { 
-      label: 'Mnemonics', 
+      label: 'Clinical scenario', 
       icon: Zap, 
-      prompt: 'What are some helpful mnemonics for remembering vital signs?' 
+      prompt: 'A patient presents with chest pain, diaphoresis, and shortness of breath. Walk me through the clinical judgment process.' 
     },
   ];
 
   const handleQuickAction = (prompt: string) => {
     setInputMessage(prompt);
-    setTimeout(() => handleSendMessage(), 100);
   };
 
   const copyMessage = (content: string) => {
     navigator.clipboard.writeText(content);
+  };
+
+  const clearSession = () => {
+    setSessionId(null);
+    setMessages([{
+      id: 'welcome',
+      role: 'assistant',
+      content: `Session cleared. How can I help you with your NCLEX preparation?`,
+      timestamp: new Date(),
+      type: 'text'
+    }]);
+    setError(null);
   };
 
   return (
@@ -250,42 +292,62 @@ export function AIChat() {
           </div>
 
           {/* Mode Toggle */}
-          <div className="flex gap-2 bg-white/10 p-1 rounded-lg">
+          <div className="flex gap-1 bg-white/10 p-1 rounded-lg">
             <button
-              onClick={() => setMode('study')}
-              className={`px-4 py-2 rounded-lg transition-all ${
-                mode === 'study'
+              onClick={() => setMode('tutor')}
+              className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                mode === 'tutor'
                   ? 'bg-white text-blue-600 shadow-md'
                   : 'text-white hover:bg-white/20'
               }`}
             >
               <div className="flex items-center gap-2">
                 <BookOpen className="size-4" />
-                <span>Study Mode</span>
+                <span>Tutor</span>
               </div>
             </button>
             <button
-              onClick={() => setMode('learn')}
-              className={`px-4 py-2 rounded-lg transition-all ${
-                mode === 'learn'
+              onClick={() => setMode('questions')}
+              className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                mode === 'questions'
                   ? 'bg-white text-purple-600 shadow-md'
                   : 'text-white hover:bg-white/20'
               }`}
             >
               <div className="flex items-center gap-2">
+                <HelpCircle className="size-4" />
+                <span>Questions</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setMode('clinical')}
+              className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                mode === 'clinical'
+                  ? 'bg-white text-green-600 shadow-md'
+                  : 'text-white hover:bg-white/20'
+              }`}
+            >
+              <div className="flex items-center gap-2">
                 <Brain className="size-4" />
-                <span>Learn Mode</span>
+                <span>Clinical</span>
               </div>
             </button>
           </div>
+          <Button onClick={clearSession} variant="ghost" className="text-white/80 hover:text-white hover:bg-white/10">
+            <RefreshCw className="size-4" />
+          </Button>
         </div>
 
         {/* Mode Description */}
         <div className="bg-white/10 rounded-lg p-3 text-white text-sm">
-          {mode === 'study' ? (
-            <p>📚 <strong>Study Mode:</strong> Get explanations, clarifications, and study strategies for NCLEX topics</p>
-          ) : (
-            <p>🎯 <strong>Learn Mode:</strong> Interactive learning with practice questions, quizzes, and exercises</p>
+          {mode === 'tutor' && (
+            <p>📚 <strong>Tutor Mode:</strong> Ask questions about nursing concepts, get detailed NCLEX explanations</p>
+          )}
+          {mode === 'questions' && (
+            <p>📝 <strong>Questions Mode:</strong> Generate practice NCLEX-style questions on any topic</p>
+          )}
+          {mode === 'clinical' && (
+            <p>🏥 <strong>Clinical Mode:</strong> Analyze clinical scenarios using the Clinical Judgment Model</p>
           )}
         </div>
       </div>
@@ -359,13 +421,22 @@ export function AIChat() {
             </div>
           ))}
 
-          {isTyping && (
+          {isLoading && (
             <div className="flex justify-start">
               <div className="bg-gray-100 rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Sparkles className="size-4 text-blue-600 animate-pulse" />
-                  <span className="text-gray-600">AI is typing...</span>
+                  <span className="text-gray-600">AI is thinking...</span>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex justify-center">
+              <div className="bg-red-50 text-red-600 rounded-lg px-4 py-2 text-sm flex items-center gap-2">
+                <AlertCircle className="size-4" />
+                <span>Connection error. Please try again.</span>
               </div>
             </div>
           )}
@@ -381,19 +452,19 @@ export function AIChat() {
               <span className="text-sm text-blue-900">Document ready: {uploadedFile.name}</span>
               <div className="flex-1"></div>
               <Button
-                size="sm"
                 variant="outline"
                 onClick={handleGenerateQuestions}
-                className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white text-sm px-3 py-1 h-8"
+                disabled={isLoading}
               >
                 <List className="size-4 mr-2" />
                 Generate Questions
               </Button>
               <Button
-                size="sm"
                 variant="outline"
                 onClick={handleGenerateSummary}
-                className="border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white"
+                className="border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white text-sm px-3 py-1 h-8"
+                disabled={isLoading}
               >
                 <FileText className="size-4 mr-2" />
                 Create Summary
