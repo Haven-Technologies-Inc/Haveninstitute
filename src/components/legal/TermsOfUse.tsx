@@ -36,24 +36,24 @@ export function TermsOfUse({ isOpen, onClose }: TermsOfUseProps) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-6 sm:py-8">
-          <div className="max-w-none space-y-6 text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
+        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-8">
+          <div className="max-w-none space-y-5 sm:space-y-6 text-[13px] sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
             
             <p className="text-justify">
               Welcome to Haven Institute. These Terms of Use ("Terms") govern your access to and use of the Haven Institute NCLEX preparation platform operated by Haven Technologies Inc., a company registered in Washington State. By creating an account or using our services, you agree to be bound by these Terms.
             </p>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">1. Acceptance of Terms</h3>
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">1. Acceptance of Terms</h3>
               <p className="text-justify">
                 By accessing or using Haven Institute's services, you acknowledge that you have read, understood, and agree to be bound by these Terms and our Privacy Policy. If you do not agree to these Terms, you may not use our services.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">2. Eligibility</h3>
-              <p className="text-justify mb-3">You must meet the following requirements to use our services:</p>
-              <ul className="list-disc pl-5 space-y-1">
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">2. Eligibility</h3>
+              <p className="text-justify mb-2 sm:mb-3">You must meet the following requirements to use our services:</p>
+              <ul className="list-disc pl-4 sm:pl-5 space-y-0.5 sm:space-y-1 ml-1">
                 <li>Be at least 18 years of age</li>
                 <li>Be a nursing student or graduate preparing for the NCLEX examination</li>
                 <li>Provide accurate and complete registration information</li>
@@ -62,9 +62,9 @@ export function TermsOfUse({ isOpen, onClose }: TermsOfUseProps) {
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">3. Account Registration and Security</h3>
-              <p className="text-justify mb-3">You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to:</p>
-              <ul className="list-disc pl-5 space-y-1">
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">3. Account Registration and Security</h3>
+              <p className="text-justify mb-2 sm:mb-3">You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to:</p>
+              <ul className="list-disc pl-4 sm:pl-5 space-y-0.5 sm:space-y-1 ml-1">
                 <li>Provide accurate, current, and complete information during registration</li>
                 <li>Update your information to keep it accurate and current</li>
                 <li>Notify us immediately of any unauthorized access or security breach</li>
@@ -74,9 +74,9 @@ export function TermsOfUse({ isOpen, onClose }: TermsOfUseProps) {
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">4. Services Description</h3>
-              <p className="text-justify mb-3">Haven Institute provides:</p>
-              <ul className="list-disc pl-5 space-y-1">
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">4. Services Description</h3>
+              <p className="text-justify mb-2 sm:mb-3">Haven Institute provides:</p>
+              <ul className="list-disc pl-4 sm:pl-5 space-y-0.5 sm:space-y-1 ml-1">
                 <li>NCLEX-RN and NCLEX-PN examination preparation materials</li>
                 <li>AI-powered adaptive learning and testing</li>
                 <li>Practice questions and simulated examinations</li>
@@ -86,21 +86,21 @@ export function TermsOfUse({ isOpen, onClose }: TermsOfUseProps) {
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">5. Educational Disclaimer</h3>
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                <p className="text-justify text-amber-800 dark:text-amber-200">
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">5. Educational Disclaimer</h3>
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 sm:p-4">
+                <p className="text-justify text-amber-800 dark:text-amber-200 text-[13px] sm:text-base">
                   <span className="font-semibold">Important:</span> Haven Institute is an educational preparation service. We do not guarantee that you will pass the NCLEX examination. Success on the NCLEX depends on many factors, including your individual preparation, nursing education, and test-taking abilities. Our materials are supplementary to, not a replacement for, your formal nursing education.
                 </p>
               </div>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">6. Intellectual Property Rights</h3>
-              <p className="text-justify mb-3">
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">6. Intellectual Property Rights</h3>
+              <p className="text-justify mb-2 sm:mb-3">
                 All content on Haven Institute, including but not limited to text, graphics, logos, images, audio, video, software, and the compilation thereof, is the property of Haven Technologies Inc. or its content suppliers and is protected by United States and international copyright laws.
               </p>
-              <p className="text-justify mb-3">You may not:</p>
-              <ul className="list-disc pl-5 space-y-1">
+              <p className="text-justify mb-2 sm:mb-3">You may not:</p>
+              <ul className="list-disc pl-4 sm:pl-5 space-y-0.5 sm:space-y-1 ml-1">
                 <li>Copy, reproduce, distribute, or create derivative works from our content</li>
                 <li>Reverse engineer, decompile, or disassemble any software</li>
                 <li>Remove any copyright or proprietary notices</li>
@@ -110,9 +110,9 @@ export function TermsOfUse({ isOpen, onClose }: TermsOfUseProps) {
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">7. Acceptable Use Policy</h3>
-              <p className="text-justify mb-3">You agree not to:</p>
-              <ul className="list-disc pl-5 space-y-1">
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">7. Acceptable Use Policy</h3>
+              <p className="text-justify mb-2 sm:mb-3">You agree not to:</p>
+              <ul className="list-disc pl-4 sm:pl-5 space-y-0.5 sm:space-y-1 ml-1">
                 <li>Use our services for any unlawful purpose</li>
                 <li>Harass, abuse, or harm other users</li>
                 <li>Post or transmit any harmful, offensive, or inappropriate content</li>
@@ -125,9 +125,9 @@ export function TermsOfUse({ isOpen, onClose }: TermsOfUseProps) {
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">8. Payment Terms</h3>
-              <p className="text-justify mb-3">Certain features of Haven Institute require payment. By purchasing a subscription or service:</p>
-              <ul className="list-disc pl-5 space-y-1">
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">8. Payment Terms</h3>
+              <p className="text-justify mb-2 sm:mb-3">Certain features of Haven Institute require payment. By purchasing a subscription or service:</p>
+              <ul className="list-disc pl-4 sm:pl-5 space-y-0.5 sm:space-y-1 ml-1">
                 <li>You agree to pay all fees and charges associated with your account</li>
                 <li>Subscriptions automatically renew unless cancelled before the renewal date</li>
                 <li>Refunds are subject to our refund policy</li>
@@ -136,79 +136,79 @@ export function TermsOfUse({ isOpen, onClose }: TermsOfUseProps) {
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">9. Refund Policy</h3>
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">9. Refund Policy</h3>
               <p className="text-justify">
                 We offer a 7-day money-back guarantee for new subscriptions. After 7 days, refunds are granted at our discretion. To request a refund, contact us at privacy@havenstudy.com.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">10. Termination</h3>
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">10. Termination</h3>
               <p className="text-justify">
                 We may terminate or suspend your account immediately, without prior notice or liability, for any reason, including if you breach these Terms. Upon termination, your right to use our services will immediately cease.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">11. Disclaimer of Warranties</h3>
-              <p className="text-justify text-xs sm:text-sm uppercase tracking-wide">
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">11. Disclaimer of Warranties</h3>
+              <p className="text-justify text-[11px] sm:text-sm uppercase tracking-wide">
                 Our services are provided "as is" and "as available" without warranties of any kind, either express or implied. We do not warrant that our services will be uninterrupted, error-free, or completely secure.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">12. Limitation of Liability</h3>
-              <p className="text-justify text-xs sm:text-sm uppercase tracking-wide">
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">12. Limitation of Liability</h3>
+              <p className="text-justify text-[11px] sm:text-sm uppercase tracking-wide">
                 To the maximum extent permitted by Washington State and federal law, Haven Technologies Inc. shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or other intangible losses, resulting from your use of our services.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">13. Indemnification</h3>
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">13. Indemnification</h3>
               <p className="text-justify">
                 You agree to indemnify and hold harmless Haven Technologies Inc. and its officers, directors, employees, and agents from any claims, damages, losses, liabilities, and expenses arising out of your use of our services or violation of these Terms.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">14. Governing Law</h3>
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">14. Governing Law</h3>
               <p className="text-justify">
                 These Terms shall be governed by and construed in accordance with the laws of the State of Washington, United States, without regard to its conflict of law provisions. Any disputes arising from these Terms shall be resolved in the state or federal courts located in Washington State.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">15. Dispute Resolution</h3>
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">15. Dispute Resolution</h3>
               <p className="text-justify">
                 Before filing any legal claim, you agree to first contact us at privacy@havenstudy.com to attempt to resolve the dispute informally. If the dispute cannot be resolved informally within 30 days, either party may pursue formal legal proceedings.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">16. Changes to Terms</h3>
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">16. Changes to Terms</h3>
               <p className="text-justify">
                 We reserve the right to modify these Terms at any time. We will notify users of material changes by posting the updated Terms on our platform and updating the "Last Updated" date. Your continued use of our services after changes are posted constitutes acceptance of the modified Terms.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">17. Severability</h3>
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">17. Severability</h3>
               <p className="text-justify">
                 If any provision of these Terms is found to be unenforceable or invalid, that provision shall be limited or eliminated to the minimum extent necessary, and the remaining provisions shall remain in full force and effect.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">18. Entire Agreement</h3>
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">18. Entire Agreement</h3>
               <p className="text-justify">
                 These Terms, together with our Privacy Policy, constitute the entire agreement between you and Haven Technologies Inc. regarding your use of our services and supersede any prior agreements.
               </p>
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">19. Contact Information</h3>
-              <p className="text-justify mb-3">For questions about these Terms of Use, please contact us:</p>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">19. Contact Information</h3>
+              <p className="text-justify mb-2 sm:mb-3">For questions about these Terms of Use, please contact us:</p>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4 text-[13px] sm:text-base">
                 <p className="font-medium text-gray-900 dark:text-white">Haven Technologies Inc.</p>
                 <p>Email: <a href="mailto:privacy@havenstudy.com" className="text-blue-600 dark:text-blue-400 hover:underline">privacy@havenstudy.com</a></p>
                 <p>State of Registration: Washington, United States</p>
@@ -216,7 +216,7 @@ export function TermsOfUse({ isOpen, onClose }: TermsOfUseProps) {
             </section>
 
             <section>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3">20. Acknowledgment</h3>
+              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">20. Acknowledgment</h3>
               <p className="text-justify font-medium">
                 By creating an account, you acknowledge that you have read these Terms of Use, understand them, and agree to be bound by them.
               </p>
