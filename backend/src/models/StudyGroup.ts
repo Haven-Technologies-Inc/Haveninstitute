@@ -1,6 +1,6 @@
 /**
- * Study Group Models - For collaborative study sessions
- * Note: StudyGroup is defined first to avoid circular reference issues
+ * Study Groups Models - New implementation with proper relationships
+ * Tables: study_groups, group_members, group_messages, group_invitations
  */
 
 import {
@@ -8,20 +8,25 @@ import {
   Column,
   Model,
   DataType,
-  PrimaryKey,
-  Default,
-  CreatedAt,
-  UpdatedAt,
   ForeignKey,
   BelongsTo,
-  HasMany
+  HasMany,
+  Default,
+  PrimaryKey,
+  CreatedAt,
+  UpdatedAt,
+  Unique,
+  Index
 } from 'sequelize-typescript';
 import { User } from './User';
 
-// Main Study Group Model - MUST be defined first
+// ============================================
+// STUDY GROUP MODEL
+// ============================================
 @Table({
   tableName: 'study_groups',
-  timestamps: true
+  timestamps: true,
+  underscored: true
 })
 export class StudyGroup extends Model {
   @PrimaryKey
@@ -29,266 +34,244 @@ export class StudyGroup extends Model {
   @Column(DataType.UUID)
   id!: string;
 
-  @Column({ type: DataType.STRING, allowNull: false })
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: false
+  })
   name!: string;
 
   @Column(DataType.TEXT)
   description?: string;
 
-  @Column(DataType.STRING)
-  avatarUrl?: string;
-
-  @Column(DataType.STRING)
-  coverImageUrl?: string;
-
   @ForeignKey(() => User)
-  @Column(DataType.UUID)
-  ownerId!: string;
-
   @Column({
-    type: DataType.ENUM('public', 'private', 'invite_only'),
-    defaultValue: 'public'
+    type: DataType.UUID,
+    allowNull: false,
+    field: 'created_by'
   })
-  visibility!: 'public' | 'private' | 'invite_only';
+  createdBy!: string;
 
-  @Column({ type: DataType.JSON, defaultValue: [] })
-  focusAreas!: string[];
-
-  @Column({ type: DataType.JSON, defaultValue: [] })
-  tags!: string[];
-
-  @Column({ type: DataType.INTEGER, defaultValue: 50 })
+  @Default(6)
+  @Column({
+    type: DataType.INTEGER,
+    field: 'max_members'
+  })
   maxMembers!: number;
 
-  @Column({ type: DataType.INTEGER, defaultValue: 0 })
-  memberCount!: number;
+  @Default(true)
+  @Column({
+    type: DataType.BOOLEAN,
+    field: 'is_public'
+  })
+  isPublic!: boolean;
 
-  @Column({ type: DataType.FLOAT, defaultValue: 0 })
-  averageAbility!: number;
-
-  @Column({ type: DataType.BOOLEAN, defaultValue: true })
-  isActive!: boolean;
-
-  @Column(DataType.JSON)
-  settings?: {
-    allowMemberInvites: boolean;
-    requireApproval: boolean;
-    allowPolls: boolean;
-    allowResources: boolean;
-    weeklyGoal?: number;
-    notificationPreferences?: {
-      newMessage: boolean;
-      newSession: boolean;
-      memberJoined: boolean;
-    };
-  };
-
-  @Column(DataType.JSON)
-  stats?: {
-    totalMessages: number;
-    totalSessions: number;
-    totalStudyHours: number;
-    averageSessionAttendance: number;
-    weeklyActiveMembers: number;
-  };
+  @Column(DataType.STRING(50))
+  category?: string;
 
   @CreatedAt
+  @Column({ field: 'created_at' })
   createdAt!: Date;
 
   @UpdatedAt
+  @Column({ field: 'updated_at' })
   updatedAt!: Date;
 
-  @BelongsTo(() => User)
-  owner!: User;
+  // Relationships
+  @BelongsTo(() => User, 'createdBy')
+  creator?: User;
 
-  @HasMany(() => StudyGroupMember)
-  members!: StudyGroupMember[];
+  @HasMany(() => GroupMember, 'groupId')
+  members?: GroupMember[];
 
-  @HasMany(() => StudyGroupMessage)
-  messages!: StudyGroupMessage[];
+  @HasMany(() => GroupMessage, 'groupId')
+  messages?: GroupMessage[];
 
-  @HasMany(() => StudySession)
-  sessions!: StudySession[];
+  @HasMany(() => GroupInvitation, 'groupId')
+  invitations?: GroupInvitation[];
 }
 
-// Study Group Member Model
+// ============================================
+// GROUP MEMBER MODEL
+// ============================================
 @Table({
-  tableName: 'study_group_members',
-  timestamps: true
+  tableName: 'group_members',
+  timestamps: false,
+  underscored: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['group_id', 'user_id']
+    }
+  ]
 })
-export class StudyGroupMember extends Model {
+export class GroupMember extends Model {
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)
   id!: string;
 
   @ForeignKey(() => StudyGroup)
-  @Column(DataType.UUID)
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+    field: 'group_id'
+  })
   groupId!: string;
 
   @ForeignKey(() => User)
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+    field: 'user_id'
+  })
+  userId!: string;
+
+  @Default('member')
+  @Column({
+    type: DataType.ENUM('creator', 'admin', 'member'),
+    allowNull: false
+  })
+  role!: 'creator' | 'admin' | 'member';
+
+  @Default(DataType.NOW)
+  @Column({
+    type: DataType.DATE,
+    field: 'joined_at'
+  })
+  joinedAt!: Date;
+
+  // Relationships
+  @BelongsTo(() => StudyGroup, 'groupId')
+  group?: StudyGroup;
+
+  @BelongsTo(() => User, 'userId')
+  user?: User;
+}
+
+// ============================================
+// GROUP MESSAGE MODEL
+// ============================================
+@Table({
+  tableName: 'group_messages',
+  timestamps: false,
+  underscored: true
+})
+export class GroupMessage extends Model {
+  @PrimaryKey
+  @Default(DataType.UUIDV4)
   @Column(DataType.UUID)
+  id!: string;
+
+  @ForeignKey(() => StudyGroup)
+  @Index
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+    field: 'group_id'
+  })
+  groupId!: string;
+
+  @ForeignKey(() => User)
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+    field: 'user_id'
+  })
   userId!: string;
 
   @Column({
-    type: DataType.ENUM('owner', 'admin', 'moderator', 'member'),
-    defaultValue: 'member'
+    type: DataType.TEXT,
+    allowNull: false
   })
-  role!: 'owner' | 'admin' | 'moderator' | 'member';
-
-  @Column({
-    type: DataType.ENUM('active', 'invited', 'pending', 'banned'),
-    defaultValue: 'active'
-  })
-  status!: 'active' | 'invited' | 'pending' | 'banned';
-
-  @Column(DataType.DATE)
-  joinedAt!: Date;
-
-  @Column(DataType.DATE)
-  lastActiveAt!: Date;
-
-  @Column({ type: DataType.INTEGER, defaultValue: 0 })
-  contributionPoints!: number;
-
-  @CreatedAt
-  createdAt!: Date;
-
-  @UpdatedAt
-  updatedAt!: Date;
-
-  @BelongsTo(() => StudyGroup)
-  group!: StudyGroup;
-
-  @BelongsTo(() => User)
-  user!: User;
-}
-
-// Study Group Message Model
-@Table({
-  tableName: 'study_group_messages',
-  timestamps: true
-})
-export class StudyGroupMessage extends Model {
-  @PrimaryKey
-  @Default(DataType.UUIDV4)
-  @Column(DataType.UUID)
-  id!: string;
-
-  @ForeignKey(() => StudyGroup)
-  @Column(DataType.UUID)
-  groupId!: string;
-
-  @ForeignKey(() => User)
-  @Column(DataType.UUID)
-  senderId!: string;
-
-  @Column({ type: DataType.TEXT, allowNull: false })
   content!: string;
 
+  @Default('text')
   @Column({
-    type: DataType.ENUM('text', 'question', 'resource', 'announcement', 'poll'),
-    defaultValue: 'text'
+    type: DataType.ENUM('text', 'image', 'resource_link'),
+    field: 'message_type'
   })
-  type!: 'text' | 'question' | 'resource' | 'announcement' | 'poll';
+  messageType!: 'text' | 'image' | 'resource_link';
 
-  @Column(DataType.JSON)
-  metadata?: {
-    attachments?: { url: string; type: string; name: string }[];
-    pollOptions?: { id: string; text: string; votes: number }[];
-    questionId?: string;
-    replyTo?: string;
-  };
-
-  @Column({ type: DataType.BOOLEAN, defaultValue: false })
-  isPinned!: boolean;
-
-  @Column({ type: DataType.BOOLEAN, defaultValue: false })
-  isEdited!: boolean;
-
-  @CreatedAt
+  @Default(DataType.NOW)
+  @Column({
+    type: DataType.DATE,
+    field: 'created_at'
+  })
   createdAt!: Date;
 
-  @UpdatedAt
-  updatedAt!: Date;
+  // Relationships
+  @BelongsTo(() => StudyGroup, 'groupId')
+  group?: StudyGroup;
 
-  @BelongsTo(() => StudyGroup)
-  group!: StudyGroup;
-
-  @BelongsTo(() => User)
-  sender!: User;
+  @BelongsTo(() => User, 'userId')
+  user?: User;
 }
 
-// Study Session Model
+// ============================================
+// GROUP INVITATION MODEL
+// ============================================
 @Table({
-  tableName: 'study_sessions',
-  timestamps: true
+  tableName: 'group_invitations',
+  timestamps: false,
+  underscored: true
 })
-export class StudySession extends Model {
+export class GroupInvitation extends Model {
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)
   id!: string;
 
   @ForeignKey(() => StudyGroup)
-  @Column(DataType.UUID)
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+    field: 'group_id'
+  })
   groupId!: string;
 
   @ForeignKey(() => User)
-  @Column(DataType.UUID)
-  createdBy!: string;
-
-  @Column({ type: DataType.STRING, allowNull: false })
-  title!: string;
-
-  @Column(DataType.TEXT)
-  description?: string;
-
-  @Column({ type: DataType.DATE, allowNull: false })
-  scheduledStart!: Date;
-
-  @Column({ type: DataType.DATE, allowNull: false })
-  scheduledEnd!: Date;
-
-  @Column(DataType.DATE)
-  actualStart?: Date;
-
-  @Column(DataType.DATE)
-  actualEnd?: Date;
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+    field: 'inviter_id'
+  })
+  inviterId!: string;
 
   @Column({
-    type: DataType.ENUM('scheduled', 'in_progress', 'completed', 'cancelled'),
-    defaultValue: 'scheduled'
+    type: DataType.STRING(255),
+    allowNull: false
   })
-  status!: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  email!: string;
 
-  @Column({ type: DataType.JSON, defaultValue: [] })
-  topics!: string[];
+  @Unique
+  @Column(DataType.STRING(255))
+  token?: string;
 
-  @Column(DataType.JSON)
-  resources?: {
-    type: 'quiz' | 'flashcard' | 'document' | 'video';
-    id: string;
-    title: string;
-  }[];
+  @Default('pending')
+  @Column({
+    type: DataType.ENUM('pending', 'accepted', 'declined', 'expired')
+  })
+  status!: 'pending' | 'accepted' | 'declined' | 'expired';
 
-  @Column(DataType.STRING)
-  meetingLink?: string;
+  @Column({
+    type: DataType.DATE,
+    field: 'expires_at'
+  })
+  expiresAt?: Date;
 
-  @Column({ type: DataType.INTEGER, defaultValue: 0 })
-  attendeeCount!: number;
-
-  @CreatedAt
+  @Default(DataType.NOW)
+  @Column({
+    type: DataType.DATE,
+    field: 'created_at'
+  })
   createdAt!: Date;
 
-  @UpdatedAt
-  updatedAt!: Date;
+  // Relationships
+  @BelongsTo(() => StudyGroup, 'groupId')
+  group?: StudyGroup;
 
-  @BelongsTo(() => StudyGroup)
-  group!: StudyGroup;
-
-  @BelongsTo(() => User)
-  creator!: User;
+  @BelongsTo(() => User, 'inviterId')
+  inviter?: User;
 }
 
 export default StudyGroup;

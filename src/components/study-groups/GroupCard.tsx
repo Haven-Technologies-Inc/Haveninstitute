@@ -1,9 +1,8 @@
 /**
- * GroupCard Component - Reusable card for displaying study group info
- * Follows DRY principles with consistent styling patterns
+ * GroupCard Component - Displays a study group card
  */
 
-import { Users, Globe, Lock, MessageCircle, Calendar } from 'lucide-react';
+import { Users, Globe, Lock, MessageCircle } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -18,17 +17,8 @@ interface GroupCardProps {
 }
 
 export function GroupCard({ group, isMember = false, onJoin, onClick, isJoining }: GroupCardProps) {
-  const memberCount = group.memberCount || group.members?.length || 0;
-  const maxMembers = group.maxMembers || 6;
+  const memberCount = group.members?.length || 0;
   
-  const getVisibilityIcon = () => {
-    return group.visibility === 'private' 
-      ? <Lock className="size-4 text-yellow-600" />
-      : <Globe className="size-4 text-green-600" />;
-  };
-
-  const getInitial = () => group.name.charAt(0).toUpperCase();
-
   const handleClick = () => {
     if (onClick) onClick(group.id);
   };
@@ -48,15 +38,19 @@ export function GroupCard({ group, isMember = false, onJoin, onClick, isJoining 
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="size-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-              {getInitial()}
+              {group.name.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
               <h3 className="font-semibold text-gray-900 dark:text-white truncate">
                 {group.name}
               </h3>
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                {getVisibilityIcon()}
-                <span className="capitalize">{group.visibility}</span>
+                {group.isPublic ? (
+                  <Globe className="size-4 text-green-600" />
+                ) : (
+                  <Lock className="size-4 text-yellow-600" />
+                )}
+                <span className="capitalize">{group.isPublic ? 'Public' : 'Private'}</span>
               </div>
             </div>
           </div>
@@ -74,19 +68,12 @@ export function GroupCard({ group, isMember = false, onJoin, onClick, isJoining 
           </p>
         )}
 
-        {/* Focus Areas */}
-        {group.focusAreas && group.focusAreas.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-4">
-            {group.focusAreas.slice(0, 3).map((area, idx) => (
-              <Badge key={idx} variant="outline" className="text-xs">
-                {area}
-              </Badge>
-            ))}
-            {group.focusAreas.length > 3 && (
-              <Badge variant="outline" className="text-xs">
-                +{group.focusAreas.length - 3}
-              </Badge>
-            )}
+        {/* Category */}
+        {group.category && (
+          <div className="mb-4">
+            <Badge variant="outline" className="text-xs">
+              {group.category}
+            </Badge>
           </div>
         )}
 
@@ -95,15 +82,11 @@ export function GroupCard({ group, isMember = false, onJoin, onClick, isJoining 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
               <Users className="size-4" />
-              <span>{memberCount}/{maxMembers}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <MessageCircle className="size-4" />
-              <span>{group.messageCount || 0}</span>
+              <span>{memberCount}/{group.maxMembers}</span>
             </div>
           </div>
           
-          {!isMember && onJoin && memberCount < maxMembers && (
+          {!isMember && onJoin && memberCount < group.maxMembers && (
             <Button 
               size="sm" 
               onClick={handleJoin}

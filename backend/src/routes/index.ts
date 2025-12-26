@@ -41,7 +41,7 @@ router.use('/cat', catRoutes);
 router.use('/quiz', quizRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/ai', aiRoutes);
-router.use('/groups', studyGroupRoutes);
+router.use('/study-groups', studyGroupRoutes);
 router.use('/planner', studyPlannerRoutes);
 router.use('/forum', forumRoutes);
 router.use('/questions', questionRoutes);

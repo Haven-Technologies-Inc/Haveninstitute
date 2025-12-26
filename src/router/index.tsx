@@ -47,9 +47,9 @@ const ProgressPage = lazy(() => import('../pages/progress/ProgressPage').then(m 
 const AnalyticsPage = lazy(() => import('../pages/progress/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
 const PlannerPage = lazy(() => import('../pages/progress/PlannerPage').then(m => ({ default: m.PlannerPage })));
 const StudyPlannerPage = lazy(() => import('../pages/progress/StudyPlannerPage').then(m => ({ default: m.StudyPlannerPage })));
-const GroupStudyPage = lazy(() => import('../pages/community/GroupStudyPage').then(m => ({ default: m.GroupStudyPage })));
+// GroupStudyPage removed - using new StudyGroupsPage
 const StudyGroupsPage = lazy(() => import('../pages/community/StudyGroupsPage').then(m => ({ default: m.StudyGroupsPage })));
-const GroupChatPage = lazy(() => import('../pages/community/GroupChatPage').then(m => ({ default: m.GroupChatPage })));
+// GroupChatPage removed - using new GroupDetailPage
 const GroupDetailPage = lazy(() => import('../pages/community/GroupDetailPage'));
 const DiscussionForumPage = lazy(() => import('../pages/community/DiscussionForumPage').then(m => ({ default: m.DiscussionForumPage })));
 const ForumPage = lazy(() => import('../pages/community/ForumPage').then(m => ({ default: m.ForumPage })));
@@ -138,11 +138,8 @@ export const router = createBrowserRouter([
           { path: 'planner', element: <StudyPlannerPage /> },
           { path: 'planner/:planId', element: <StudyPlannerPage /> },
           { path: 'planner-legacy', element: <PlannerPage /> },
-          { path: 'group-study', element: <StudyGroupsPage /> },
-          { path: 'group-study/:groupId', element: <GroupDetailPage /> },
-          { path: 'groups', element: <StudyGroupsPage /> },
-          { path: 'groups/:groupId', element: <GroupDetailPage /> },
-          { path: 'group-study-legacy', element: <GroupStudyPage /> },
+          { path: 'study-groups', element: <StudyGroupsPage /> },
+          { path: 'study-groups/:groupId', element: <GroupDetailPage /> },
           { path: 'forum', element: <DiscussionForumPage /> },
           { path: 'forum/:slug', element: <DiscussionForumPage /> },
           { path: 'forum-legacy', element: <ForumPage /> },

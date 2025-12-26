@@ -1,60 +1,52 @@
 /**
- * Study Group API - Frontend client for study group features
+ * Study Group API - Frontend API client for study groups
+ * New implementation with clean interface
  */
 
-import apiClient from './client';
+import api from '../api';
 
+// Types
 export interface StudyGroupMember {
   id: string;
   userId: string;
-  role: 'owner' | 'admin' | 'moderator' | 'member';
-  status: 'active' | 'invited' | 'pending' | 'banned';
+  role: 'creator' | 'admin' | 'member';
   joinedAt: string;
-  lastActiveAt: string;
-  contributionPoints: number;
   user?: {
     id: string;
-    firstName: string;
-    lastName: string;
     email: string;
+    fullName?: string;
+    avatarUrl?: string;
   };
 }
 
 export interface StudyGroupMessage {
   id: string;
   groupId: string;
-  senderId: string;
+  userId: string;
   content: string;
-  type: 'text' | 'question' | 'resource' | 'announcement' | 'poll';
-  metadata?: {
-    attachments?: { url: string; type: string; name: string }[];
-    pollOptions?: { id: string; text: string; votes: number }[];
-  };
-  isPinned: boolean;
+  messageType: 'text' | 'image' | 'resource_link';
   createdAt: string;
-  sender?: {
+  user?: {
     id: string;
-    firstName: string;
-    lastName: string;
+    email: string;
+    fullName?: string;
+    avatarUrl?: string;
   };
 }
 
-export interface StudySession {
+export interface StudyGroupInvitation {
   id: string;
   groupId: string;
-  createdBy: string;
-  title: string;
-  description?: string;
-  scheduledStart: string;
-  scheduledEnd: string;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-  topics: string[];
-  meetingLink?: string;
-  attendeeCount: number;
-  creator?: {
+  inviterId: string;
+  email: string;
+  token: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  expiresAt: string;
+  createdAt: string;
+  inviter?: {
     id: string;
-    firstName: string;
-    lastName: string;
+    email: string;
+    fullName?: string;
   };
 }
 
@@ -62,163 +54,123 @@ export interface StudyGroup {
   id: string;
   name: string;
   description?: string;
-  avatarUrl?: string;
-  coverImageUrl?: string;
-  ownerId: string;
-  visibility: 'public' | 'private' | 'invite_only';
-  focusAreas: string[];
-  tags: string[];
+  createdBy: string;
   maxMembers: number;
-  memberCount: number;
-  averageAbility: number;
-  isActive: boolean;
-  settings?: {
-    allowMemberInvites: boolean;
-    requireApproval: boolean;
-    allowPolls: boolean;
-    allowResources: boolean;
-    weeklyGoal?: number;
-  };
-  stats?: {
-    totalMessages: number;
-    totalSessions: number;
-    totalStudyHours: number;
-    averageSessionAttendance: number;
-    weeklyActiveMembers: number;
-  };
+  isPublic: boolean;
+  category?: string;
   createdAt: string;
-  owner?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
+  updatedAt: string;
   members?: StudyGroupMember[];
+  creator?: {
+    id: string;
+    email: string;
+    fullName?: string;
+    avatarUrl?: string;
+  };
 }
 
 export interface CreateGroupInput {
   name: string;
   description?: string;
-  visibility?: 'public' | 'private' | 'invite_only';
-  focusAreas?: string[];
-  tags?: string[];
   maxMembers?: number;
+  isPublic?: boolean;
+  category?: string;
 }
 
-export interface CreateSessionInput {
-  title: string;
-  description?: string;
-  scheduledStart: string;
-  scheduledEnd: string;
-  topics?: string[];
-  meetingLink?: string;
+export interface SearchGroupsParams {
+  query?: string;
+  category?: string;
+  limit?: number;
+  offset?: number;
 }
 
 // API Functions
 export const studyGroupApi = {
-  // Search/browse groups
-  searchGroups: async (params?: {
-    query?: string;
-    focusAreas?: string[];
-    visibility?: string;
-    limit?: number;
-    offset?: number;
-  }): Promise<{ groups: StudyGroup[]; total: number }> => {
-    const response = await apiClient.get('/groups', { params });
-    return response.data;
+  // Create a new group
+  createGroup: async (input: CreateGroupInput): Promise<StudyGroup> => {
+    const response = await api.post('/study-groups', input);
+    return response.data.data;
   },
 
-  // Get user's groups
+  // Get a single group by ID
+  getGroup: async (groupId: string): Promise<StudyGroup> => {
+    const response = await api.get(`/study-groups/${groupId}`);
+    return response.data.data;
+  },
+
+  // Get current user's groups
   getMyGroups: async (): Promise<StudyGroup[]> => {
-    const response = await apiClient.get('/groups/my-groups');
-    return response.data;
+    const response = await api.get('/study-groups/my-groups');
+    return response.data.data;
+  },
+
+  // Search public groups
+  searchGroups: async (params?: SearchGroupsParams): Promise<{ groups: StudyGroup[]; total: number }> => {
+    const response = await api.get('/study-groups/search', { params });
+    return response.data.data;
   },
 
   // Get recommended groups
   getRecommendedGroups: async (limit?: number): Promise<StudyGroup[]> => {
-    const response = await apiClient.get('/groups/recommended', { params: { limit } });
-    return response.data;
+    const response = await api.get('/study-groups/recommended', { params: { limit } });
+    return response.data.data;
   },
 
-  // Create group
-  createGroup: async (input: CreateGroupInput): Promise<StudyGroup> => {
-    const response = await apiClient.post('/groups', input);
-    return response.data;
-  },
-
-  // Get group by ID
-  getGroup: async (groupId: string): Promise<StudyGroup> => {
-    const response = await apiClient.get(`/groups/${groupId}`);
-    return response.data;
-  },
-
-  // Update group
+  // Update a group
   updateGroup: async (groupId: string, input: Partial<CreateGroupInput>): Promise<StudyGroup> => {
-    const response = await apiClient.put(`/groups/${groupId}`, input);
-    return response.data;
+    const response = await api.put(`/study-groups/${groupId}`, input);
+    return response.data.data;
   },
 
-  // Delete group
+  // Delete a group
   deleteGroup: async (groupId: string): Promise<void> => {
-    await apiClient.delete(`/groups/${groupId}`);
+    await api.delete(`/study-groups/${groupId}`);
   },
 
-  // Join group
+  // Join a group
   joinGroup: async (groupId: string): Promise<StudyGroupMember> => {
-    const response = await apiClient.post(`/groups/${groupId}/join`);
-    return response.data;
+    const response = await api.post(`/study-groups/${groupId}/join`);
+    return response.data.data;
   },
 
-  // Leave group
+  // Leave a group
   leaveGroup: async (groupId: string): Promise<void> => {
-    await apiClient.post(`/groups/${groupId}/leave`);
+    await api.post(`/study-groups/${groupId}/leave`);
   },
 
-  // Invite user
-  inviteUser: async (groupId: string, email: string): Promise<StudyGroupMember> => {
-    const response = await apiClient.post(`/groups/${groupId}/invite`, { email });
-    return response.data;
+  // Remove a member
+  removeMember: async (groupId: string, userId: string): Promise<void> => {
+    await api.delete(`/study-groups/${groupId}/members/${userId}`);
   },
 
-  // Approve member
-  approveMember: async (groupId: string, memberId: string): Promise<StudyGroupMember> => {
-    const response = await apiClient.post(`/groups/${groupId}/members/${memberId}/approve`);
-    return response.data;
+  // Get group messages
+  getMessages: async (groupId: string, page = 1, limit = 50): Promise<{ messages: StudyGroupMessage[]; total: number }> => {
+    const response = await api.get(`/study-groups/${groupId}/messages`, { params: { page, limit } });
+    return response.data.data;
   },
 
-  // Remove member
-  removeMember: async (groupId: string, memberId: string, ban?: boolean): Promise<void> => {
-    await apiClient.delete(`/groups/${groupId}/members/${memberId}`, { params: { ban } });
+  // Send a message
+  sendMessage: async (groupId: string, content: string, messageType: 'text' | 'image' | 'resource_link' = 'text'): Promise<StudyGroupMessage> => {
+    const response = await api.post(`/study-groups/${groupId}/messages`, { content, messageType });
+    return response.data.data;
   },
 
-  // Get messages
-  getMessages: async (groupId: string, options?: {
-    limit?: number;
-    before?: string;
-    after?: string;
-  }): Promise<StudyGroupMessage[]> => {
-    const response = await apiClient.get(`/groups/${groupId}/messages`, { params: options });
-    return response.data;
+  // Get group invitations
+  getInvitations: async (groupId: string): Promise<StudyGroupInvitation[]> => {
+    const response = await api.get(`/study-groups/${groupId}/invitations`);
+    return response.data.data;
   },
 
-  // Send message
-  sendMessage: async (groupId: string, content: string, type?: string): Promise<StudyGroupMessage> => {
-    const response = await apiClient.post(`/groups/${groupId}/messages`, { content, type });
-    return response.data;
+  // Create an invitation
+  createInvitation: async (groupId: string, email: string): Promise<StudyGroupInvitation> => {
+    const response = await api.post(`/study-groups/${groupId}/invitations`, { email });
+    return response.data.data;
   },
 
-  // Get sessions
-  getSessions: async (groupId: string, options?: {
-    status?: string;
-    limit?: number;
-  }): Promise<StudySession[]> => {
-    const response = await apiClient.get(`/groups/${groupId}/sessions`, { params: options });
-    return response.data;
-  },
-
-  // Create session
-  createSession: async (groupId: string, input: CreateSessionInput): Promise<StudySession> => {
-    const response = await apiClient.post(`/groups/${groupId}/sessions`, input);
-    return response.data;
+  // Accept an invitation
+  acceptInvitation: async (token: string): Promise<StudyGroupMember> => {
+    const response = await api.post(`/study-groups/invitations/${token}/accept`);
+    return response.data.data;
   }
 };
 

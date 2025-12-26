@@ -1,523 +1,455 @@
 /**
- * Study Group Service - Business logic for study group features
+ * Study Group Service - Business logic for study groups
+ * Handles CRUD operations, membership, messaging, and invitations
  */
 
 import { Op } from 'sequelize';
-import { StudyGroup, StudyGroupMember, StudyGroupMessage, StudySession } from '../models/StudyGroup';
+import { v4 as uuidv4 } from 'uuid';
+import { StudyGroup, GroupMember, GroupMessage, GroupInvitation } from '../models/StudyGroup';
 import { User } from '../models/User';
 
+// Types
 interface CreateGroupInput {
   name: string;
   description?: string;
-  visibility?: 'public' | 'private' | 'invite_only';
-  focusAreas?: string[];
-  tags?: string[];
   maxMembers?: number;
-  settings?: StudyGroup['settings'];
+  isPublic?: boolean;
+  category?: string;
 }
 
-interface UpdateGroupInput extends Partial<CreateGroupInput> {
-  avatarUrl?: string;
-  coverImageUrl?: string;
-  isActive?: boolean;
+interface SearchGroupsInput {
+  query?: string;
+  category?: string;
+  isPublic?: boolean;
+  limit?: number;
+  offset?: number;
 }
 
-interface CreateSessionInput {
-  groupId: string;
-  title: string;
-  description?: string;
-  scheduledStart: Date;
-  scheduledEnd: Date;
-  topics?: string[];
-  resources?: StudySession['resources'];
-  meetingLink?: string;
-}
+class StudyGroupService {
+  // ============================================
+  // GROUP CRUD OPERATIONS
+  // ============================================
 
-interface SendMessageInput {
-  groupId: string;
-  content: string;
-  type?: StudyGroupMessage['type'];
-  metadata?: StudyGroupMessage['metadata'];
-}
-
-export class StudyGroupService {
   /**
    * Create a new study group
    */
   async createGroup(userId: string, input: CreateGroupInput): Promise<StudyGroup> {
+    // Create the group
     const group = await StudyGroup.create({
-      ...input,
-      ownerId: userId,
-      memberCount: 1,
-      settings: {
-        allowMemberInvites: true,
-        requireApproval: input.visibility === 'private',
-        allowPolls: true,
-        allowResources: true,
-        ...input.settings
-      },
-      stats: {
-        totalMessages: 0,
-        totalSessions: 0,
-        totalStudyHours: 0,
-        averageSessionAttendance: 0,
-        weeklyActiveMembers: 1
-      }
+      name: input.name,
+      description: input.description,
+      createdBy: userId,
+      maxMembers: input.maxMembers || 6,
+      isPublic: input.isPublic !== false,
+      category: input.category
     });
 
-    // Add owner as member
-    await StudyGroupMember.create({
+    // Auto-add creator as a member with 'creator' role
+    await GroupMember.create({
       groupId: group.id,
-      userId,
-      role: 'owner',
-      status: 'active',
-      joinedAt: new Date(),
-      lastActiveAt: new Date()
+      userId: userId,
+      role: 'creator',
+      joinedAt: new Date()
     });
 
-    return group;
+    return this.getGroupById(group.id);
   }
 
   /**
    * Get group by ID with members
    */
-  async getGroup(groupId: string, userId?: string): Promise<StudyGroup | null> {
-    const group = await StudyGroup.findByPk(groupId, {
+  async getGroupById(groupId: string): Promise<StudyGroup | null> {
+    return StudyGroup.findByPk(groupId, {
       include: [
         {
-          model: User,
-          as: 'owner',
-          attributes: ['id', 'firstName', 'lastName', 'email']
+          model: GroupMember,
+          as: 'members',
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'email', 'fullName', 'avatarUrl']
+            }
+          ]
         },
         {
-          model: StudyGroupMember,
-          as: 'members',
-          include: [{
-            model: User,
-            attributes: ['id', 'firstName', 'lastName', 'email']
-          }],
-          where: { status: 'active' },
-          required: false
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'email', 'fullName', 'avatarUrl']
+        }
+      ]
+    });
+  }
+
+  /**
+   * Get all groups for a user
+   */
+  async getUserGroups(userId: string): Promise<StudyGroup[]> {
+    const memberships = await GroupMember.findAll({
+      where: { userId },
+      include: [
+        {
+          model: StudyGroup,
+          as: 'group',
+          include: [
+            {
+              model: GroupMember,
+              as: 'members',
+              include: [
+                {
+                  model: User,
+                  as: 'user',
+                  attributes: ['id', 'email', 'fullName', 'avatarUrl']
+                }
+              ]
+            }
+          ]
         }
       ]
     });
 
-    if (!group) return null;
-
-    // Check visibility permissions
-    if (group.visibility !== 'public' && userId) {
-      const isMember = await this.isMember(groupId, userId);
-      if (!isMember && group.ownerId !== userId) {
-        // Return limited info for non-members
-        const limitedGroup = group.toJSON();
-        delete (limitedGroup as any).members;
-        delete (limitedGroup as any).messages;
-        return limitedGroup as StudyGroup;
-      }
-    }
-
-    return group;
+    return memberships.map(m => m.group!).filter(g => g !== null);
   }
 
   /**
-   * Update a study group
+   * Search public groups
    */
-  async updateGroup(groupId: string, userId: string, input: UpdateGroupInput): Promise<StudyGroup> {
-    const group = await StudyGroup.findByPk(groupId);
-    if (!group) throw new Error('Group not found');
+  async searchGroups(input: SearchGroupsInput): Promise<{ groups: StudyGroup[]; total: number }> {
+    const where: any = { isPublic: true };
 
-    const member = await StudyGroupMember.findOne({
-      where: { groupId, userId }
-    });
-
-    if (!member || !['owner', 'admin'].includes(member.role)) {
-      throw new Error('Not authorized to update this group');
-    }
-
-    await group.update(input);
-    return group;
-  }
-
-  /**
-   * Delete a study group
-   */
-  async deleteGroup(groupId: string, userId: string): Promise<void> {
-    const group = await StudyGroup.findByPk(groupId);
-    if (!group) throw new Error('Group not found');
-    if (group.ownerId !== userId) throw new Error('Only the owner can delete a group');
-
-    await StudyGroupMessage.destroy({ where: { groupId } });
-    await StudySession.destroy({ where: { groupId } });
-    await StudyGroupMember.destroy({ where: { groupId } });
-    await group.destroy();
-  }
-
-  /**
-   * Search/browse groups
-   */
-  async searchGroups(options: {
-    query?: string;
-    focusAreas?: string[];
-    visibility?: string;
-    limit?: number;
-    offset?: number;
-  }): Promise<{ groups: StudyGroup[]; total: number }> {
-    const where: any = { isActive: true };
-
-    if (options.query) {
+    if (input.query) {
       where[Op.or] = [
-        { name: { [Op.iLike]: `%${options.query}%` } },
-        { description: { [Op.iLike]: `%${options.query}%` } }
+        { name: { [Op.like]: `%${input.query}%` } },
+        { description: { [Op.like]: `%${input.query}%` } }
       ];
     }
 
-    if (options.focusAreas?.length) {
-      where.focusAreas = { [Op.overlap]: options.focusAreas };
-    }
-
-    if (options.visibility) {
-      where.visibility = options.visibility;
-    } else {
-      where.visibility = { [Op.in]: ['public', 'invite_only'] };
+    if (input.category) {
+      where.category = input.category;
     }
 
     const { rows: groups, count: total } = await StudyGroup.findAndCountAll({
       where,
-      include: [{
-        model: User,
-        as: 'owner',
-        attributes: ['id', 'firstName', 'lastName']
-      }],
-      limit: options.limit || 20,
-      offset: options.offset || 0,
-      order: [['memberCount', 'DESC'], ['createdAt', 'DESC']]
+      limit: input.limit || 20,
+      offset: input.offset || 0,
+      include: [
+        {
+          model: GroupMember,
+          as: 'members',
+          attributes: ['id', 'userId', 'role']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
     });
 
     return { groups, total };
   }
 
   /**
-   * Get groups for a user
+   * Update group details
    */
-  async getUserGroups(userId: string): Promise<StudyGroup[]> {
-    const memberships = await StudyGroupMember.findAll({
-      where: { userId, status: 'active' },
-      include: [{
-        model: StudyGroup,
-        include: [{
-          model: User,
-          as: 'owner',
-          attributes: ['id', 'firstName', 'lastName']
-        }]
-      }]
-    });
+  async updateGroup(groupId: string, userId: string, updates: Partial<CreateGroupInput>): Promise<StudyGroup> {
+    const group = await StudyGroup.findByPk(groupId);
+    if (!group) throw new Error('Group not found');
 
-    return memberships.map(m => m.group);
+    // Check if user is creator or admin
+    const membership = await GroupMember.findOne({
+      where: { groupId, userId, role: ['creator', 'admin'] }
+    });
+    if (!membership) throw new Error('Not authorized to update this group');
+
+    await group.update(updates);
+    return this.getGroupById(groupId) as Promise<StudyGroup>;
   }
 
   /**
-   * Join a group
+   * Delete a group
    */
-  async joinGroup(groupId: string, userId: string): Promise<StudyGroupMember> {
+  async deleteGroup(groupId: string, userId: string): Promise<void> {
     const group = await StudyGroup.findByPk(groupId);
     if (!group) throw new Error('Group not found');
-    if (!group.isActive) throw new Error('Group is not active');
-    if (group.memberCount >= group.maxMembers) throw new Error('Group is full');
 
-    const existingMember = await StudyGroupMember.findOne({
-      where: { groupId, userId }
-    });
-
-    if (existingMember) {
-      if (existingMember.status === 'banned') throw new Error('You are banned from this group');
-      if (existingMember.status === 'active') throw new Error('Already a member');
-      
-      // Reactivate membership
-      await existingMember.update({
-        status: group.settings?.requireApproval ? 'pending' : 'active',
-        joinedAt: new Date(),
-        lastActiveAt: new Date()
-      });
-      
-      if (!group.settings?.requireApproval) {
-        await group.increment('memberCount');
-      }
-      
-      return existingMember;
+    // Only creator can delete
+    if (group.createdBy !== userId) {
+      throw new Error('Only the group creator can delete the group');
     }
 
-    const member = await StudyGroupMember.create({
+    await group.destroy();
+  }
+
+  // ============================================
+  // MEMBERSHIP OPERATIONS
+  // ============================================
+
+  /**
+   * Join a public group
+   */
+  async joinGroup(groupId: string, userId: string): Promise<GroupMember> {
+    const group = await StudyGroup.findByPk(groupId, {
+      include: [{ model: GroupMember, as: 'members' }]
+    });
+
+    if (!group) throw new Error('Group not found');
+    if (!group.isPublic) throw new Error('This is a private group. You need an invitation to join.');
+
+    // Check if already a member
+    const existingMembership = await GroupMember.findOne({
+      where: { groupId, userId }
+    });
+    if (existingMembership) throw new Error('Already a member of this group');
+
+    // Check max members
+    const memberCount = group.members?.length || 0;
+    if (memberCount >= group.maxMembers) {
+      throw new Error('Group is full');
+    }
+
+    return GroupMember.create({
       groupId,
       userId,
       role: 'member',
-      status: group.settings?.requireApproval ? 'pending' : 'active',
-      joinedAt: new Date(),
-      lastActiveAt: new Date()
+      joinedAt: new Date()
     });
-
-    if (!group.settings?.requireApproval) {
-      await group.increment('memberCount');
-    }
-
-    return member;
   }
 
   /**
    * Leave a group
    */
   async leaveGroup(groupId: string, userId: string): Promise<void> {
-    const group = await StudyGroup.findByPk(groupId);
-    if (!group) throw new Error('Group not found');
-    if (group.ownerId === userId) throw new Error('Owner cannot leave. Transfer ownership first.');
-
-    const member = await StudyGroupMember.findOne({
-      where: { groupId, userId, status: 'active' }
+    const membership = await GroupMember.findOne({
+      where: { groupId, userId }
     });
 
-    if (!member) throw new Error('Not a member of this group');
+    if (!membership) throw new Error('Not a member of this group');
 
-    await member.destroy();
-    await group.decrement('memberCount');
+    // Creator cannot leave, must delete or transfer ownership
+    if (membership.role === 'creator') {
+      throw new Error('Group creator cannot leave. Transfer ownership or delete the group.');
+    }
+
+    await membership.destroy();
   }
 
   /**
-   * Invite user to group
+   * Remove a member from group
    */
-  async inviteUser(groupId: string, inviterId: string, inviteeEmail: string): Promise<StudyGroupMember> {
-    const group = await StudyGroup.findByPk(groupId);
-    if (!group) throw new Error('Group not found');
-
-    const inviter = await StudyGroupMember.findOne({
-      where: { groupId, userId: inviterId }
+  async removeMember(groupId: string, requesterId: string, targetUserId: string): Promise<void> {
+    // Check if requester is admin or creator
+    const requesterMembership = await GroupMember.findOne({
+      where: { groupId, userId: requesterId, role: ['creator', 'admin'] }
     });
+    if (!requesterMembership) throw new Error('Not authorized to remove members');
 
-    if (!inviter || !['owner', 'admin', 'moderator'].includes(inviter.role)) {
-      if (!group.settings?.allowMemberInvites) {
-        throw new Error('Not authorized to invite members');
-      }
+    const targetMembership = await GroupMember.findOne({
+      where: { groupId, userId: targetUserId }
+    });
+    if (!targetMembership) throw new Error('User is not a member');
+
+    // Cannot remove creator
+    if (targetMembership.role === 'creator') {
+      throw new Error('Cannot remove the group creator');
     }
 
-    const invitee = await User.findOne({ where: { email: inviteeEmail } });
-    if (!invitee) throw new Error('User not found');
-
-    const existingMember = await StudyGroupMember.findOne({
-      where: { groupId, userId: invitee.id }
-    });
-
-    if (existingMember) {
-      if (existingMember.status === 'active') throw new Error('User is already a member');
-      if (existingMember.status === 'invited') throw new Error('User already invited');
-    }
-
-    const member = await StudyGroupMember.create({
-      groupId,
-      userId: invitee.id,
-      role: 'member',
-      status: 'invited'
-    });
-
-    return member;
+    await targetMembership.destroy();
   }
 
   /**
-   * Approve pending member
-   */
-  async approveMember(groupId: string, approverId: string, memberId: string): Promise<StudyGroupMember> {
-    const approver = await StudyGroupMember.findOne({
-      where: { groupId, userId: approverId }
-    });
-
-    if (!approver || !['owner', 'admin', 'moderator'].includes(approver.role)) {
-      throw new Error('Not authorized to approve members');
-    }
-
-    const member = await StudyGroupMember.findOne({
-      where: { groupId, userId: memberId, status: 'pending' }
-    });
-
-    if (!member) throw new Error('Pending member not found');
-
-    await member.update({
-      status: 'active',
-      joinedAt: new Date(),
-      lastActiveAt: new Date()
-    });
-
-    const group = await StudyGroup.findByPk(groupId);
-    await group?.increment('memberCount');
-
-    return member;
-  }
-
-  /**
-   * Remove/ban member
-   */
-  async removeMember(groupId: string, removerId: string, memberId: string, ban: boolean = false): Promise<void> {
-    const remover = await StudyGroupMember.findOne({
-      where: { groupId, userId: removerId }
-    });
-
-    if (!remover || !['owner', 'admin'].includes(remover.role)) {
-      throw new Error('Not authorized to remove members');
-    }
-
-    const member = await StudyGroupMember.findOne({
-      where: { groupId, userId: memberId }
-    });
-
-    if (!member) throw new Error('Member not found');
-    if (member.role === 'owner') throw new Error('Cannot remove the group owner');
-
-    if (ban) {
-      await member.update({ status: 'banned' });
-    } else {
-      await member.destroy();
-    }
-
-    const group = await StudyGroup.findByPk(groupId);
-    await group?.decrement('memberCount');
-  }
-
-  /**
-   * Check if user is member
+   * Check if user is a member
    */
   async isMember(groupId: string, userId: string): Promise<boolean> {
-    const member = await StudyGroupMember.findOne({
-      where: { groupId, userId, status: 'active' }
+    const membership = await GroupMember.findOne({
+      where: { groupId, userId }
     });
-    return !!member;
+    return !!membership;
   }
 
-  /**
-   * Send message to group
-   */
-  async sendMessage(userId: string, input: SendMessageInput): Promise<StudyGroupMessage> {
-    const isMember = await this.isMember(input.groupId, userId);
-    if (!isMember) throw new Error('Must be a member to send messages');
-
-    const message = await StudyGroupMessage.create({
-      ...input,
-      senderId: userId
-    });
-
-    // Update member last active
-    await StudyGroupMember.update(
-      { lastActiveAt: new Date() },
-      { where: { groupId: input.groupId, userId } }
-    );
-
-    // Update group stats
-    await StudyGroup.increment('stats.totalMessages', {
-      where: { id: input.groupId }
-    });
-
-    return message;
-  }
+  // ============================================
+  // MESSAGING OPERATIONS
+  // ============================================
 
   /**
-   * Get group messages
+   * Send a message to group
    */
-  async getMessages(groupId: string, userId: string, options: {
-    limit?: number;
-    before?: Date;
-    after?: Date;
-  } = {}): Promise<StudyGroupMessage[]> {
+  async sendMessage(groupId: string, userId: string, content: string, messageType: 'text' | 'image' | 'resource_link' = 'text'): Promise<GroupMessage> {
+    // Verify membership
     const isMember = await this.isMember(groupId, userId);
-    if (!isMember) throw new Error('Must be a member to view messages');
+    if (!isMember) throw new Error('Not a member of this group');
 
-    const where: any = { groupId };
-    
-    if (options.before) {
-      where.createdAt = { [Op.lt]: options.before };
-    }
-    if (options.after) {
-      where.createdAt = { ...where.createdAt, [Op.gt]: options.after };
-    }
+    const message = await GroupMessage.create({
+      groupId,
+      userId,
+      content,
+      messageType,
+      createdAt: new Date()
+    });
 
-    return StudyGroupMessage.findAll({
-      where,
-      include: [{
-        model: User,
-        as: 'sender',
-        attributes: ['id', 'firstName', 'lastName']
-      }],
+    // Return with user info
+    return GroupMessage.findByPk(message.id, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'email', 'fullName', 'avatarUrl']
+        }
+      ]
+    }) as Promise<GroupMessage>;
+  }
+
+  /**
+   * Get group messages with pagination
+   */
+  async getMessages(groupId: string, userId: string, page = 1, limit = 50): Promise<{ messages: GroupMessage[]; total: number }> {
+    // Verify membership
+    const isMember = await this.isMember(groupId, userId);
+    if (!isMember) throw new Error('Not a member of this group');
+
+    const offset = (page - 1) * limit;
+
+    const { rows: messages, count: total } = await GroupMessage.findAndCountAll({
+      where: { groupId },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'email', 'fullName', 'avatarUrl']
+        }
+      ],
       order: [['createdAt', 'DESC']],
-      limit: options.limit || 50
+      limit,
+      offset
+    });
+
+    return { messages: messages.reverse(), total };
+  }
+
+  // ============================================
+  // INVITATION OPERATIONS
+  // ============================================
+
+  /**
+   * Create an invitation
+   */
+  async createInvitation(groupId: string, inviterId: string, email: string): Promise<GroupInvitation> {
+    // Verify inviter is member
+    const membership = await GroupMember.findOne({
+      where: { groupId, userId: inviterId }
+    });
+    if (!membership) throw new Error('Not a member of this group');
+
+    // Check if invitation already exists
+    const existingInvite = await GroupInvitation.findOne({
+      where: { groupId, email, status: 'pending' }
+    });
+    if (existingInvite) throw new Error('Invitation already sent to this email');
+
+    // Generate unique token
+    const token = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+
+    return GroupInvitation.create({
+      groupId,
+      inviterId,
+      email,
+      token,
+      status: 'pending',
+      expiresAt,
+      createdAt: new Date()
     });
   }
 
   /**
-   * Create study session
+   * Accept an invitation by token
    */
-  async createSession(userId: string, input: CreateSessionInput): Promise<StudySession> {
-    const member = await StudyGroupMember.findOne({
-      where: { groupId: input.groupId, userId }
+  async acceptInvitation(token: string, userId: string): Promise<GroupMember> {
+    const invitation = await GroupInvitation.findOne({
+      where: { token, status: 'pending' }
     });
 
-    if (!member || !['owner', 'admin', 'moderator'].includes(member.role)) {
-      throw new Error('Not authorized to create sessions');
+    if (!invitation) throw new Error('Invalid or expired invitation');
+
+    // Check if expired
+    if (invitation.expiresAt && new Date() > invitation.expiresAt) {
+      await invitation.update({ status: 'expired' });
+      throw new Error('Invitation has expired');
     }
 
-    const session = await StudySession.create({
-      ...input,
-      createdBy: userId
+    // Check if already a member
+    const existingMembership = await GroupMember.findOne({
+      where: { groupId: invitation.groupId, userId }
     });
-
-    return session;
-  }
-
-  /**
-   * Get upcoming sessions for a group
-   */
-  async getGroupSessions(groupId: string, options: {
-    status?: string;
-    limit?: number;
-  } = {}): Promise<StudySession[]> {
-    const where: any = { groupId };
-    
-    if (options.status) {
-      where.status = options.status;
-    } else {
-      where.scheduledStart = { [Op.gte]: new Date() };
+    if (existingMembership) {
+      await invitation.update({ status: 'accepted' });
+      throw new Error('Already a member of this group');
     }
 
-    return StudySession.findAll({
-      where,
-      include: [{
-        model: User,
-        as: 'creator',
-        attributes: ['id', 'firstName', 'lastName']
-      }],
-      order: [['scheduledStart', 'ASC']],
-      limit: options.limit || 10
+    // Check group capacity
+    const group = await StudyGroup.findByPk(invitation.groupId, {
+      include: [{ model: GroupMember, as: 'members' }]
+    });
+    if (group && group.members && group.members.length >= group.maxMembers) {
+      throw new Error('Group is full');
+    }
+
+    // Accept invitation and create membership
+    await invitation.update({ status: 'accepted' });
+
+    return GroupMember.create({
+      groupId: invitation.groupId,
+      userId,
+      role: 'member',
+      joinedAt: new Date()
     });
   }
 
   /**
-   * Get recommended groups for user
+   * Get pending invitations for a group
    */
-  async getRecommendedGroups(userId: string, limit: number = 5): Promise<StudyGroup[]> {
-    const user = await User.findByPk(userId);
-    if (!user) throw new Error('User not found');
+  async getGroupInvitations(groupId: string, userId: string): Promise<GroupInvitation[]> {
+    // Verify user is admin or creator
+    const membership = await GroupMember.findOne({
+      where: { groupId, userId, role: ['creator', 'admin'] }
+    });
+    if (!membership) throw new Error('Not authorized to view invitations');
 
-    // Get user's current groups to exclude
-    const userGroupIds = (await StudyGroupMember.findAll({
-      where: { userId, status: 'active' },
+    return GroupInvitation.findAll({
+      where: { groupId, status: 'pending' },
+      include: [
+        {
+          model: User,
+          as: 'inviter',
+          attributes: ['id', 'email', 'fullName']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+  }
+
+  /**
+   * Get recommended groups for a user
+   */
+  async getRecommendedGroups(userId: string, limit = 6): Promise<StudyGroup[]> {
+    // Get groups user is already in
+    const userMemberships = await GroupMember.findAll({
+      where: { userId },
       attributes: ['groupId']
-    })).map(m => m.groupId);
+    });
+    const userGroupIds = userMemberships.map(m => m.groupId);
 
-    // Find groups matching user's interests/ability
+    // Find public groups user is not in, sorted by member count
     const groups = await StudyGroup.findAll({
       where: {
-        id: { [Op.notIn]: userGroupIds },
-        isActive: true,
-        visibility: { [Op.in]: ['public', 'invite_only'] },
-        memberCount: { [Op.lt]: { [Op.col]: 'maxMembers' } }
+        isPublic: true,
+        id: { [Op.notIn]: userGroupIds.length > 0 ? userGroupIds : [''] }
       },
-      order: [
-        ['memberCount', 'DESC'],
-        ['createdAt', 'DESC']
+      include: [
+        {
+          model: GroupMember,
+          as: 'members',
+          attributes: ['id']
+        }
       ],
+      order: [['createdAt', 'DESC']],
       limit
     });
 
