@@ -57,7 +57,7 @@ export default function StudyGroupsPage() {
   const { data: myGroups, isLoading: loadingMyGroups } = useMyGroups();
   const { data: recommendedGroups, isLoading: loadingRecommended } = useRecommendedGroups(6);
   const { data: searchResults, isLoading: loadingSearch } = useSearchGroups(
-    searchQuery ? { query: searchQuery } : undefined
+    searchQuery.length >= 2 ? { query: searchQuery } : undefined
   );
   
   const createGroupMutation = useCreateGroup();
@@ -110,7 +110,7 @@ export default function StudyGroupsPage() {
   const GroupCard = ({ group, isMember = false }: { group: StudyGroup; isMember?: boolean }) => (
     <Card 
       className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-blue-300"
-      onClick={() => navigate(`/app/group-study/${group.id}`)}
+      onClick={() => navigate(`/app/groups/${group.id}`)}
     >
       <CardContent className="pt-6">
         <div className="flex items-start justify-between mb-4">
@@ -207,7 +207,7 @@ export default function StudyGroupsPage() {
       </Card>
 
       {/* Search Results */}
-      {searchQuery && (
+      {searchQuery.length >= 2 && (
         <section>
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4">
             Search Results
@@ -233,7 +233,7 @@ export default function StudyGroupsPage() {
       )}
 
       {/* My Groups */}
-      {!searchQuery && (
+      {searchQuery.length < 2 && (
         <>
           <section>
             <div className="flex items-center justify-between mb-4">
