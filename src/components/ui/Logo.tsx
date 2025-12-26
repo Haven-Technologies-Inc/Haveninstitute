@@ -1,7 +1,7 @@
 import logoImage from '../../assets/images/logo.png';
 
 interface LogoProps {
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
   showText?: boolean;
   className?: string;
   textClassName?: string;
@@ -12,6 +12,8 @@ const sizeMap = {
   md: 'size-10',
   lg: 'size-12',
   xl: 'size-16',
+  '2xl': 'size-20',
+  '3xl': 'size-24',
 };
 
 const textSizeMap = {
@@ -19,6 +21,8 @@ const textSizeMap = {
   md: 'text-xl',
   lg: 'text-2xl',
   xl: 'text-3xl',
+  '2xl': 'text-4xl',
+  '3xl': 'text-5xl',
 };
 
 export function Logo({ 
