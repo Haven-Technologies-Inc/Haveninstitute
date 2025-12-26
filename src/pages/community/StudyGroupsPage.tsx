@@ -1,9 +1,9 @@
 /**
  * Study Groups Page - Browse, join, and manage study groups
- * Uses local storage for demo/development since backend endpoints are not production ready
+ * Production-ready with real backend API integration
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
@@ -21,26 +21,16 @@ import {
   UserPlus,
   ChevronRight,
   X,
-  BookOpen,
-  Clock,
   CheckCircle2
 } from 'lucide-react';
-
-// Local type for study groups (works without backend)
-interface LocalStudyGroup {
-  id: string;
-  name: string;
-  description: string;
-  visibility: 'public' | 'private';
-  focusAreas: string[];
-  memberCount: number;
-  createdAt: string;
-  isOwner: boolean;
-  stats: {
-    totalMessages: number;
-    totalSessions: number;
-  };
-}
+import {
+  useMyGroups,
+  useRecommendedGroups,
+  useSearchGroups,
+  useCreateGroup,
+  useJoinGroup
+} from '../../services/hooks/useStudyGroups';
+import { StudyGroup } from '../../services/api/studyGroup.api';
 
 const NCLEX_CATEGORIES = [
   'Management of Care',
@@ -53,59 +43,6 @@ const NCLEX_CATEGORIES = [
   'Physiological Adaptation'
 ];
 
-// Sample recommended groups for demo
-const SAMPLE_RECOMMENDED_GROUPS: LocalStudyGroup[] = [
-  {
-    id: 'demo-1',
-    name: 'NCLEX-RN Study Squad',
-    description: 'A supportive group for RN candidates preparing for the NCLEX exam. We share resources, quiz each other, and celebrate wins!',
-    visibility: 'public',
-    focusAreas: ['Management of Care', 'Pharmacological Therapies'],
-    memberCount: 45,
-    createdAt: new Date().toISOString(),
-    isOwner: false,
-    stats: { totalMessages: 234, totalSessions: 12 }
-  },
-  {
-    id: 'demo-2',
-    name: 'Med-Surg Masters',
-    description: 'Focused study group for medical-surgical nursing content. Weekly practice sessions and case studies.',
-    visibility: 'public',
-    focusAreas: ['Physiological Adaptation', 'Reduction of Risk'],
-    memberCount: 32,
-    createdAt: new Date().toISOString(),
-    isOwner: false,
-    stats: { totalMessages: 156, totalSessions: 8 }
-  },
-  {
-    id: 'demo-3',
-    name: 'Pharmacology Focus',
-    description: 'Master drug classifications, dosage calculations, and nursing implications together.',
-    visibility: 'public',
-    focusAreas: ['Pharmacological Therapies', 'Safety and Infection Control'],
-    memberCount: 28,
-    createdAt: new Date().toISOString(),
-    isOwner: false,
-    stats: { totalMessages: 89, totalSessions: 5 }
-  }
-];
-
-// Local storage helpers
-const STORAGE_KEY = 'haven_study_groups';
-
-const getStoredGroups = (): LocalStudyGroup[] => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveGroups = (groups: LocalStudyGroup[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
-};
-
 export default function StudyGroupsPage() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,42 +51,32 @@ export default function StudyGroupsPage() {
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const [newGroupVisibility, setNewGroupVisibility] = useState<'public' | 'private'>('public');
   const [selectedFocusAreas, setSelectedFocusAreas] = useState<string[]>([]);
-  const [myGroups, setMyGroups] = useState<LocalStudyGroup[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
   const [createSuccess, setCreateSuccess] = useState(false);
 
-  // Load groups from local storage on mount
-  useEffect(() => {
-    setMyGroups(getStoredGroups());
-  }, []);
+  // Real API hooks
+  const { data: myGroups, isLoading: loadingMyGroups } = useMyGroups();
+  const { data: recommendedGroups, isLoading: loadingRecommended } = useRecommendedGroups(6);
+  const { data: searchResults, isLoading: loadingSearch } = useSearchGroups(
+    searchQuery ? { query: searchQuery } : undefined
+  );
+  
+  const createGroupMutation = useCreateGroup();
+  const joinGroupMutation = useJoinGroup();
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
     
-    setIsCreating(true);
-    
-    // Simulate API delay
-    setTimeout(() => {
-      const newGroup: LocalStudyGroup = {
-        id: `group-${Date.now()}`,
+    try {
+      const group = await createGroupMutation.mutateAsync({
         name: newGroupName.trim(),
         description: newGroupDescription.trim(),
         visibility: newGroupVisibility,
-        focusAreas: selectedFocusAreas,
-        memberCount: 1,
-        createdAt: new Date().toISOString(),
-        isOwner: true,
-        stats: { totalMessages: 0, totalSessions: 0 }
-      };
+        focusAreas: selectedFocusAreas
+      });
       
-      const updatedGroups = [...myGroups, newGroup];
-      setMyGroups(updatedGroups);
-      saveGroups(updatedGroups);
-      
-      setIsCreating(false);
       setCreateSuccess(true);
       
-      // Reset form after short delay
+      // Reset form after short delay and navigate to group
       setTimeout(() => {
         setShowCreateModal(false);
         setCreateSuccess(false);
@@ -157,16 +84,18 @@ export default function StudyGroupsPage() {
         setNewGroupDescription('');
         setNewGroupVisibility('public');
         setSelectedFocusAreas([]);
+        navigate(`/app/group-study/${group.id}`);
       }, 1500);
-    }, 800);
+    } catch (error) {
+      console.error('Failed to create group:', error);
+    }
   };
 
-  const handleJoinGroup = (groupId: string) => {
-    const groupToJoin = SAMPLE_RECOMMENDED_GROUPS.find(g => g.id === groupId);
-    if (groupToJoin && !myGroups.find(g => g.id === groupId)) {
-      const updatedGroups = [...myGroups, { ...groupToJoin, isOwner: false }];
-      setMyGroups(updatedGroups);
-      saveGroups(updatedGroups);
+  const handleJoinGroup = async (groupId: string) => {
+    try {
+      await joinGroupMutation.mutateAsync(groupId);
+    } catch (error) {
+      console.error('Failed to join group:', error);
     }
   };
 
@@ -178,20 +107,7 @@ export default function StudyGroupsPage() {
     }
   };
 
-  // Filter recommended groups that user hasn't joined
-  const availableRecommended = SAMPLE_RECOMMENDED_GROUPS.filter(
-    rg => !myGroups.find(mg => mg.id === rg.id)
-  );
-
-  // Filter groups by search
-  const filteredMyGroups = searchQuery 
-    ? myGroups.filter(g => 
-        g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        g.description.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : myGroups;
-
-  const GroupCard = ({ group, isMember = false }: { group: LocalStudyGroup; isMember?: boolean }) => (
+  const GroupCard = ({ group, isMember = false }: { group: StudyGroup; isMember?: boolean }) => (
     <Card 
       className="hover:shadow-lg transition-all cursor-pointer border-2 hover:border-blue-300"
       onClick={() => navigate(`/app/group-study/${group.id}`)}
@@ -296,10 +212,14 @@ export default function StudyGroupsPage() {
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4">
             Search Results
           </h2>
-          {filteredMyGroups.length > 0 ? (
+          {loadingSearch ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            </div>
+          ) : searchResults?.groups && searchResults.groups.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {filteredMyGroups.map(group => (
-                <GroupCard key={group.id} group={group} isMember />
+              {searchResults.groups.map((group: StudyGroup) => (
+                <GroupCard key={group.id} group={group} />
               ))}
             </div>
           ) : (
@@ -320,11 +240,15 @@ export default function StudyGroupsPage() {
               <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                 My Groups
               </h2>
-              <Badge variant="outline">{myGroups.length} groups</Badge>
+              <Badge variant="outline">{myGroups?.length || 0} groups</Badge>
             </div>
-            {myGroups.length > 0 ? (
+            {loadingMyGroups ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              </div>
+            ) : myGroups && myGroups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {myGroups.map(group => (
+                {myGroups.map((group: StudyGroup) => (
                   <GroupCard key={group.id} group={group} isMember />
                 ))}
               </div>
@@ -355,18 +279,20 @@ export default function StudyGroupsPage() {
                 Recommended for You
               </h2>
             </div>
-            {availableRecommended.length > 0 ? (
+            {loadingRecommended ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              </div>
+            ) : recommendedGroups && recommendedGroups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {availableRecommended.map(group => (
+                {recommendedGroups.map((group: StudyGroup) => (
                   <GroupCard key={group.id} group={group} />
                 ))}
               </div>
             ) : (
               <Card>
                 <CardContent className="pt-6 text-center text-gray-500">
-                  {myGroups.length > 0 
-                    ? "You've joined all recommended groups!" 
-                    : "No recommendations available yet"}
+                  No recommendations available yet
                 </CardContent>
               </Card>
             )}
@@ -533,10 +459,10 @@ export default function StudyGroupsPage() {
                   </Button>
                   <Button 
                     onClick={handleCreateGroup}
-                    disabled={!newGroupName.trim() || isCreating}
+                    disabled={!newGroupName.trim() || createGroupMutation.isPending}
                     className="flex-1 h-11 sm:h-12 bg-blue-600 hover:bg-blue-700"
                   >
-                    {isCreating ? (
+                    {createGroupMutation.isPending ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
                         Creating...
