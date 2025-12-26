@@ -37,9 +37,9 @@ export async function connectDatabase(): Promise<void> {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully');
 
-    // Only sync new tables, don't alter existing ones
-    await sequelize.sync({ alter: false });
-    console.log('✅ Database synchronized');
+    // Skip sync - tables already exist in production
+    // Use migrations for schema changes
+    console.log('✅ Database ready (sync disabled)');
   } catch (error) {
     console.error('❌ Unable to connect to the database:', error);
     throw error;
