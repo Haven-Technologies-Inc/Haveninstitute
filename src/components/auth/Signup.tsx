@@ -200,26 +200,6 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
               )}
             </form>
 
-            {/* Features List */}
-            <div className="mt-6 space-y-2">
-              <div className="flex items-center gap-2 text-gray-600">
-                <CheckCircle2 className="size-4 text-green-600" />
-                <span>Access to 1000+ NCLEX questions</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-600">
-                <CheckCircle2 className="size-4 text-green-600" />
-                <span>AI-powered Computer Adaptive Testing</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-600">
-                <CheckCircle2 className="size-4 text-green-600" />
-                <span>Personalized study recommendations</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-600">
-                <CheckCircle2 className="size-4 text-green-600" />
-                <span>Progress tracking & analytics</span>
-              </div>
-            </div>
-
             {/* Login Link */}
             <div className="mt-6 text-center">
               <p className="text-gray-600">
