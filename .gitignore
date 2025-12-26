@@ -9,10 +9,10 @@ package-lock.json
 .env.production
 .env.staging
 .env.docker
-*.env.production*
+# *.env.production* - backend/.env.production allowed
 backend/.env
 backend/.env.local
-backend/.env.production
+# backend/.env.production - allowed for deployment
 
 # SQL scripts with sensitive data
 *.sql
