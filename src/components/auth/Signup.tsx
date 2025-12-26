@@ -70,15 +70,9 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
           </button>
         </div>
 
-        {/* Logo & Header */}
-        <div className="text-center mb-8">
-          <div className="flex flex-col items-center gap-3">
-            <Logo size="2xl" showText={false} />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Haven Institute</h1>
-              <p className="text-gray-600 dark:text-gray-400">Excellence in NCLEX Preparation</p>
-            </div>
-          </div>
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <Logo size="xl" showText={false} />
         </div>
 
         {/* Signup Card */}
