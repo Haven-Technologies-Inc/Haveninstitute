@@ -37,8 +37,8 @@ export async function connectDatabase(): Promise<void> {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully');
 
-    // Sync tables on startup
-    await sequelize.sync({ alter: true });
+    // Only sync new tables, don't alter existing ones
+    await sequelize.sync({ alter: false });
     console.log('✅ Database synchronized');
   } catch (error) {
     console.error('❌ Unable to connect to the database:', error);
