@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { Mail, Lock, User, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { Logo } from '../ui/Logo';
+import { PrivacyPolicy, TermsOfUse } from '../legal';
 
 interface SignupProps {
   onSwitchToLogin: () => void;
@@ -20,6 +21,9 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfUse, setShowTermsOfUse] = useState(false);
 
   const passwordStrength = password.length >= 8 ? 
     password.match(/[A-Z]/) && password.match(/[0-9]/) ? 'strong' : 'medium' : 
@@ -56,14 +60,14 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
       <div className="w-full max-w-md">
         {/* Back to Home Button */}
         <div className="mb-4">
-          <Button
-            variant="ghost"
+          <button
+            type="button"
             onClick={onBackToHome}
-            className="gap-2 text-gray-600 hover:text-gray-900"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm"
           >
             <ArrowLeft className="size-4" />
             Back to Home
-          </Button>
+          </button>
         </div>
 
         {/* Logo & Header */}
@@ -179,16 +183,43 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
                 </div>
               </div>
 
-              <div className="flex items-start gap-2">
-                <input type="checkbox" className="mt-1" required />
-                <label className="text-gray-600">
-                  I agree to the <a href="#" className="text-blue-600 hover:underline">Terms of Service</a> and <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
+              <div className="flex items-start gap-3">
+                <input 
+                  type="checkbox" 
+                  id="agree-terms"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
+                />
+                <label htmlFor="agree-terms" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowTermsOfUse(true)}
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    Terms of Use
+                  </button>
+                  {' '}and{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowPrivacyPolicy(true)}
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    Privacy Policy
+                  </button>
                 </label>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || !agreedToTerms}>
                 {isLoading ? 'Creating Account...' : 'Create Account'}
               </Button>
+              
+              {!agreedToTerms && (
+                <p className="text-xs text-center text-gray-500">
+                  Please agree to the Terms of Use and Privacy Policy to continue
+                </p>
+              )}
             </form>
 
             {/* Features List */}
@@ -227,6 +258,16 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Legal Modals */}
+      <PrivacyPolicy 
+        isOpen={showPrivacyPolicy} 
+        onClose={() => setShowPrivacyPolicy(false)} 
+      />
+      <TermsOfUse 
+        isOpen={showTermsOfUse} 
+        onClose={() => setShowTermsOfUse(false)} 
+      />
     </div>
   );
 }
