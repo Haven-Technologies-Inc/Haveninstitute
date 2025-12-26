@@ -84,7 +84,7 @@ export default function StudyGroupsPage() {
         setNewGroupDescription('');
         setNewGroupVisibility('public');
         setSelectedFocusAreas([]);
-        navigate(`/app/group-study/${group.id}`);
+        navigate(`/app/groups/${group.id}`);
       }, 1500);
     } catch (error) {
       console.error('Failed to create group:', error);

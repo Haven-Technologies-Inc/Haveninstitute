@@ -50,6 +50,7 @@ const StudyPlannerPage = lazy(() => import('../pages/progress/StudyPlannerPage')
 const GroupStudyPage = lazy(() => import('../pages/community/GroupStudyPage').then(m => ({ default: m.GroupStudyPage })));
 const StudyGroupsPage = lazy(() => import('../pages/community/StudyGroupsPage').then(m => ({ default: m.StudyGroupsPage })));
 const GroupChatPage = lazy(() => import('../pages/community/GroupChatPage').then(m => ({ default: m.GroupChatPage })));
+const GroupDetailPage = lazy(() => import('../pages/community/GroupDetailPage'));
 const DiscussionForumPage = lazy(() => import('../pages/community/DiscussionForumPage').then(m => ({ default: m.DiscussionForumPage })));
 const ForumPage = lazy(() => import('../pages/community/ForumPage').then(m => ({ default: m.ForumPage })));
 const SubscriptionPage = lazy(() => import('../pages/account/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
@@ -138,7 +139,9 @@ export const router = createBrowserRouter([
           { path: 'planner/:planId', element: <StudyPlannerPage /> },
           { path: 'planner-legacy', element: <PlannerPage /> },
           { path: 'group-study', element: <StudyGroupsPage /> },
-          { path: 'group-study/:groupId', element: <GroupChatPage /> },
+          { path: 'group-study/:groupId', element: <GroupDetailPage /> },
+          { path: 'groups', element: <StudyGroupsPage /> },
+          { path: 'groups/:groupId', element: <GroupDetailPage /> },
           { path: 'group-study-legacy', element: <GroupStudyPage /> },
           { path: 'forum', element: <DiscussionForumPage /> },
           { path: 'forum/:slug', element: <DiscussionForumPage /> },
