@@ -136,8 +136,8 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
     <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <Logo size="2xl" showText={false} />
+        <div className="flex justify-center mb-6">
+          <Logo size="xl" showText={false} />
         </div>
 
         {/* Form */}

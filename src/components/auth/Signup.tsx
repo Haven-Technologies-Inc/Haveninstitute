@@ -70,8 +70,8 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
         </div>
 
         {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <Logo size="2xl" showText={false} />
+        <div className="flex justify-center mb-6">
+          <Logo size="xl" showText={false} />
         </div>
 
         {/* Signup Card */}
