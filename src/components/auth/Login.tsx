@@ -69,26 +69,27 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
     try {
       const result = await login(email, password);
       
-      // Show success message briefly before redirect
-      setSuccess('Login successful! Redirecting...');
-
       // Use intelligent redirect path from backend if available
       const redirectPath = result?.redirectPath?.path || '/app/dashboard';
       const redirectReason = result?.redirectPath?.reason;
       
-      // Small delay to show success message
-      setTimeout(() => {
-        // Show context-specific message based on redirect reason
-        if (redirectReason === 'onboarding_incomplete') {
-          setSuccess('Welcome! Let\'s complete your profile setup...');
-        } else if (redirectReason === 'email_unverified') {
-          setSuccess('Please verify your email for full access.');
-        } else if (redirectReason === 'low_performance') {
-          setSuccess('We\'ve prepared a personalized study plan for you!');
-        }
-        
-        navigate(redirectPath);
-      }, 500);
+      // Show context-specific message based on redirect reason
+      let successMessage = 'Login successful! Redirecting...';
+      if (redirectReason === 'onboarding_incomplete') {
+        successMessage = 'Welcome! Let\'s complete your profile setup...';
+      } else if (redirectReason === 'email_unverified') {
+        successMessage = 'Please verify your email for full access.';
+      } else if (redirectReason === 'low_performance') {
+        successMessage = 'We\'ve prepared a personalized study plan for you!';
+      } else if (redirectReason === 'admin_role') {
+        successMessage = 'Welcome back, Admin!';
+      }
+      
+      setSuccess(successMessage);
+      
+      // Navigate immediately to prevent PublicRoute from intercepting
+      // Use replace to prevent back-button issues
+      navigate(redirectPath, { replace: true });
     } catch (err: any) {
       // Parse error message for user-friendly display
       let errorMessage = 'Login failed. Please try again.';
