@@ -30,7 +30,7 @@ const mapAuthUserToUser = (authUser: AuthUser): User => ({
   email: authUser.email,
   name: authUser.fullName,
   fullName: authUser.fullName,
-  role: authUser.role === 'admin' || authUser.role === 'moderator' || authUser.role === 'instructor' ? 'admin' : 'student',
+  role: ['admin', 'moderator', 'instructor', 'editor'].includes(authUser.role) ? 'admin' : 'student',
   subscription: authUser.subscriptionTier as 'Free' | 'Pro' | 'Premium',
   goals: authUser.goals,
   targetExamDate: authUser.examDate,
@@ -144,8 +144,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Try to logout from backend (fire and forget)
     authApi.logout().catch(err => logger.info('Backend logout:', err.message));
     
+    // Clear all auth-related storage
     setUser(null);
     localStorage.removeItem('nursehaven_user');
+    localStorage.removeItem('haven_token');
+    localStorage.removeItem('haven_refresh_token');
   };
 
   const updateUser = (updates: Partial<User>) => {

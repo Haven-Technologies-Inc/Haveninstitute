@@ -15,6 +15,7 @@ interface SignupProps {
 
 export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
   const { signup } = useAuth();
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -24,28 +25,40 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfUse, setShowTermsOfUse] = useState(false);
 
-  const passwordStrength = password.length >= 8 ? 
-    password.match(/[A-Z]/) && password.match(/[0-9]/) ? 'strong' : 'medium' : 
-    password.length > 0 ? 'weak' : 'none';
+  // Password must have: 8+ chars, uppercase, lowercase, and number (matches backend validation)
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const isValidPassword = hasMinLength && hasUppercase && hasLowercase && hasNumber;
+
+  const passwordStrength = !password ? 'none' :
+    isValidPassword ? 'strong' :
+    (hasMinLength && (hasUppercase || hasLowercase)) ? 'medium' : 'weak';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     // Validation
+    if (!fullName.trim() || fullName.trim().length < 2) {
+      setError('Please enter your full name (at least 2 characters)');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    if (!isValidPassword) {
+      setError('Password must be at least 8 characters with uppercase, lowercase, and a number');
       return;
     }
 
     setIsLoading(true);
     try {
-      await signup(email, password);
+      await signup(email, password, fullName.trim());
       // After successful signup, user will complete profile after email verification
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed. Please try again.');
@@ -88,6 +101,19 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
                   <AlertDescription className="text-red-800">{error}</AlertDescription>
                 </Alert>
               )}
+
+              <div>
+                <label className="text-gray-700 mb-2 block">Full Name</label>
+                <Input
+                  type="text"
+                  placeholder="Your full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  minLength={2}
+                  maxLength={100}
+                />
+              </div>
 
               <div>
                 <label className="text-gray-700 mb-2 block">Email Address</label>
@@ -138,7 +164,7 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
                          passwordStrength === 'medium' ? 'Medium' : 'Weak'}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-600">Use 8+ characters with uppercase and numbers</p>
+                    <p className="text-xs text-gray-600">Use 8+ characters with uppercase, lowercase, and numbers</p>
                   </div>
                 )}
               </div>
