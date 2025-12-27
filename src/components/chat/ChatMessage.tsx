@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Copy, Check, User, Bot, Sparkles } from 'lucide-react';
 import { useState } from 'react';
+import DOMPurify from 'dompurify';
 
 interface ChatMessageProps {
   role: 'user' | 'assistant';
@@ -82,7 +83,10 @@ export const ChatMessage = memo(function ChatMessage({ role, content, timestamp,
           
           <div 
             className="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200"
-            dangerouslySetInnerHTML={{ __html: `<p>${parseMarkdown(content)}</p>` }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(`<p>${parseMarkdown(content)}</p>`, {
+              ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'h1', 'h2', 'h3', 'li', 'ul', 'ol'],
+              ALLOWED_ATTR: ['class']
+            }) }}
           />
           
           <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 dark:border-gray-700">

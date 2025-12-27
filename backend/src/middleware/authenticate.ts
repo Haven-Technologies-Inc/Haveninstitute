@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { User } from '../models/User';
+import { Session } from '../models/Session';
 import { jwtConfig, JWTPayload } from '../config/jwt';
 import { ResponseHandler, errorCodes } from '../utils/response';
 
@@ -33,6 +35,22 @@ export async function authenticate(
 
     // Verify token
     const decoded = jwt.verify(token, jwtConfig.secret) as JWTPayload;
+
+    // Verify session is still valid (not revoked)
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const session = await Session.findOne({
+      where: { tokenHash }
+    });
+
+    if (!session || session.isExpired()) {
+      ResponseHandler.error(
+        res,
+        errorCodes.AUTH_TOKEN_EXPIRED,
+        'Session has been revoked or expired',
+        401
+      );
+      return;
+    }
 
     // Get user
     const user = await User.findByPk(decoded.userId);

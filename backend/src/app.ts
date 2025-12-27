@@ -1,6 +1,7 @@
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import crypto from 'crypto';
 import 'express-async-errors';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -44,7 +45,7 @@ app.use(cors({
       callback(null, true);
     } else {
       logger.warn(`CORS blocked origin: ${origin}`);
-      callback(null, true); // Allow all in production for now, log for monitoring
+      callback(new Error('CORS not allowed for this origin'), false);
     }
   },
   credentials: true,
@@ -58,13 +59,16 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging middleware
+// Request ID and logging middleware
 app.use((req: Request, res: Response, next) => {
+  const requestId = crypto.randomBytes(8).toString('hex');
+  (req as any).requestId = requestId;
+  res.setHeader('X-Request-ID', requestId);
   const start = Date.now();
 
   res.on('finish', () => {
     const duration = Date.now() - start;
-    logger.info(`${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+    logger.info(`[${requestId}] ${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
   });
 
   next();

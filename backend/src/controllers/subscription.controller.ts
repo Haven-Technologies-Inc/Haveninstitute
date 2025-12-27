@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/authenticate';
 import { SubscriptionService } from '../services/subscription.service';
 import { ResponseHandler } from '../utils/response';
+import { logger } from '../utils/logger';
 
 const subscriptionService = new SubscriptionService();
 
@@ -133,7 +134,7 @@ export class SubscriptionController {
       await subscriptionService.handleWebhook(payload, signature);
       return res.status(200).send({ received: true });
     } catch (error: any) {
-      console.error('Webhook error:', error);
+      logger.error('Webhook error:', error);
       return res.status(400).send({ error: error.message });
     }
   }
