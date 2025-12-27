@@ -261,6 +261,8 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
                   setForgotEmail('');
                 }}
                 className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+                title="Close"
+                aria-label="Close modal"
               >
                 <X className="size-5" />
               </button>
