@@ -37,6 +37,9 @@ services:
       - NODE_ENV=production
       - DB_HOST=mariadb
       - DB_PORT=3306
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
     networks:
       - haven-network
     depends_on:
