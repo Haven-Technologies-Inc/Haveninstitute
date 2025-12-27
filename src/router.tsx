@@ -84,7 +84,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <PageLoader />;
   }
 
-  if (!user) {
+  // Check localStorage as fallback during login transition
+  // This handles the case where navigate() is called before setUser() completes
+  const storedUser = localStorage.getItem('nursehaven_user');
+  
+  if (!user && !storedUser) {
     return <Navigate to="/login" replace />;
   }
 
@@ -156,11 +160,9 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: (
-      <PublicRoute>
-        <Suspense fallback={<PageLoader />}>
-          <LoginPage />
-        </Suspense>
-      </PublicRoute>
+      <Suspense fallback={<PageLoader />}>
+        <LoginPage />
+      </Suspense>
     ),
   },
   {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -32,8 +32,16 @@ interface LoginProps {
 }
 
 export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
-  const { login } = useAuth();
+  const { login, user, setUserFromLogin } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate(user.role === 'admin' ? '/admin' : '/app/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -87,9 +95,14 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
       
       setSuccess(successMessage);
       
-      // Navigate immediately to prevent PublicRoute from intercepting
-      // Use replace to prevent back-button issues
+      // Navigate FIRST, then set user state to avoid PublicRoute race condition
       navigate(redirectPath, { replace: true });
+      
+      // Set user state after navigation is initiated
+      // This allows ProtectedRoute to read from localStorage while state catches up
+      setTimeout(() => {
+        setUserFromLogin(result.user);
+      }, 0);
     } catch (err: any) {
       // Parse error message for user-friendly display
       let errorMessage = 'Login failed. Please try again.';

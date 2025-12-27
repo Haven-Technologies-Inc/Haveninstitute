@@ -46,6 +46,7 @@ interface AuthContextType {
   signup: (email: string, password: string, fullName?: string) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
+  setUserFromLogin: (user: User) => void;
   isLoading: boolean;
 }
 
@@ -90,7 +91,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (response.success && response.data) {
         const mappedUser = mapAuthUserToUser(response.data.user);
-        setUser(mappedUser);
+        
+        // DON'T set user state here - let Login.tsx navigate first
+        // Then call setUserFromLogin to avoid PublicRoute race condition
+        // Store in localStorage so ProtectedRoute can access it
         localStorage.setItem('nursehaven_user', JSON.stringify(mappedUser));
         
         // Return the redirect path from backend for intelligent redirection
@@ -107,6 +111,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Called AFTER navigation to set user state without triggering PublicRoute redirect
+  const setUserFromLogin = (loginUser: User) => {
+    setUser(loginUser);
   };
 
   const signup = async (email: string, password: string, fullName?: string) => {
@@ -163,6 +172,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signup,
     logout,
     updateUser,
+    setUserFromLogin,
     isLoading
   };
 
