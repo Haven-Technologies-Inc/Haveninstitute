@@ -20,6 +20,7 @@ import { Notification } from './Notification';
 import { FileUpload } from './FileUpload';
 import { Book, UserBook } from './Book';
 import { LoginAudit, PasswordHistory } from './LoginAudit';
+import { SystemSettings } from './SystemSettings';
 
 // Re-export models
 export {
@@ -31,7 +32,7 @@ export {
   GroupMember, GroupMessage, GroupInvitation, ForumCategory, ForumPost, 
   ForumComment, ForumReaction, ForumBookmark,
   Achievement, UserAchievement, Notification, FileUpload,
-  Book, UserBook, LoginAudit, PasswordHistory
+  Book, UserBook, LoginAudit, PasswordHistory, SystemSettings
 };
 
 // Re-export types
@@ -85,4 +86,5 @@ export const models = [
   UserBook,
   LoginAudit,
   PasswordHistory,
+  SystemSettings,
 ];

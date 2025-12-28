@@ -23,6 +23,7 @@ import progressRoutes from './progress.routes';
 import oauthRoutes from './oauth.routes';
 import mfaRoutes from './mfa.routes';
 import securityRoutes from './security.routes';
+import systemSettingsRoutes from './systemSettings.routes';
 
 const router = Router();
 
@@ -63,5 +64,6 @@ router.use('/progress', progressRoutes);
 router.use('/oauth', oauthRoutes);
 router.use('/mfa', mfaRoutes);
 router.use('/security', securityRoutes);
+router.use('/admin/settings', systemSettingsRoutes);
 
 export default router;
