@@ -199,11 +199,15 @@ export function Settings() {
                         <img 
                           src={profileImage} 
                           alt="Profile" 
+                          title="Profile image"
+                          aria-label="Profile image"
                           className="size-24 rounded-full object-cover border-4 border-blue-500 dark:border-purple-500 shadow-lg"
                         />
                         {isEditing && (
                           <button
                             onClick={handleRemoveImage}
+                            title="Remove profile image"
+                            aria-label="Remove profile image"
                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 transition-colors"
                           >
                             <X className="size-4" />

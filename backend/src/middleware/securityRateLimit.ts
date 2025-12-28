@@ -5,7 +5,11 @@
  */
 
 import rateLimit from 'express-rate-limit';
-import { Request, Response } from 'express';
+import { Request } from 'express';
+
+interface AuthenticatedRequest extends Request {
+  userId?: string;
+}
 
 // Auth endpoints - login, register, password reset
 export const authRateLimiter = rateLimit({
@@ -25,7 +29,7 @@ export const authRateLimiter = rateLimit({
     const email = req.body?.email || '';
     return `auth:${req.ip}:${email}`;
   },
-  skip: (req: Request) => {
+  skip: (_req: Request) => {
     // Skip for successful requests (handled after)
     return false;
   },
@@ -46,7 +50,7 @@ export const mfaRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req: Request) => {
     // Use user ID if authenticated, otherwise IP
-    const userId = (req as any).userId || req.ip;
+    const userId = (req as AuthenticatedRequest).userId || req.ip;
     return `mfa:${userId}`;
   },
 });
@@ -80,7 +84,7 @@ export const passwordRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => {
-    const userId = (req as any).userId || req.ip;
+    const userId = (req as AuthenticatedRequest).userId || req.ip;
     return `password:${userId}`;
   },
 });
@@ -114,7 +118,7 @@ export const accountDeletionRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => {
-    const userId = (req as any).userId || req.ip;
+    const userId = (req as AuthenticatedRequest).userId || req.ip;
     return `delete:${userId}`;
   },
 });
