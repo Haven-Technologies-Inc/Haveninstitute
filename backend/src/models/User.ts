@@ -160,6 +160,46 @@ export class User extends Model {
   })
   lastLogin?: Date;
 
+  // OAuth fields
+  @Column({
+    type: DataType.STRING(100),
+    field: 'google_id'
+  })
+  googleId?: string;
+
+  @Column({
+    type: DataType.STRING(100),
+    field: 'apple_id'
+  })
+  appleId?: string;
+
+  @Default('local')
+  @Column({
+    type: DataType.ENUM('local', 'google', 'apple'),
+    field: 'auth_provider'
+  })
+  authProvider!: string;
+
+  // MFA fields
+  @Default(false)
+  @Column({
+    type: DataType.BOOLEAN,
+    field: 'mfa_enabled'
+  })
+  mfaEnabled!: boolean;
+
+  @Column({
+    type: DataType.STRING(100),
+    field: 'mfa_secret'
+  })
+  mfaSecret?: string;
+
+  @Column({
+    type: DataType.JSON,
+    field: 'mfa_backup_codes'
+  })
+  mfaBackupCodes?: string[];
+
   @CreatedAt
   @Column({
     type: DataType.DATE,

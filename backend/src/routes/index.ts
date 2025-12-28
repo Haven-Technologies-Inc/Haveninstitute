@@ -18,6 +18,11 @@ import subscriptionRoutes from './subscription.routes';
 import notificationRoutes from './notification.routes';
 import uploadRoutes from './upload.routes';
 import gamificationRoutes from './gamification.routes';
+import bookRoutes from './book.routes';
+import progressRoutes from './progress.routes';
+import oauthRoutes from './oauth.routes';
+import mfaRoutes from './mfa.routes';
+import securityRoutes from './security.routes';
 
 const router = Router();
 
@@ -53,5 +58,10 @@ router.use('/subscriptions', subscriptionRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/uploads', uploadRoutes);
 router.use('/gamification', gamificationRoutes);
+router.use('/books', bookRoutes);
+router.use('/progress', progressRoutes);
+router.use('/oauth', oauthRoutes);
+router.use('/mfa', mfaRoutes);
+router.use('/security', securityRoutes);
 
 export default router;

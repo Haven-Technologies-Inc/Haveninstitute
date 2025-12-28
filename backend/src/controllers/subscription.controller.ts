@@ -1,8 +1,11 @@
 import { Response } from 'express';
+import Stripe from 'stripe';
 import { AuthRequest } from '../middleware/authenticate';
 import { SubscriptionService } from '../services/subscription.service';
 import { ResponseHandler } from '../utils/response';
 import { logger } from '../utils/logger';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2023-10-16' });
 
 const subscriptionService = new SubscriptionService();
 
@@ -101,11 +104,10 @@ export class SubscriptionController {
   static async getPaymentHistory(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
-      const { page = '1', limit = '20' } = req.query;
+      const { limit = '20' } = req.query;
 
       const history = await subscriptionService.getPaymentHistory(
         userId,
-        parseInt(page as string),
         parseInt(limit as string)
       );
       return ResponseHandler.success(res, history);
@@ -118,7 +120,9 @@ export class SubscriptionController {
   static async getBillingPortal(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
-      const url = await subscriptionService.createBillingPortalSession(userId);
+      const frontendUrl = process.env.FRONTEND_URL || 'https://havenstudy.com';
+      const returnUrl = `${frontendUrl}/app/account/subscription`;
+      const url = await subscriptionService.getBillingPortalUrl(userId, returnUrl);
       return ResponseHandler.success(res, { url });
     } catch (error: any) {
       return ResponseHandler.error(res, 'INTERNAL_ERROR', error.message, 500);
@@ -130,8 +134,17 @@ export class SubscriptionController {
     try {
       const signature = req.headers['stripe-signature'] as string;
       const payload = req.body;
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-      await subscriptionService.handleWebhook(payload, signature);
+      if (!webhookSecret) {
+        logger.error('Stripe webhook secret not configured');
+        return res.status(500).send({ error: 'Webhook secret not configured' });
+      }
+
+      // Verify and construct the event using imported stripe instance
+      const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+
+      await subscriptionService.handleWebhook(event);
       return res.status(200).send({ received: true });
     } catch (error: any) {
       logger.error('Webhook error:', error);

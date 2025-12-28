@@ -6,7 +6,7 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
-import { StudyGroupMember, StudyGroupMessage } from '../models/StudyGroup';
+import { GroupMember as StudyGroupMember, GroupMessage as StudyGroupMessage } from '../models/StudyGroup';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -444,6 +444,49 @@ class WebSocketService {
         this.io?.to(user.socketId).emit(event, data);
       }
     });
+  }
+
+  /**
+   * Send notification to a specific user
+   */
+  sendNotification(userId: string, notification: {
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    data?: any;
+  }): void {
+    const user = this.onlineUsers.get(userId);
+    if (user) {
+      this.io?.to(user.socketId).emit('notification', notification);
+    }
+  }
+
+  /**
+   * Send notification to multiple users
+   */
+  sendNotificationToMany(userIds: string[], notification: {
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    data?: any;
+  }): void {
+    userIds.forEach(userId => this.sendNotification(userId, notification));
+  }
+
+  /**
+   * Check if user is online
+   */
+  isUserOnline(userId: string): boolean {
+    return this.onlineUsers.has(userId);
+  }
+
+  /**
+   * Get all online user IDs
+   */
+  getOnlineUserIds(): string[] {
+    return Array.from(this.onlineUsers.keys());
   }
 
   /**
