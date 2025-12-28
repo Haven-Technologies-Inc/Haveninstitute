@@ -7,6 +7,7 @@ import { Mail, Lock, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { Logo } from '../ui/Logo';
 import { PrivacyPolicy, TermsOfUse } from '../legal';
+import { GoogleLoginButton } from './GoogleLoginButton';
 
 interface SignupProps {
   onSwitchToLogin: () => void;
@@ -25,7 +26,6 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfUse, setShowTermsOfUse] = useState(false);
 
-  // Password must have: 8+ chars, uppercase, lowercase, and number (matches backend validation)
   const hasMinLength = password.length >= 8;
   const hasUppercase = /[A-Z]/.test(password);
   const hasLowercase = /[a-z]/.test(password);
@@ -40,7 +40,6 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (!fullName.trim() || fullName.trim().length < 2) {
       setError('Please enter your full name (at least 2 characters)');
       return;
@@ -59,7 +58,6 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
     setIsLoading(true);
     try {
       await signup(email, password, fullName.trim());
-      // After successful signup, user will complete profile after email verification
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed. Please try again.');
     } finally {
@@ -70,7 +68,6 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center p-4 transition-colors">
       <div className="w-full max-w-md">
-        {/* Back to Home Button */}
         <div className="mb-4">
           <button
             type="button"
@@ -82,12 +79,10 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
           </button>
         </div>
 
-        {/* Logo */}
         <div className="flex justify-center mb-6">
           <Logo size="2xl" showText={false} />
         </div>
 
-        {/* Signup Card */}
         <Card className="shadow-xl border-2">
           <CardHeader>
             <CardTitle>Create Your Account</CardTitle>
@@ -226,7 +221,17 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
               )}
             </form>
 
-            {/* Login Link */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white dark:bg-gray-800 text-gray-500">or continue with</span>
+              </div>
+            </div>
+
+            <GoogleLoginButton mode="signup" />
+
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Already have an account?{' '}
@@ -243,7 +248,6 @@ export function Signup({ onSwitchToLogin, onBackToHome }: SignupProps) {
         </Card>
       </div>
 
-      {/* Legal Modals */}
       <PrivacyPolicy 
         isOpen={showPrivacyPolicy} 
         onClose={() => setShowPrivacyPolicy(false)} 

@@ -25,6 +25,7 @@ import {
 import { useAuth } from './AuthContext';
 import { authApi } from '../../services/authApi';
 import { Logo } from '../ui/Logo';
+import { GoogleLoginButton } from './GoogleLoginButton';
 
 interface LoginProps {
   onSwitchToSignup: () => void;
@@ -224,6 +225,19 @@ export function Login({ onSwitchToSignup, onBackToHome }: LoginProps) {
             {isLoading ? 'Signing in...' : 'Sign In'}
           </Button>
         </form>
+
+        {/* Divider */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-4 bg-white dark:bg-gray-950 text-gray-500">or continue with</span>
+          </div>
+        </div>
+
+        {/* Social Login */}
+        <GoogleLoginButton mode="signin" />
 
         {/* Sign up link */}
         <p className="text-center text-sm text-gray-500 mt-8">
