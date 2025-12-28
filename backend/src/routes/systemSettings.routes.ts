@@ -24,7 +24,7 @@ router.use(requireRole(['admin']));
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const settings = await systemSettingsService.getAllSettingsForAdmin();
-    ResponseHandler.success(res, settings, 'System settings retrieved');
+    ResponseHandler.success(res, settings);
   } catch (error) {
     next(error);
   }
@@ -37,7 +37,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 router.get('/stripe', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const settings = await systemSettingsService.getSettingsByCategory('stripe');
-    ResponseHandler.success(res, settings, 'Stripe settings retrieved');
+    ResponseHandler.success(res, settings);
   } catch (error) {
     next(error);
   }
@@ -69,7 +69,7 @@ router.put('/stripe', async (req: AuthRequest, res: Response, next: NextFunction
       premiumYearlyPriceId,
     });
 
-    ResponseHandler.success(res, null, 'Stripe settings updated successfully');
+    ResponseHandler.success(res, { message: 'Stripe settings updated successfully' });
   } catch (error) {
     next(error);
   }
@@ -84,7 +84,7 @@ router.post('/stripe/test', async (req: AuthRequest, res: Response, next: NextFu
     const result = await systemSettingsService.testStripeConnection();
     
     if (result.success) {
-      ResponseHandler.success(res, result, 'Stripe connection test passed');
+      ResponseHandler.success(res, result);
     } else {
       ResponseHandler.error(res, 'STRIPE_CONNECTION_FAILED', result.message, 400);
     }
@@ -100,7 +100,7 @@ router.post('/stripe/test', async (req: AuthRequest, res: Response, next: NextFu
 router.get('/email', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const settings = await systemSettingsService.getSettingsByCategory('email');
-    ResponseHandler.success(res, settings, 'Email settings retrieved');
+    ResponseHandler.success(res, settings);
   } catch (error) {
     next(error);
   }
@@ -114,7 +114,7 @@ router.put('/email', async (req: AuthRequest, res: Response, next: NextFunction)
   try {
     const settings = req.body.settings as Array<{ key: SettingKey; value: string | null }>;
     await systemSettingsService.bulkUpdateSettings(settings, 'email');
-    ResponseHandler.success(res, null, 'Email settings updated successfully');
+    ResponseHandler.success(res, { message: 'Email settings updated successfully' });
   } catch (error) {
     next(error);
   }
@@ -127,7 +127,7 @@ router.put('/email', async (req: AuthRequest, res: Response, next: NextFunction)
 router.get('/oauth', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const settings = await systemSettingsService.getSettingsByCategory('oauth');
-    ResponseHandler.success(res, settings, 'OAuth settings retrieved');
+    ResponseHandler.success(res, settings);
   } catch (error) {
     next(error);
   }
@@ -141,7 +141,7 @@ router.put('/oauth', async (req: AuthRequest, res: Response, next: NextFunction)
   try {
     const settings = req.body.settings as Array<{ key: SettingKey; value: string | null }>;
     await systemSettingsService.bulkUpdateSettings(settings, 'oauth');
-    ResponseHandler.success(res, null, 'OAuth settings updated successfully');
+    ResponseHandler.success(res, { message: 'OAuth settings updated successfully' });
   } catch (error) {
     next(error);
   }
@@ -154,7 +154,7 @@ router.put('/oauth', async (req: AuthRequest, res: Response, next: NextFunction)
 router.get('/features', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const settings = await systemSettingsService.getSettingsByCategory('features');
-    ResponseHandler.success(res, settings, 'Feature flags retrieved');
+    ResponseHandler.success(res, settings);
   } catch (error) {
     next(error);
   }
@@ -168,7 +168,7 @@ router.put('/features', async (req: AuthRequest, res: Response, next: NextFuncti
   try {
     const settings = req.body.settings as Array<{ key: SettingKey; value: string | null }>;
     await systemSettingsService.bulkUpdateSettings(settings, 'features');
-    ResponseHandler.success(res, null, 'Feature flags updated successfully');
+    ResponseHandler.success(res, { message: 'Feature flags updated successfully' });
   } catch (error) {
     next(error);
   }
@@ -184,7 +184,7 @@ router.put('/:key', async (req: AuthRequest, res: Response, next: NextFunction) 
     const { value } = req.body;
     
     await systemSettingsService.updateSetting(key as SettingKey, value);
-    ResponseHandler.success(res, null, `Setting ${key} updated successfully`);
+    ResponseHandler.success(res, { message: `Setting ${key} updated successfully` });
   } catch (error) {
     next(error);
   }
@@ -197,7 +197,7 @@ router.put('/:key', async (req: AuthRequest, res: Response, next: NextFunction) 
 router.post('/initialize', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     await systemSettingsService.initializeDefaults();
-    ResponseHandler.success(res, null, 'Settings initialized successfully');
+    ResponseHandler.success(res, { message: 'Settings initialized successfully' });
   } catch (error) {
     next(error);
   }
