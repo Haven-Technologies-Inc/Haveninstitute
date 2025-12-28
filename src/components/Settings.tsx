@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from './auth/AuthContext';
 import { useDarkMode } from './DarkModeContext';
+import { SecuritySettings } from './settings/SecuritySettings';
 
 export function Settings() {
   const { user, updateUser } = useAuth();
@@ -528,71 +529,7 @@ export function Settings() {
 
         {/* Security Tab */}
         <TabsContent value="security">
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle className="dark:text-white">Security Settings</CardTitle>
-              <CardDescription className="dark:text-gray-400">Manage your account security</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Change Password */}
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword" className="dark:text-gray-300">Current Password</Label>
-                <div className="relative">
-                  <Input 
-                    id="currentPassword" 
-                    type={showPassword ? 'text' : 'password'}
-                    className="dark:bg-gray-700 dark:text-white dark:border-gray-600 pr-10"
-                  />
-                  <button
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-4 text-gray-500 dark:text-gray-400" />
-                    ) : (
-                      <Eye className="size-4 text-gray-500 dark:text-gray-400" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="newPassword" className="dark:text-gray-300">New Password</Label>
-                <Input 
-                  id="newPassword" 
-                  type="password"
-                  className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="dark:text-gray-300">Confirm New Password</Label>
-                <Input 
-                  id="confirmPassword" 
-                  type="password"
-                  className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                />
-              </div>
-
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
-                <Lock className="size-4 mr-2" />
-                Update Password
-              </Button>
-
-              {/* Two-Factor Authentication */}
-              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="dark:text-white">Two-Factor Authentication</Label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Add an extra layer of security</p>
-                  </div>
-                  <Button variant="outline" className="dark:bg-gray-700 dark:text-white dark:border-gray-600">
-                    Enable 2FA
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <SecuritySettings />
         </TabsContent>
       </Tabs>
     </div>

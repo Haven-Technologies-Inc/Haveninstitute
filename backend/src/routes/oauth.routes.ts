@@ -8,8 +8,12 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/authenticate';
 import { oauthService } from '../services/oauth.service';
 import { ResponseHandler } from '../utils/response';
+import { oauthRateLimiter } from '../middleware/securityRateLimit';
 
 const router = Router();
+
+// Apply rate limiting to all OAuth routes
+router.use(oauthRateLimiter);
 
 /**
  * @route   POST /api/v1/oauth/google

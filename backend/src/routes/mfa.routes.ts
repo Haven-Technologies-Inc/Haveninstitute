@@ -8,11 +8,16 @@ import { Router, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/authenticate';
 import { mfaService } from '../services/mfa.service';
 import { ResponseHandler } from '../utils/response';
+import { mfaRateLimiter } from '../middleware/securityRateLimit';
 
 const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
+
+// Apply rate limiting to verification endpoints
+router.use('/verify', mfaRateLimiter);
+router.use('/verify-backup', mfaRateLimiter);
 
 /**
  * @route   GET /api/v1/mfa/status

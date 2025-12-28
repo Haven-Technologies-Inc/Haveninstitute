@@ -18,6 +18,8 @@ import { ForumCategory, ForumPost, ForumComment, ForumReaction, ForumBookmark } 
 import { Achievement, UserAchievement } from './Achievement';
 import { Notification } from './Notification';
 import { FileUpload } from './FileUpload';
+import { Book, UserBook } from './Book';
+import { LoginAudit, PasswordHistory } from './LoginAudit';
 
 // Re-export models
 export {
@@ -28,7 +30,8 @@ export {
   UserSettings, StudyPlan, StudyPlanTask, StudyPlanMilestone, StudyGroup,
   GroupMember, GroupMessage, GroupInvitation, ForumCategory, ForumPost, 
   ForumComment, ForumReaction, ForumBookmark,
-  Achievement, UserAchievement, Notification, FileUpload
+  Achievement, UserAchievement, Notification, FileUpload,
+  Book, UserBook, LoginAudit, PasswordHistory
 };
 
 // Re-export types
@@ -78,4 +81,8 @@ export const models = [
   UserAchievement,
   Notification,
   FileUpload,
+  Book,
+  UserBook,
+  LoginAudit,
+  PasswordHistory,
 ];
