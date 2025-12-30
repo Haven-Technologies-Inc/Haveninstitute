@@ -35,27 +35,25 @@ import {
 import api from '../../services/api';
 import { toast } from 'sonner';
 
-// Book categories for dropdown
+// Book categories for dropdown - must match backend BookCategory type
 const BOOK_CATEGORIES = [
-  'NCLEX-RN',
-  'NCLEX-PN',
-  'Pharmacology',
-  'Medical-Surgical',
-  'Pediatrics',
-  'Maternity',
-  'Mental Health',
-  'Fundamentals',
-  'Critical Care',
-  'Community Health',
-  'Leadership',
-  'Other'
+  { value: 'nclex_prep', label: 'NCLEX Prep' },
+  { value: 'fundamentals', label: 'Fundamentals' },
+  { value: 'pharmacology', label: 'Pharmacology' },
+  { value: 'medical_surgical', label: 'Medical-Surgical' },
+  { value: 'pediatrics', label: 'Pediatrics' },
+  { value: 'maternity', label: 'Maternity' },
+  { value: 'mental_health', label: 'Mental Health' },
+  { value: 'community_health', label: 'Community Health' },
+  { value: 'leadership', label: 'Leadership' }
 ];
 
-// Book formats
+// Book formats - must match backend BookFormat type
 const BOOK_FORMATS = [
-  { value: 'ebook', label: 'E-Book Only' },
-  { value: 'print', label: 'Print Only' },
-  { value: 'both', label: 'E-Book & Print' }
+  { value: 'pdf', label: 'PDF' },
+  { value: 'epub', label: 'EPUB' },
+  { value: 'video', label: 'Video' },
+  { value: 'audio', label: 'Audio' }
 ];
 
 interface Book {
@@ -162,7 +160,7 @@ export function BookManagement() {
       isbn: '',
       publisher: '',
       publicationDate: '',
-      format: 'both',
+      format: 'pdf',
       isPremium: false,
       isFree: false,
       isPublished: true,
@@ -194,9 +192,9 @@ export function BookManagement() {
       isbn: '',
       publisher: '',
       publicationDate: '',
-      format: 'both',
+      format: 'pdf',
       isPremium: false,
-      isFree: false,
+      isFree: book.price === 0,
       isPublished: book.published,
       tags: '',
       previewPages: '10'
@@ -279,26 +277,6 @@ export function BookManagement() {
 
     setSaving(true);
     try {
-      // Prepare book data
-      const bookData = {
-        title: formData.title.trim(),
-        author: formData.author.trim(),
-        description: formData.description.trim(),
-        printPrice: formData.isFree ? 0 : parseFloat(formData.price) || 0,
-        ebookPrice: formData.isFree ? 0 : parseFloat(formData.ebookPrice) || 0,
-        category: formData.category,
-        pageCount: parseInt(formData.totalPages),
-        isbn: formData.isbn.trim() || null,
-        publisher: formData.publisher.trim() || null,
-        publicationDate: formData.publicationDate || null,
-        format: formData.format,
-        isPremiumOnly: formData.isPremium,
-        isFree: formData.isFree,
-        isActive: formData.isPublished,
-        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-        previewPages: parseInt(formData.previewPages) || 10
-      };
-
       // Upload cover image if selected
       let coverImageUrl = selectedBook?.coverImage || '';
       if (coverFile) {
@@ -309,14 +287,15 @@ export function BookManagement() {
           const uploadRes = await api.post('/upload', formDataUpload, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          coverImageUrl = uploadRes.data.data.url;
+          coverImageUrl = uploadRes.data.data?.url || '';
         } catch (e) {
           console.warn('Cover upload failed, using placeholder');
+          coverImageUrl = 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400';
         }
       }
 
       // Upload PDF content if selected
-      let contentUrl = '';
+      let fileUrl = '';
       if (contentFile) {
         const formDataUpload = new FormData();
         formDataUpload.append('file', contentFile);
@@ -325,29 +304,45 @@ export function BookManagement() {
           const uploadRes = await api.post('/upload', formDataUpload, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          contentUrl = uploadRes.data.data.url;
+          fileUrl = uploadRes.data.data?.url || '';
         } catch (e) {
           console.warn('Content upload failed');
         }
       }
 
+      // Prepare book data matching backend Book model
+      const bookData: Record<string, any> = {
+        title: formData.title.trim(),
+        author: formData.author.trim(),
+        description: formData.description.trim(),
+        category: formData.category || 'fundamentals',
+        format: formData.format || 'pdf',
+        totalPages: parseInt(formData.totalPages) || 0,
+        price: formData.isFree ? 0 : parseFloat(formData.ebookPrice) || parseFloat(formData.price) || 0,
+        isFree: formData.isFree,
+        isPremiumOnly: formData.isPremium,
+        isActive: formData.isPublished,
+        coverImageUrl: coverImageUrl || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400'
+      };
+
+      // Add optional fields only if they have values
+      if (formData.isbn.trim()) bookData.isbn = formData.isbn.trim();
+      if (formData.tags.trim()) bookData.tags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
+      if (fileUrl) bookData.fileUrl = fileUrl;
+
+      console.log('Sending book data:', bookData);
+
       if (isAdding) {
-        const response = await api.post('/books', {
-          ...bookData,
-          coverImageUrl,
-          contentUrl: contentUrl || null
-        });
+        const response = await api.post('/books', bookData);
+        console.log('Create response:', response.data);
         const newBook = transformBook(response.data.data);
         setBooks([...books, newBook]);
         setIsAdding(false);
         resetForm();
         toast.success('Book created successfully');
       } else if (isEditing && selectedBook) {
-        const response = await api.put(`/books/${selectedBook.id}`, {
-          ...bookData,
-          coverImageUrl: coverImageUrl || selectedBook.coverImage,
-          contentUrl: contentUrl || undefined
-        });
+        const response = await api.put(`/books/${selectedBook.id}`, bookData);
+        console.log('Update response:', response.data);
         const updatedBook = transformBook(response.data.data);
         setBooks(books.map(book => book.id === selectedBook.id ? updatedBook : book));
         setIsEditing(false);
@@ -356,7 +351,8 @@ export function BookManagement() {
         toast.success('Book updated successfully');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || 'Failed to save book');
+      console.error('Save book error:', error.response?.data || error);
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Failed to save book');
     } finally {
       setSaving(false);
     }
@@ -612,13 +608,14 @@ export function BookManagement() {
                 <Label htmlFor="category">Category *</Label>
                 <select
                   id="category"
+                  title="Book category"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className={`w-full h-10 px-3 rounded-md border bg-background text-sm ${formErrors.category ? 'border-red-500' : 'border-input'}`}
                 >
                   <option value="">Select category</option>
                   {BOOK_CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
                   ))}
                 </select>
                 {formErrors.category && <p className="text-xs text-red-500">{formErrors.category}</p>}
