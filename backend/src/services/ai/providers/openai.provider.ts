@@ -1,5 +1,7 @@
 /**
  * OpenAI Provider - GPT-4, GPT-3.5-turbo
+ * 
+ * Reads API key from database settings (admin dashboard) with env fallback
  */
 
 import {
@@ -10,38 +12,68 @@ import {
   AIStreamChunk,
   AIEmbeddingResponse
 } from '../types';
+import { SystemSettings } from '../../../models/SystemSettings';
 
 export class OpenAIProvider implements IAIProvider {
   name: 'openai' = 'openai';
-  private apiKey: string;
   private baseUrl: string;
   private defaultModel: string;
+  private cachedApiKey: string | null = null;
+  private cacheExpiry: number = 0;
+  private readonly CACHE_TTL = 60000; // 1 minute cache
 
   constructor() {
-    this.apiKey = process.env.OPENAI_API_KEY || '';
     this.baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
     this.defaultModel = process.env.OPENAI_MODEL || 'gpt-4-turbo-preview';
+    console.log('✅ OpenAI provider initialized (will fetch key from settings)');
+  }
 
-    if (!this.apiKey) {
-      console.warn('⚠️ OpenAI API key not configured');
-    } else {
-      console.log('✅ OpenAI API configured with model:', this.defaultModel);
+  /**
+   * Get API key from database settings with env fallback
+   */
+  private async getApiKey(): Promise<string> {
+    const now = Date.now();
+    
+    // Return cached key if still valid
+    if (this.cachedApiKey && now < this.cacheExpiry) {
+      return this.cachedApiKey;
     }
+
+    try {
+      // Try to get from database first
+      const dbKey = await SystemSettings.getValue('openai_api_key');
+      if (dbKey && dbKey !== 'sk-xxxxx' && !dbKey.includes('your-')) {
+        this.cachedApiKey = dbKey;
+        this.cacheExpiry = now + this.CACHE_TTL;
+        return dbKey;
+      }
+    } catch (error) {
+      // Database not available, fall back to env
+    }
+
+    // Fallback to environment variable
+    const envKey = process.env.OPENAI_API_KEY || '';
+    this.cachedApiKey = envKey;
+    this.cacheExpiry = now + this.CACHE_TTL;
+    return envKey;
   }
 
   isConfigured(): boolean {
-    return !!this.apiKey && this.apiKey !== 'sk-xxxxx';
+    // Check synchronously using cached value or env
+    const key = this.cachedApiKey || process.env.OPENAI_API_KEY || '';
+    return !!key && key !== 'sk-xxxxx' && !key.includes('your-');
   }
 
   async chat(
     messages: AIMessage[],
     options: AICompletionOptions = {}
   ): Promise<AICompletionResponse> {
+    const apiKey = await this.getApiKey();
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: options.model || this.defaultModel,
@@ -80,11 +112,12 @@ export class OpenAIProvider implements IAIProvider {
     messages: AIMessage[],
     options: AICompletionOptions = {}
   ): AsyncGenerator<AIStreamChunk> {
+    const apiKey = await this.getApiKey();
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: options.model || this.defaultModel,
@@ -135,11 +168,12 @@ export class OpenAIProvider implements IAIProvider {
   }
 
   async embed(text: string): Promise<AIEmbeddingResponse> {
+    const apiKey = await this.getApiKey();
     const response = await fetch(`${this.baseUrl}/embeddings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: 'text-embedding-3-small',

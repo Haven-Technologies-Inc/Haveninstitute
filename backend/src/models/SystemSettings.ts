@@ -34,6 +34,11 @@ export type SettingKey =
   // OAuth settings
   | 'google_client_id'
   | 'google_client_secret'
+  // AI settings
+  | 'openai_api_key'
+  | 'openai_model'
+  | 'deepseek_api_key'
+  | 'ai_provider'
   // Feature flags
   | 'enable_payments'
   | 'enable_ai_chat'
