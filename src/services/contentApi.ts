@@ -1,5 +1,9 @@
-// Content Management API Service
-// Handles questions, flashcards, books, and all content operations
+/**
+ * Content Management API Service
+ * Connects to real backend endpoints for questions, flashcards, and books
+ */
+
+import api from './api';
 
 export interface Question {
   id: string;
@@ -89,239 +93,166 @@ export interface BulkUploadResult {
   imported: any[];
 }
 
-// Mock data stores
-let mockQuestions: Question[] = Array.from({ length: 50 }, (_, i) => ({
-  id: `q-${i + 1}`,
-  question: `Sample NCLEX question ${i + 1}: Which intervention is most appropriate for a patient with...?`,
-  options: [
-    'Monitor vital signs every 4 hours',
-    'Administer prescribed medication',
-    'Notify the physician immediately',
-    'Document findings in the chart'
-  ],
-  correctAnswer: Math.floor(Math.random() * 4),
-  explanation: 'This is the correct answer because it addresses the immediate patient safety concern and follows nursing best practices.',
-  category: ['management-of-care', 'safety-infection-control', 'pharmacological-therapies', 'reduction-of-risk'][Math.floor(Math.random() * 4)],
-  difficulty: ['easy', 'medium', 'hard'][Math.floor(Math.random() * 3)] as any,
-  tags: ['medication', 'patient-safety', 'assessment'],
-  createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(),
-  updatedAt: new Date().toISOString(),
-  createdBy: 'admin',
-  isActive: Math.random() > 0.1,
-  rationale: 'Clinical reasoning and evidence-based practice support this intervention.',
-  references: ['NCLEX-RN Test Plan', 'Nursing Practice Guidelines']
-}));
-
-let mockFlashcards: Flashcard[] = Array.from({ length: 30 }, (_, i) => ({
-  id: `f-${i + 1}`,
-  front: `Key Concept ${i + 1}: What is the normal range for...?`,
-  back: `Answer: The normal range is X-Y. This is important because it helps nurses identify abnormal values and take appropriate action.`,
-  category: ['management-of-care', 'safety-infection-control', 'pharmacological-therapies'][Math.floor(Math.random() * 3)],
-  difficulty: ['easy', 'medium', 'hard'][Math.floor(Math.random() * 3)] as any,
-  tags: ['vital-signs', 'assessment', 'lab-values'],
-  createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(),
-  updatedAt: new Date().toISOString(),
-  createdBy: 'admin',
-  isActive: true
-}));
-
-let mockBooks: Book[] = [
-  {
-    id: 'b-1',
-    title: 'NCLEX-RN Comprehensive Review',
-    description: 'Complete review guide for NCLEX-RN preparation',
-    author: 'NurseHaven Team',
-    coverImage: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f',
-    category: 'nclex-prep',
-    chapters: [],
-    totalPages: 450,
-    isActive: true,
-    isPremium: false,
-    createdAt: '2024-01-01',
-    updatedAt: '2024-02-15'
-  }
-];
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Helper to transform backend question to frontend format
+function transformQuestion(q: any): Question {
+  return {
+    id: q.id,
+    question: q.questionText || q.question || '',
+    options: q.options || [],
+    correctAnswer: q.correctOptionIndex ?? q.correctAnswer ?? 0,
+    explanation: q.explanation || '',
+    category: q.category || '',
+    subcategory: q.subcategory,
+    difficulty: q.difficulty || 'medium',
+    tags: q.tags || [],
+    createdAt: q.createdAt || new Date().toISOString(),
+    updatedAt: q.updatedAt || new Date().toISOString(),
+    createdBy: q.createdBy || 'admin',
+    isActive: q.isActive !== false,
+    rationale: q.rationale,
+    references: q.references
+  };
+}
 
 // ============= QUESTION ENDPOINTS =============
 
 export async function getAllQuestions(filters: ContentFilters = {}): Promise<PaginatedResponse<Question>> {
-  await delay(300);
-  
-  let filtered = [...mockQuestions];
-  
-  if (filters.search) {
-    const query = filters.search.toLowerCase();
-    filtered = filtered.filter(q => 
-      q.question.toLowerCase().includes(query) ||
-      q.explanation.toLowerCase().includes(query)
-    );
+  try {
+    const params = new URLSearchParams();
+    if (filters.search) params.append('search', filters.search);
+    if (filters.category) params.append('category', filters.category);
+    if (filters.difficulty) params.append('difficulty', filters.difficulty);
+    if (filters.isActive !== undefined) params.append('isActive', String(filters.isActive));
+    params.append('page', String(filters.page || 1));
+    params.append('limit', String(filters.limit || 20));
+    
+    const response = await api.get(`/questions?${params}`);
+    const data = response.data.data;
+    
+    return {
+      data: (data.questions || data || []).map(transformQuestion),
+      total: data.pagination?.total || data.length || 0,
+      page: data.pagination?.page || filters.page || 1,
+      limit: data.pagination?.limit || filters.limit || 20,
+      totalPages: data.pagination?.totalPages || 1
+    };
+  } catch (error: any) {
+    console.error('Failed to fetch questions:', error);
+    return { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
   }
-  
-  if (filters.category) {
-    filtered = filtered.filter(q => q.category === filters.category);
-  }
-  
-  if (filters.difficulty) {
-    filtered = filtered.filter(q => q.difficulty === filters.difficulty);
-  }
-  
-  if (filters.isActive !== undefined) {
-    filtered = filtered.filter(q => q.isActive === filters.isActive);
-  }
-  
-  if (filters.tags && filters.tags.length > 0) {
-    filtered = filtered.filter(q => 
-      filters.tags!.some(tag => q.tags.includes(tag))
-    );
-  }
-  
-  // Sorting
-  if (filters.sortBy) {
-    filtered.sort((a, b) => {
-      const aVal = a[filters.sortBy as keyof Question];
-      const bVal = b[filters.sortBy as keyof Question];
-      if (aVal < bVal) return filters.sortOrder === 'asc' ? -1 : 1;
-      if (aVal > bVal) return filters.sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }
-  
-  const page = filters.page || 1;
-  const limit = filters.limit || 20;
-  const start = (page - 1) * limit;
-  const end = start + limit;
-  
-  return {
-    data: filtered.slice(start, end),
-    total: filtered.length,
-    page,
-    limit,
-    totalPages: Math.ceil(filtered.length / limit)
-  };
 }
 
 export async function getQuestionById(id: string): Promise<Question | null> {
-  await delay(200);
-  return mockQuestions.find(q => q.id === id) || null;
+  try {
+    const response = await api.get(`/questions/${id}`);
+    return transformQuestion(response.data.data);
+  } catch (error) {
+    return null;
+  }
 }
 
 export async function createQuestion(data: Omit<Question, 'id' | 'createdAt' | 'updatedAt'>): Promise<Question> {
-  await delay(300);
-  
-  const newQuestion: Question = {
-    ...data,
-    id: `q-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  
-  mockQuestions.push(newQuestion);
-  return newQuestion;
+  try {
+    const response = await api.post('/questions', {
+      questionText: data.question,
+      options: data.options,
+      correctOptionIndex: data.correctAnswer,
+      explanation: data.explanation,
+      category: data.category,
+      difficulty: data.difficulty,
+      tags: data.tags,
+      isActive: data.isActive
+    });
+    return transformQuestion(response.data.data);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error?.message || 'Failed to create question');
+  }
 }
 
 export async function updateQuestion(id: string, data: Partial<Question>): Promise<Question> {
-  await delay(300);
-  
-  const index = mockQuestions.findIndex(q => q.id === id);
-  if (index === -1) throw new Error('Question not found');
-  
-  mockQuestions[index] = {
-    ...mockQuestions[index],
-    ...data,
-    updatedAt: new Date().toISOString()
-  };
-  
-  return mockQuestions[index];
+  try {
+    const response = await api.put(`/questions/${id}`, {
+      questionText: data.question,
+      options: data.options,
+      correctOptionIndex: data.correctAnswer,
+      explanation: data.explanation,
+      category: data.category,
+      difficulty: data.difficulty,
+      tags: data.tags,
+      isActive: data.isActive
+    });
+    return transformQuestion(response.data.data);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error?.message || 'Failed to update question');
+  }
 }
 
 export async function deleteQuestion(id: string): Promise<boolean> {
-  await delay(200);
-  
-  const index = mockQuestions.findIndex(q => q.id === id);
-  if (index === -1) throw new Error('Question not found');
-  
-  mockQuestions.splice(index, 1);
-  return true;
+  try {
+    await api.delete(`/questions/${id}`);
+    return true;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error?.message || 'Failed to delete question');
+  }
 }
 
 export async function bulkDeleteQuestions(ids: string[]): Promise<{ deleted: number }> {
-  await delay(400);
-  
   let deleted = 0;
-  ids.forEach(id => {
-    const index = mockQuestions.findIndex(q => q.id === id);
-    if (index !== -1) {
-      mockQuestions.splice(index, 1);
+  for (const id of ids) {
+    try {
+      await deleteQuestion(id);
       deleted++;
+    } catch (e) {
+      console.error(`Failed to delete question ${id}:`, e);
     }
-  });
-  
+  }
   return { deleted };
 }
 
 export async function bulkUpdateQuestions(ids: string[], data: Partial<Question>): Promise<{ updated: number }> {
-  await delay(400);
-  
   let updated = 0;
-  ids.forEach(id => {
-    const index = mockQuestions.findIndex(q => q.id === id);
-    if (index !== -1) {
-      mockQuestions[index] = {
-        ...mockQuestions[index],
-        ...data,
-        updatedAt: new Date().toISOString()
-      };
+  for (const id of ids) {
+    try {
+      await updateQuestion(id, data);
       updated++;
+    } catch (e) {
+      console.error(`Failed to update question ${id}:`, e);
     }
-  });
-  
+  }
   return { updated };
 }
 
 export async function importQuestionsFromFile(file: File): Promise<BulkUploadResult> {
-  await delay(1000);
-  
-  // Simulate file parsing
-  const mockImported = Array.from({ length: 10 }, (_, i) => ({
-    id: `q-import-${Date.now()}-${i}`,
-    question: `Imported question ${i + 1}`,
-    options: ['Option A', 'Option B', 'Option C', 'Option D'],
-    correctAnswer: 0,
-    explanation: 'Imported explanation',
-    category: 'management-of-care',
-    difficulty: 'medium' as const,
-    tags: ['imported'],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    createdBy: 'admin',
-    isActive: true
-  }));
-  
-  mockQuestions.push(...mockImported);
-  
-  return {
-    success: 10,
-    failed: 0,
-    errors: [],
-    imported: mockImported
-  };
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await api.post('/questions/import/file', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    return response.data.data;
+  } catch (error: any) {
+    return {
+      success: 0,
+      failed: 1,
+      errors: [{ row: 0, error: error.response?.data?.error?.message || 'Import failed' }],
+      imported: []
+    };
+  }
 }
 
 export async function exportQuestionsToCSV(filters: ContentFilters = {}): Promise<string> {
-  await delay(500);
-  
   const { data } = await getAllQuestions({ ...filters, page: 1, limit: 1000 });
   
   const headers = ['ID', 'Question', 'Category', 'Difficulty', 'Correct Answer', 'Explanation', 'Tags', 'Active'];
   const rows = data.map(q => [
     q.id,
-    q.question,
+    `"${q.question.replace(/"/g, '""')}"`,
     q.category,
     q.difficulty,
-    q.options[q.correctAnswer],
-    q.explanation,
+    q.options[q.correctAnswer] || '',
+    `"${(q.explanation || '').replace(/"/g, '""')}"`,
     q.tags.join('; '),
     q.isActive ? 'Yes' : 'No'
   ]);
@@ -330,155 +261,169 @@ export async function exportQuestionsToCSV(filters: ContentFilters = {}): Promis
 }
 
 export async function duplicateQuestion(id: string): Promise<Question> {
-  await delay(300);
-  
-  const original = mockQuestions.find(q => q.id === id);
+  const original = await getQuestionById(id);
   if (!original) throw new Error('Question not found');
   
-  const duplicate: Question = {
+  return createQuestion({
     ...original,
-    id: `q-${Date.now()}`,
-    question: `${original.question} (Copy)`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    question: `${original.question} (Copy)`
+  });
+}
+
+// Helper to transform backend flashcard to frontend format
+function transformFlashcard(f: any): Flashcard {
+  return {
+    id: f.id,
+    front: f.front || f.question || '',
+    back: f.back || f.answer || '',
+    category: f.category || '',
+    subcategory: f.subcategory,
+    difficulty: f.difficulty || 'medium',
+    tags: f.tags || [],
+    createdAt: f.createdAt || new Date().toISOString(),
+    updatedAt: f.updatedAt || new Date().toISOString(),
+    createdBy: f.createdBy || f.userId || 'admin',
+    isActive: f.isActive !== false
   };
-  
-  mockQuestions.push(duplicate);
-  return duplicate;
 }
 
 // ============= FLASHCARD ENDPOINTS =============
 
 export async function getAllFlashcards(filters: ContentFilters = {}): Promise<PaginatedResponse<Flashcard>> {
-  await delay(300);
-  
-  let filtered = [...mockFlashcards];
-  
-  if (filters.search) {
-    const query = filters.search.toLowerCase();
-    filtered = filtered.filter(f => 
-      f.front.toLowerCase().includes(query) ||
-      f.back.toLowerCase().includes(query)
-    );
+  try {
+    const params = new URLSearchParams();
+    if (filters.category) params.append('category', filters.category);
+    params.append('includePublic', 'true');
+    
+    const response = await api.get(`/flashcards/decks?${params}`);
+    const decks = response.data.data || [];
+    
+    // Flatten all cards from all decks
+    const allCards: Flashcard[] = [];
+    for (const deck of decks) {
+      if (deck.cards) {
+        allCards.push(...deck.cards.map(transformFlashcard));
+      }
+    }
+    
+    // Apply client-side filtering
+    let filtered = allCards;
+    if (filters.search) {
+      const query = filters.search.toLowerCase();
+      filtered = filtered.filter(f => 
+        f.front.toLowerCase().includes(query) ||
+        f.back.toLowerCase().includes(query)
+      );
+    }
+    if (filters.difficulty) {
+      filtered = filtered.filter(f => f.difficulty === filters.difficulty);
+    }
+    
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    const start = (page - 1) * limit;
+    
+    return {
+      data: filtered.slice(start, start + limit),
+      total: filtered.length,
+      page,
+      limit,
+      totalPages: Math.ceil(filtered.length / limit)
+    };
+  } catch (error: any) {
+    console.error('Failed to fetch flashcards:', error);
+    return { data: [], total: 0, page: 1, limit: 20, totalPages: 0 };
   }
-  
-  if (filters.category) {
-    filtered = filtered.filter(f => f.category === filters.category);
-  }
-  
-  if (filters.difficulty) {
-    filtered = filtered.filter(f => f.difficulty === filters.difficulty);
-  }
-  
-  const page = filters.page || 1;
-  const limit = filters.limit || 20;
-  const start = (page - 1) * limit;
-  const end = start + limit;
-  
-  return {
-    data: filtered.slice(start, end),
-    total: filtered.length,
-    page,
-    limit,
-    totalPages: Math.ceil(filtered.length / limit)
-  };
 }
 
 export async function getFlashcardById(id: string): Promise<Flashcard | null> {
-  await delay(200);
-  return mockFlashcards.find(f => f.id === id) || null;
+  try {
+    // Flashcards are nested in decks, so we need to search
+    const { data } = await getAllFlashcards({ page: 1, limit: 1000 });
+    return data.find(f => f.id === id) || null;
+  } catch (error) {
+    return null;
+  }
 }
 
 export async function createFlashcard(data: Omit<Flashcard, 'id' | 'createdAt' | 'updatedAt'>): Promise<Flashcard> {
-  await delay(300);
-  
-  const newFlashcard: Flashcard = {
-    ...data,
-    id: `f-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  
-  mockFlashcards.push(newFlashcard);
-  return newFlashcard;
+  try {
+    // Need to create in a deck - use default deck or create one
+    const response = await api.post('/flashcards/decks', {
+      name: 'Quick Cards',
+      description: 'Quick created cards',
+      category: data.category,
+      isPublic: false
+    });
+    const deck = response.data.data;
+    
+    const cardResponse = await api.post(`/flashcards/decks/${deck.id}/cards`, {
+      front: data.front,
+      back: data.back,
+      difficulty: data.difficulty,
+      tags: data.tags
+    });
+    
+    return transformFlashcard(cardResponse.data.data);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error?.message || 'Failed to create flashcard');
+  }
 }
 
 export async function updateFlashcard(id: string, data: Partial<Flashcard>): Promise<Flashcard> {
-  await delay(300);
-  
-  const index = mockFlashcards.findIndex(f => f.id === id);
-  if (index === -1) throw new Error('Flashcard not found');
-  
-  mockFlashcards[index] = {
-    ...mockFlashcards[index],
-    ...data,
-    updatedAt: new Date().toISOString()
-  };
-  
-  return mockFlashcards[index];
+  try {
+    const response = await api.put(`/flashcards/cards/${id}`, {
+      front: data.front,
+      back: data.back,
+      difficulty: data.difficulty,
+      tags: data.tags
+    });
+    return transformFlashcard(response.data.data);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error?.message || 'Failed to update flashcard');
+  }
 }
 
 export async function deleteFlashcard(id: string): Promise<boolean> {
-  await delay(200);
-  
-  const index = mockFlashcards.findIndex(f => f.id === id);
-  if (index === -1) throw new Error('Flashcard not found');
-  
-  mockFlashcards.splice(index, 1);
-  return true;
+  try {
+    await api.delete(`/flashcards/cards/${id}`);
+    return true;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error?.message || 'Failed to delete flashcard');
+  }
 }
 
 export async function bulkDeleteFlashcards(ids: string[]): Promise<{ deleted: number }> {
-  await delay(400);
-  
   let deleted = 0;
-  ids.forEach(id => {
-    const index = mockFlashcards.findIndex(f => f.id === id);
-    if (index !== -1) {
-      mockFlashcards.splice(index, 1);
+  for (const id of ids) {
+    try {
+      await deleteFlashcard(id);
       deleted++;
+    } catch (e) {
+      console.error(`Failed to delete flashcard ${id}:`, e);
     }
-  });
-  
+  }
   return { deleted };
 }
 
-export async function importFlashcardsFromFile(file: File): Promise<BulkUploadResult> {
-  await delay(1000);
-  
-  const mockImported = Array.from({ length: 15 }, (_, i) => ({
-    id: `f-import-${Date.now()}-${i}`,
-    front: `Imported flashcard ${i + 1} - Front`,
-    back: `Imported flashcard ${i + 1} - Back`,
-    category: 'management-of-care',
-    difficulty: 'medium' as const,
-    tags: ['imported'],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    createdBy: 'admin',
-    isActive: true
-  }));
-  
-  mockFlashcards.push(...mockImported);
-  
+export async function importFlashcardsFromFile(_file: File): Promise<BulkUploadResult> {
+  // TODO: Implement file import when backend supports it
   return {
-    success: 15,
-    failed: 0,
-    errors: [],
-    imported: mockImported
+    success: 0,
+    failed: 1,
+    errors: [{ row: 0, error: 'File import not yet implemented' }],
+    imported: []
   };
 }
 
 export async function exportFlashcardsToCSV(filters: ContentFilters = {}): Promise<string> {
-  await delay(500);
-  
   const { data } = await getAllFlashcards({ ...filters, page: 1, limit: 1000 });
   
   const headers = ['ID', 'Front', 'Back', 'Category', 'Difficulty', 'Tags', 'Active'];
   const rows = data.map(f => [
     f.id,
-    f.front,
-    f.back,
+    `"${f.front.replace(/"/g, '""')}"`,
+    `"${f.back.replace(/"/g, '""')}"`,
     f.category,
     f.difficulty,
     f.tags.join('; '),
@@ -488,92 +433,137 @@ export async function exportFlashcardsToCSV(filters: ContentFilters = {}): Promi
   return [headers, ...rows].map(row => row.join(',')).join('\n');
 }
 
+// Helper to transform backend book to frontend format
+function transformBook(b: any): Book {
+  return {
+    id: b.id,
+    title: b.title || '',
+    description: b.description || '',
+    author: b.author || '',
+    coverImage: b.coverImageUrl || b.coverImage || '',
+    category: b.category || '',
+    chapters: b.chapters || [],
+    totalPages: b.pageCount || b.totalPages || 0,
+    isActive: b.isActive !== false,
+    isPremium: b.isPremiumOnly || b.isPremium || false,
+    createdAt: b.createdAt || new Date().toISOString(),
+    updatedAt: b.updatedAt || new Date().toISOString()
+  };
+}
+
 // ============= BOOK ENDPOINTS =============
 
 export async function getAllBooks(): Promise<Book[]> {
-  await delay(300);
-  return mockBooks;
+  try {
+    const response = await api.get('/books');
+    const data = response.data.data;
+    return (data.books || data || []).map(transformBook);
+  } catch (error: any) {
+    console.error('Failed to fetch books:', error);
+    return [];
+  }
 }
 
 export async function getBookById(id: string): Promise<Book | null> {
-  await delay(200);
-  return mockBooks.find(b => b.id === id) || null;
+  try {
+    const response = await api.get(`/books/${id}`);
+    return transformBook(response.data.data);
+  } catch (error) {
+    return null;
+  }
 }
 
 export async function createBook(data: Omit<Book, 'id' | 'createdAt' | 'updatedAt'>): Promise<Book> {
-  await delay(300);
-  
-  const newBook: Book = {
-    ...data,
-    id: `b-${Date.now()}`,
-    createdAt: new Date().toISOString().split('T')[0],
-    updatedAt: new Date().toISOString().split('T')[0]
-  };
-  
-  mockBooks.push(newBook);
-  return newBook;
+  try {
+    const response = await api.post('/books', {
+      title: data.title,
+      description: data.description,
+      author: data.author,
+      coverImageUrl: data.coverImage,
+      category: data.category,
+      pageCount: data.totalPages,
+      isActive: data.isActive,
+      isPremiumOnly: data.isPremium
+    });
+    return transformBook(response.data.data);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error?.message || 'Failed to create book');
+  }
 }
 
 export async function updateBook(id: string, data: Partial<Book>): Promise<Book> {
-  await delay(300);
-  
-  const index = mockBooks.findIndex(b => b.id === id);
-  if (index === -1) throw new Error('Book not found');
-  
-  mockBooks[index] = {
-    ...mockBooks[index],
-    ...data,
-    updatedAt: new Date().toISOString().split('T')[0]
-  };
-  
-  return mockBooks[index];
+  try {
+    const response = await api.put(`/books/${id}`, {
+      title: data.title,
+      description: data.description,
+      author: data.author,
+      coverImageUrl: data.coverImage,
+      category: data.category,
+      pageCount: data.totalPages,
+      isActive: data.isActive,
+      isPremiumOnly: data.isPremium
+    });
+    return transformBook(response.data.data);
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error?.message || 'Failed to update book');
+  }
 }
 
 export async function deleteBook(id: string): Promise<boolean> {
-  await delay(200);
-  
-  const index = mockBooks.findIndex(b => b.id === id);
-  if (index === -1) throw new Error('Book not found');
-  
-  mockBooks.splice(index, 1);
-  return true;
+  try {
+    await api.delete(`/books/${id}`);
+    return true;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error?.message || 'Failed to delete book');
+  }
 }
 
 // ============= STATISTICS =============
 
 export async function getContentStats() {
-  await delay(200);
-  
-  return {
-    questions: {
-      total: mockQuestions.length,
-      active: mockQuestions.filter(q => q.isActive).length,
-      inactive: mockQuestions.filter(q => !q.isActive).length,
-      byCategory: {
-        'management-of-care': mockQuestions.filter(q => q.category === 'management-of-care').length,
-        'safety-infection-control': mockQuestions.filter(q => q.category === 'safety-infection-control').length,
-        'pharmacological-therapies': mockQuestions.filter(q => q.category === 'pharmacological-therapies').length,
-        'reduction-of-risk': mockQuestions.filter(q => q.category === 'reduction-of-risk').length
-      },
-      byDifficulty: {
-        easy: mockQuestions.filter(q => q.difficulty === 'easy').length,
-        medium: mockQuestions.filter(q => q.difficulty === 'medium').length,
-        hard: mockQuestions.filter(q => q.difficulty === 'hard').length
-      }
-    },
-    flashcards: {
-      total: mockFlashcards.length,
-      active: mockFlashcards.filter(f => f.isActive).length,
-      byCategory: {
-        'management-of-care': mockFlashcards.filter(f => f.category === 'management-of-care').length,
-        'safety-infection-control': mockFlashcards.filter(f => f.category === 'safety-infection-control').length,
-        'pharmacological-therapies': mockFlashcards.filter(f => f.category === 'pharmacological-therapies').length
-      }
-    },
-    books: {
-      total: mockBooks.length,
-      active: mockBooks.filter(b => b.isActive).length,
-      premium: mockBooks.filter(b => b.isPremium).length
+  try {
+    // Fetch real stats from backend
+    const [questionsRes, flashcardsRes, booksRes] = await Promise.all([
+      getAllQuestions({ page: 1, limit: 1 }),
+      getAllFlashcards({ page: 1, limit: 1 }),
+      getAllBooks()
+    ]);
+
+    // Get question statistics from backend
+    let questionStats = { total: 0, byCategory: {}, byDifficulty: {} };
+    try {
+      const statsRes = await api.get('/questions/statistics');
+      questionStats = statsRes.data.data || questionStats;
+    } catch (e) {
+      // Use totals from pagination
+      questionStats.total = questionsRes.total;
     }
-  };
+
+    return {
+      questions: {
+        total: questionStats.total || questionsRes.total,
+        active: questionStats.total || questionsRes.total,
+        inactive: 0,
+        byCategory: questionStats.byCategory || {},
+        byDifficulty: questionStats.byDifficulty || {}
+      },
+      flashcards: {
+        total: flashcardsRes.total,
+        active: flashcardsRes.total,
+        byCategory: {}
+      },
+      books: {
+        total: booksRes.length,
+        active: booksRes.filter(b => b.isActive).length,
+        premium: booksRes.filter(b => b.isPremium).length
+      }
+    };
+  } catch (error) {
+    console.error('Failed to fetch content stats:', error);
+    return {
+      questions: { total: 0, active: 0, inactive: 0, byCategory: {}, byDifficulty: {} },
+      flashcards: { total: 0, active: 0, byCategory: {} },
+      books: { total: 0, active: 0, premium: 0 }
+    };
+  }
 }
