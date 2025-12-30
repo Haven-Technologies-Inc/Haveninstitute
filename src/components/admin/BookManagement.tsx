@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -18,8 +18,12 @@ import {
   FileText,
   DollarSign,
   Users,
-  TrendingUp
+  TrendingUp,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
+import api from '../../services/api';
+import { toast } from 'sonner';
 
 interface Book {
   id: string;
@@ -37,56 +41,28 @@ interface Book {
   published: boolean;
 }
 
-const sampleBooks: Book[] = [
-  {
-    id: '1',
-    title: 'NCLEX-RN Complete Review 2024',
-    author: 'Dr. Sarah Mitchell, RN, PhD',
-    description: 'Comprehensive review covering all 8 NCLEX categories',
-    coverImage: 'https://images.unsplash.com/photo-1652787544912-137c7f92f99b?w=400',
-    price: 49.99,
-    ebookPrice: 29.99,
-    category: 'NCLEX-RN',
-    totalPages: 450,
-    purchaseCount: 2341,
-    revenue: 70179.59,
-    rating: 4.8,
-    published: true
-  },
-  {
-    id: '2',
-    title: 'Pharmacology Made Easy for NCLEX',
-    author: 'Dr. Michael Chen, PharmD',
-    description: 'Master medication classifications with memory tricks',
-    coverImage: 'https://images.unsplash.com/photo-1760006782177-7f05cce886bd?w=400',
-    price: 39.99,
-    ebookPrice: 24.99,
-    category: 'Pharmacology',
-    totalPages: 380,
-    purchaseCount: 1876,
-    revenue: 46874.24,
-    rating: 4.9,
-    published: true
-  },
-  {
-    id: '3',
-    title: 'Medical-Surgical Nursing Success',
-    author: 'Lisa Anderson, MSN, RN',
-    description: 'Complete guide to Med-Surg nursing with case studies',
-    coverImage: 'https://images.unsplash.com/photo-1652787544912-137c7f92f99b?w=400',
-    price: 44.99,
-    ebookPrice: 27.99,
-    category: 'Medical-Surgical',
-    totalPages: 420,
-    purchaseCount: 1543,
-    revenue: 43173.57,
-    rating: 4.7,
-    published: true
-  }
-];
+// Transform backend book to frontend format
+function transformBook(b: any): Book {
+  return {
+    id: b.id,
+    title: b.title || '',
+    author: b.author || '',
+    description: b.description || '',
+    coverImage: b.coverImageUrl || b.coverImage || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400',
+    price: b.printPrice || b.price || 0,
+    ebookPrice: b.ebookPrice || b.digitalPrice || 0,
+    category: b.category || '',
+    totalPages: b.pageCount || b.totalPages || 0,
+    purchaseCount: b.salesCount || b.purchaseCount || 0,
+    revenue: b.totalRevenue || b.revenue || 0,
+    rating: b.averageRating || b.rating || 0,
+    published: b.isActive !== false
+  };
+}
 
 export function BookManagement() {
-  const [books, setBooks] = useState<Book[]>(sampleBooks);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -100,10 +76,31 @@ export function BookManagement() {
     category: '',
     totalPages: ''
   });
+  const [saving, setSaving] = useState(false);
+
+  // Load books from backend
+  useEffect(() => {
+    loadBooks();
+  }, []);
+
+  const loadBooks = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/books');
+      const data = response.data.data;
+      const bookList = (data.books || data || []).map(transformBook);
+      setBooks(bookList);
+    } catch (error) {
+      console.error('Failed to load books:', error);
+      toast.error('Failed to load books');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const totalRevenue = books.reduce((sum, book) => sum + book.revenue, 0);
   const totalSales = books.reduce((sum, book) => sum + book.purchaseCount, 0);
-  const avgRating = books.reduce((sum, book) => sum + book.rating, 0) / books.length;
+  const avgRating = books.length > 0 ? books.reduce((sum, book) => sum + book.rating, 0) / books.length : 0;
 
   const handleAddBook = () => {
     setIsAdding(true);
@@ -132,48 +129,56 @@ export function BookManagement() {
     });
   };
 
-  const handleDeleteBook = (id: string) => {
+  const handleDeleteBook = async (id: string) => {
     if (confirm('Are you sure you want to delete this book?')) {
-      setBooks(books.filter(book => book.id !== id));
+      try {
+        await api.delete(`/books/${id}`);
+        setBooks(books.filter(book => book.id !== id));
+        toast.success('Book deleted successfully');
+      } catch (error: any) {
+        toast.error(error.response?.data?.error?.message || 'Failed to delete book');
+      }
     }
   };
 
-  const handleSaveBook = () => {
-    if (isAdding) {
-      const newBook: Book = {
-        id: Date.now().toString(),
-        title: formData.title,
-        author: formData.author,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        ebookPrice: parseFloat(formData.ebookPrice),
-        category: formData.category,
-        totalPages: parseInt(formData.totalPages),
-        purchaseCount: 0,
-        revenue: 0,
-        rating: 0,
-        published: true,
-        coverImage: 'https://images.unsplash.com/photo-1652787544912-137c7f92f99b?w=400'
-      };
-      setBooks([...books, newBook]);
-      setIsAdding(false);
-    } else if (isEditing && selectedBook) {
-      setBooks(books.map(book =>
-        book.id === selectedBook.id
-          ? {
-              ...book,
-              title: formData.title,
-              author: formData.author,
-              description: formData.description,
-              price: parseFloat(formData.price),
-              ebookPrice: parseFloat(formData.ebookPrice),
-              category: formData.category,
-              totalPages: parseInt(formData.totalPages)
-            }
-          : book
-      ));
-      setIsEditing(false);
-      setSelectedBook(null);
+  const handleSaveBook = async () => {
+    setSaving(true);
+    try {
+      if (isAdding) {
+        const response = await api.post('/books', {
+          title: formData.title,
+          author: formData.author,
+          description: formData.description,
+          printPrice: parseFloat(formData.price),
+          ebookPrice: parseFloat(formData.ebookPrice),
+          category: formData.category,
+          pageCount: parseInt(formData.totalPages),
+          isActive: true
+        });
+        const newBook = transformBook(response.data.data);
+        setBooks([...books, newBook]);
+        setIsAdding(false);
+        toast.success('Book created successfully');
+      } else if (isEditing && selectedBook) {
+        const response = await api.put(`/books/${selectedBook.id}`, {
+          title: formData.title,
+          author: formData.author,
+          description: formData.description,
+          printPrice: parseFloat(formData.price),
+          ebookPrice: parseFloat(formData.ebookPrice),
+          category: formData.category,
+          pageCount: parseInt(formData.totalPages)
+        });
+        const updatedBook = transformBook(response.data.data);
+        setBooks(books.map(book => book.id === selectedBook.id ? updatedBook : book));
+        setIsEditing(false);
+        setSelectedBook(null);
+        toast.success('Book updated successfully');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error?.message || 'Failed to save book');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -183,12 +188,29 @@ export function BookManagement() {
     book.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <Loader2 className="size-12 text-purple-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading books...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-3xl text-gray-900 mb-2">Book Management</h2>
-        <p className="text-gray-600">Manage your ebook library and content</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl text-gray-900 mb-2">Book Management</h2>
+          <p className="text-gray-600">Manage your ebook library and content</p>
+        </div>
+        <Button variant="outline" onClick={loadBooks}>
+          <RefreshCw className="size-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
       {/* Stats */}
