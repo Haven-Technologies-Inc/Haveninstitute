@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -6,6 +6,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Switch } from '../ui/switch';
 import { 
   BookOpen, 
   Plus, 
@@ -20,10 +21,42 @@ import {
   Users,
   TrendingUp,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Image,
+  Calendar,
+  Building2,
+  Hash,
+  Star,
+  Globe,
+  Lock,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
+
+// Book categories for dropdown
+const BOOK_CATEGORIES = [
+  'NCLEX-RN',
+  'NCLEX-PN',
+  'Pharmacology',
+  'Medical-Surgical',
+  'Pediatrics',
+  'Maternity',
+  'Mental Health',
+  'Fundamentals',
+  'Critical Care',
+  'Community Health',
+  'Leadership',
+  'Other'
+];
+
+// Book formats
+const BOOK_FORMATS = [
+  { value: 'ebook', label: 'E-Book Only' },
+  { value: 'print', label: 'Print Only' },
+  { value: 'both', label: 'E-Book & Print' }
+];
 
 interface Book {
   id: string;
@@ -74,9 +107,24 @@ export function BookManagement() {
     price: '',
     ebookPrice: '',
     category: '',
-    totalPages: ''
+    totalPages: '',
+    isbn: '',
+    publisher: '',
+    publicationDate: '',
+    format: 'both',
+    isPremium: false,
+    isFree: false,
+    isPublished: true,
+    tags: '',
+    previewPages: '10'
   });
   const [saving, setSaving] = useState(false);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [contentFile, setContentFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string>('');
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const contentInputRef = useRef<HTMLInputElement>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Load books from backend
   useEffect(() => {
@@ -102,8 +150,7 @@ export function BookManagement() {
   const totalSales = books.reduce((sum, book) => sum + book.purchaseCount, 0);
   const avgRating = books.length > 0 ? books.reduce((sum, book) => sum + book.rating, 0) / books.length : 0;
 
-  const handleAddBook = () => {
-    setIsAdding(true);
+  const resetForm = () => {
     setFormData({
       title: '',
       author: '',
@@ -111,8 +158,26 @@ export function BookManagement() {
       price: '',
       ebookPrice: '',
       category: '',
-      totalPages: ''
+      totalPages: '',
+      isbn: '',
+      publisher: '',
+      publicationDate: '',
+      format: 'both',
+      isPremium: false,
+      isFree: false,
+      isPublished: true,
+      tags: '',
+      previewPages: '10'
     });
+    setCoverFile(null);
+    setContentFile(null);
+    setCoverPreview('');
+    setFormErrors({});
+  };
+
+  const handleAddBook = () => {
+    setIsAdding(true);
+    resetForm();
   };
 
   const handleEditBook = (book: Book) => {
@@ -125,8 +190,73 @@ export function BookManagement() {
       price: book.price.toString(),
       ebookPrice: book.ebookPrice.toString(),
       category: book.category,
-      totalPages: book.totalPages.toString()
+      totalPages: book.totalPages.toString(),
+      isbn: '',
+      publisher: '',
+      publicationDate: '',
+      format: 'both',
+      isPremium: false,
+      isFree: false,
+      isPublished: book.published,
+      tags: '',
+      previewPages: '10'
     });
+    setCoverPreview(book.coverImage);
+    setFormErrors({});
+  };
+
+  const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image must be less than 5MB');
+        return;
+      }
+      setCoverFile(file);
+      setCoverPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleContentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast.error('Please upload a PDF file');
+        return;
+      }
+      if (file.size > 100 * 1024 * 1024) {
+        toast.error('PDF must be less than 100MB');
+        return;
+      }
+      setContentFile(file);
+      toast.success(`Selected: ${file.name}`);
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!formData.title.trim()) errors.title = 'Title is required';
+    if (!formData.author.trim()) errors.author = 'Author is required';
+    if (!formData.description.trim()) errors.description = 'Description is required';
+    if (!formData.category) errors.category = 'Category is required';
+    if (!formData.totalPages || parseInt(formData.totalPages) < 1) errors.totalPages = 'Valid page count required';
+    
+    if (!formData.isFree) {
+      if (formData.format !== 'print' && (!formData.ebookPrice || parseFloat(formData.ebookPrice) < 0)) {
+        errors.ebookPrice = 'Valid ebook price required';
+      }
+      if (formData.format !== 'ebook' && (!formData.price || parseFloat(formData.price) < 0)) {
+        errors.price = 'Valid print price required';
+      }
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleDeleteBook = async (id: string) => {
@@ -142,37 +272,87 @@ export function BookManagement() {
   };
 
   const handleSaveBook = async () => {
+    if (!validateForm()) {
+      toast.error('Please fix the form errors');
+      return;
+    }
+
     setSaving(true);
     try {
+      // Prepare book data
+      const bookData = {
+        title: formData.title.trim(),
+        author: formData.author.trim(),
+        description: formData.description.trim(),
+        printPrice: formData.isFree ? 0 : parseFloat(formData.price) || 0,
+        ebookPrice: formData.isFree ? 0 : parseFloat(formData.ebookPrice) || 0,
+        category: formData.category,
+        pageCount: parseInt(formData.totalPages),
+        isbn: formData.isbn.trim() || null,
+        publisher: formData.publisher.trim() || null,
+        publicationDate: formData.publicationDate || null,
+        format: formData.format,
+        isPremiumOnly: formData.isPremium,
+        isFree: formData.isFree,
+        isActive: formData.isPublished,
+        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+        previewPages: parseInt(formData.previewPages) || 10
+      };
+
+      // Upload cover image if selected
+      let coverImageUrl = selectedBook?.coverImage || '';
+      if (coverFile) {
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', coverFile);
+        formDataUpload.append('type', 'book-cover');
+        try {
+          const uploadRes = await api.post('/upload', formDataUpload, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          coverImageUrl = uploadRes.data.data.url;
+        } catch (e) {
+          console.warn('Cover upload failed, using placeholder');
+        }
+      }
+
+      // Upload PDF content if selected
+      let contentUrl = '';
+      if (contentFile) {
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', contentFile);
+        formDataUpload.append('type', 'book-content');
+        try {
+          const uploadRes = await api.post('/upload', formDataUpload, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          contentUrl = uploadRes.data.data.url;
+        } catch (e) {
+          console.warn('Content upload failed');
+        }
+      }
+
       if (isAdding) {
         const response = await api.post('/books', {
-          title: formData.title,
-          author: formData.author,
-          description: formData.description,
-          printPrice: parseFloat(formData.price),
-          ebookPrice: parseFloat(formData.ebookPrice),
-          category: formData.category,
-          pageCount: parseInt(formData.totalPages),
-          isActive: true
+          ...bookData,
+          coverImageUrl,
+          contentUrl: contentUrl || null
         });
         const newBook = transformBook(response.data.data);
         setBooks([...books, newBook]);
         setIsAdding(false);
+        resetForm();
         toast.success('Book created successfully');
       } else if (isEditing && selectedBook) {
         const response = await api.put(`/books/${selectedBook.id}`, {
-          title: formData.title,
-          author: formData.author,
-          description: formData.description,
-          printPrice: parseFloat(formData.price),
-          ebookPrice: parseFloat(formData.ebookPrice),
-          category: formData.category,
-          pageCount: parseInt(formData.totalPages)
+          ...bookData,
+          coverImageUrl: coverImageUrl || selectedBook.coverImage,
+          contentUrl: contentUrl || undefined
         });
         const updatedBook = transformBook(response.data.data);
         setBooks(books.map(book => book.id === selectedBook.id ? updatedBook : book));
         setIsEditing(false);
         setSelectedBook(null);
+        resetForm();
         toast.success('Book updated successfully');
       }
     } catch (error: any) {
@@ -336,129 +516,346 @@ export function BookManagement() {
       </div>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={isAdding || isEditing} onOpenChange={(open) => {
+      <Dialog open={isAdding || isEditing} onOpenChange={(open: boolean) => {
         if (!open) {
           setIsAdding(false);
           setIsEditing(false);
           setSelectedBook(null);
+          resetForm();
         }
       }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isAdding ? 'Add New Book' : 'Edit Book'}</DialogTitle>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <BookOpen className="size-5" />
+              {isAdding ? 'Add New Book' : 'Edit Book'}
+            </DialogTitle>
             <DialogDescription>
-              {isAdding ? 'Add a new book to your library' : 'Update book information'}
+              {isAdding ? 'Fill in all required fields to add a new book to your library' : 'Update book information'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6 py-4">
+            {/* Cover Image & Basic Info */}
+            <div className="grid grid-cols-3 gap-6">
+              {/* Cover Image Upload */}
               <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Book title"
+                <Label>Cover Image</Label>
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-purple-400 transition-colors"
+                  onClick={() => coverInputRef.current?.click()}
+                >
+                  {coverPreview ? (
+                    <img src={coverPreview} alt="Cover preview" className="w-full h-48 object-cover rounded-lg" />
+                  ) : (
+                    <>
+                      <Image className="size-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">Click to upload cover</p>
+                      <p className="text-xs text-gray-400">PNG, JPG up to 5MB</p>
+                    </>
+                  )}
+                </div>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverUpload}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="author">Author *</Label>
-                <Input
-                  id="author"
-                  value={formData.author}
-                  onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                  placeholder="Author name"
-                />
+
+              {/* Title, Author, Description */}
+              <div className="col-span-2 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title *</Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="Enter book title"
+                      className={formErrors.title ? 'border-red-500' : ''}
+                    />
+                    {formErrors.title && <p className="text-xs text-red-500">{formErrors.title}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="author">Author *</Label>
+                    <Input
+                      id="author"
+                      value={formData.author}
+                      onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+                      placeholder="Author name, credentials"
+                      className={formErrors.author ? 'border-red-500' : ''}
+                    />
+                    {formErrors.author && <p className="text-xs text-red-500">{formErrors.author}</p>}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description *</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Enter a compelling description of the book..."
+                    rows={4}
+                    className={formErrors.description ? 'border-red-500' : ''}
+                  />
+                  {formErrors.description && <p className="text-xs text-red-500">{formErrors.description}</p>}
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Description *</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Book description"
-                rows={3}
-              />
-            </div>
-
+            {/* Category, ISBN, Publisher */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
-                <Input
+                <select
                   id="category"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="e.g., NCLEX-RN"
+                  className={`w-full h-10 px-3 rounded-md border bg-background text-sm ${formErrors.category ? 'border-red-500' : 'border-input'}`}
+                >
+                  <option value="">Select category</option>
+                  {BOOK_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                {formErrors.category && <p className="text-xs text-red-500">{formErrors.category}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="isbn" className="flex items-center gap-1">
+                  <Hash className="size-3" /> ISBN
+                </Label>
+                <Input
+                  id="isbn"
+                  value={formData.isbn}
+                  onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+                  placeholder="978-0-123456-78-9"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ebookPrice">Ebook Price *</Label>
+                <Label htmlFor="publisher" className="flex items-center gap-1">
+                  <Building2 className="size-3" /> Publisher
+                </Label>
                 <Input
-                  id="ebookPrice"
-                  type="number"
-                  step="0.01"
-                  value={formData.ebookPrice}
-                  onChange={(e) => setFormData({ ...formData, ebookPrice: e.target.value })}
-                  placeholder="29.99"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="price">Print Price *</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="49.99"
+                  id="publisher"
+                  value={formData.publisher}
+                  onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
+                  placeholder="Publisher name"
                 />
               </div>
             </div>
 
+            {/* Format, Dates, Pages */}
+            <div className="grid grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="format">Book Format</Label>
+                <select
+                  id="format"
+                  value={formData.format}
+                  onChange={(e) => setFormData({ ...formData, format: e.target.value })}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                >
+                  {BOOK_FORMATS.map(fmt => (
+                    <option key={fmt.value} value={fmt.value}>{fmt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="publicationDate" className="flex items-center gap-1">
+                  <Calendar className="size-3" /> Publication Date
+                </Label>
+                <Input
+                  id="publicationDate"
+                  type="date"
+                  value={formData.publicationDate}
+                  onChange={(e) => setFormData({ ...formData, publicationDate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pages">Total Pages *</Label>
+                <Input
+                  id="pages"
+                  type="number"
+                  min="1"
+                  value={formData.totalPages}
+                  onChange={(e) => setFormData({ ...formData, totalPages: e.target.value })}
+                  placeholder="450"
+                  className={formErrors.totalPages ? 'border-red-500' : ''}
+                />
+                {formErrors.totalPages && <p className="text-xs text-red-500">{formErrors.totalPages}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="previewPages">Free Preview Pages</Label>
+                <Input
+                  id="previewPages"
+                  type="number"
+                  min="0"
+                  value={formData.previewPages}
+                  onChange={(e) => setFormData({ ...formData, previewPages: e.target.value })}
+                  placeholder="10"
+                />
+              </div>
+            </div>
+
+            {/* Pricing */}
+            <div className="border rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-medium flex items-center gap-2">
+                  <DollarSign className="size-4" /> Pricing
+                </Label>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="isFree"
+                      checked={formData.isFree}
+                      onCheckedChange={(checked) => setFormData({ ...formData, isFree: checked })}
+                    />
+                    <Label htmlFor="isFree" className="text-sm">Free Book</Label>
+                  </div>
+                </div>
+              </div>
+
+              {!formData.isFree && (
+                <div className="grid grid-cols-2 gap-4">
+                  {formData.format !== 'print' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="ebookPrice">E-Book Price ($) *</Label>
+                      <Input
+                        id="ebookPrice"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.ebookPrice}
+                        onChange={(e) => setFormData({ ...formData, ebookPrice: e.target.value })}
+                        placeholder="29.99"
+                        className={formErrors.ebookPrice ? 'border-red-500' : ''}
+                      />
+                      {formErrors.ebookPrice && <p className="text-xs text-red-500">{formErrors.ebookPrice}</p>}
+                    </div>
+                  )}
+                  {formData.format !== 'ebook' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Print Price ($) *</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        placeholder="49.99"
+                        className={formErrors.price ? 'border-red-500' : ''}
+                      />
+                      {formErrors.price && <p className="text-xs text-red-500">{formErrors.price}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Access & Visibility */}
+            <div className="border rounded-lg p-4 space-y-4">
+              <Label className="text-base font-medium">Access & Visibility</Label>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Lock className="size-4 text-purple-600" />
+                    <div>
+                      <p className="text-sm font-medium">Premium Only</p>
+                      <p className="text-xs text-gray-500">Restrict to premium subscribers</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={formData.isPremium}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isPremium: checked })}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    {formData.isPublished ? <CheckCircle className="size-4 text-green-600" /> : <XCircle className="size-4 text-gray-400" />}
+                    <div>
+                      <p className="text-sm font-medium">Published</p>
+                      <p className="text-xs text-gray-500">Make visible to users</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={formData.isPublished}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isPublished: checked })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Tags */}
             <div className="space-y-2">
-              <Label htmlFor="pages">Total Pages *</Label>
+              <Label htmlFor="tags">Tags (comma-separated)</Label>
               <Input
-                id="pages"
-                type="number"
-                value={formData.totalPages}
-                onChange={(e) => setFormData({ ...formData, totalPages: e.target.value })}
-                placeholder="450"
+                id="tags"
+                value={formData.tags}
+                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                placeholder="nursing, nclex, pharmacology, exam-prep"
+              />
+              <p className="text-xs text-gray-500">Add tags to help users find this book</p>
+            </div>
+
+            {/* PDF Upload */}
+            <div className="space-y-2">
+              <Label>Upload Book Content (PDF)</Label>
+              <div 
+                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-purple-400 transition-colors"
+                onClick={() => contentInputRef.current?.click()}
+              >
+                <Upload className="size-10 text-gray-400 mx-auto mb-2" />
+                {contentFile ? (
+                  <div className="text-sm">
+                    <p className="font-medium text-green-600">{contentFile.name}</p>
+                    <p className="text-gray-500">{(contentFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-600 mb-1">Click to upload or drag and drop</p>
+                    <p className="text-xs text-gray-400">PDF up to 100MB</p>
+                  </>
+                )}
+              </div>
+              <input
+                ref={contentInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleContentUpload}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="content">Upload Book Content (PDF)</Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                <Upload className="size-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-2">
-                  Drag and drop your PDF file here, or click to browse
-                </p>
-                <Button variant="outline" size="sm">
-                  <FileText className="size-4 mr-2" />
-                  Choose File
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end pt-4">
+            {/* Actions */}
+            <div className="flex gap-3 justify-end pt-4 border-t">
               <Button
                 variant="outline"
                 onClick={() => {
                   setIsAdding(false);
                   setIsEditing(false);
                   setSelectedBook(null);
+                  resetForm();
                 }}
+                disabled={saving}
               >
                 Cancel
               </Button>
               <Button
-                className="bg-gradient-to-r from-blue-600 to-purple-600"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 min-w-[140px]"
                 onClick={handleSaveBook}
+                disabled={saving}
               >
-                {isAdding ? 'Add Book' : 'Save Changes'}
+                {saving ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  isAdding ? 'Add Book' : 'Save Changes'
+                )}
               </Button>
             </div>
           </div>
