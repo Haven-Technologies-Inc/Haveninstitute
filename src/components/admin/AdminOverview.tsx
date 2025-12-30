@@ -15,10 +15,16 @@ import {
   Activity,
   Loader2,
   DollarSign,
-  RefreshCw
+  RefreshCw,
+  BookOpen,
+  CreditCard,
+  ShoppingCart,
+  Award,
+  Target,
+  Layers
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
-import { adminStatsApi, DashboardOverview, RecentActivity } from '../../services/adminStatsApi';
+import { adminStatsApi, DashboardOverview, RecentActivity, ContentStats, RevenueStats } from '../../services/adminStatsApi';
 import { toast } from 'sonner';
 
 interface Stat {
@@ -48,6 +54,8 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [categoryDistribution, setCategoryDistribution] = useState<{name: string; count: number; percentage: number; color: string}[]>([]);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  const [contentStats, setContentStats] = useState<ContentStats | null>(null);
+  const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -60,13 +68,16 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
       setLoading(true);
 
       // Fetch real stats from backend
-      const [overviewData, contentStats, activityData] = await Promise.all([
+      const [overviewData, contentData, revenueData, activityData] = await Promise.all([
         adminStatsApi.getOverview(),
         adminStatsApi.getContentStats(),
+        adminStatsApi.getRevenueStats(),
         adminStatsApi.getRecentActivity(10)
       ]);
 
       setOverview(overviewData);
+      setContentStats(contentData);
+      setRevenueStats(revenueData);
 
       // Build stats array with real data
       const statsData: Stat[] = [
@@ -107,9 +118,9 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
       setStats(statsData);
 
       // Set category distribution from content stats
-      if (contentStats.questionsByCategory) {
-        const totalQuestions = Object.values(contentStats.questionsByCategory).reduce((a, b) => a + b, 0);
-        const categories = Object.entries(contentStats.questionsByCategory)
+      if (contentData.questionsByCategory) {
+        const totalQuestions = Object.values(contentData.questionsByCategory).reduce((a, b) => a + b, 0);
+        const categories = Object.entries(contentData.questionsByCategory)
           .slice(0, 8)
           .map(([name, count]) => ({
             name,
@@ -308,6 +319,161 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
               </div>
             ) : (
               <p className="text-gray-500 text-center py-8">No recent activity</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Detailed Stats Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Questions Stats */}
+        <Card className="border-2 hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="size-5 text-purple-600" />
+                Questions Stats
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => onTabChange('manage')}>
+                View All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {contentStats ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-purple-50 rounded-lg">
+                    <p className="text-2xl font-bold text-purple-700">{contentStats.totalQuestions.toLocaleString()}</p>
+                    <p className="text-sm text-purple-600">Total Questions</p>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <p className="text-2xl font-bold text-blue-700">{contentStats.totalFlashcards.toLocaleString()}</p>
+                    <p className="text-sm text-blue-600">Flashcards</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">By Difficulty</p>
+                  {Object.entries(contentStats.questionsByDifficulty || {}).slice(0, 4).map(([diff, count]) => (
+                    <div key={diff} className="flex items-center justify-between text-sm">
+                      <span className="capitalize text-gray-600">{diff}</span>
+                      <Badge variant="outline">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-2 border-t">
+                  <p className="text-sm text-gray-500">
+                    {contentStats.totalFlashcardDecks} Flashcard Decks
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500 text-center py-4">No data available</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Books Stats */}
+        <Card className="border-2 hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BookOpen className="size-5 text-indigo-600" />
+                Books & Content
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => onTabChange('books')}>
+                View All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {contentStats ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-indigo-50 rounded-lg">
+                    <p className="text-2xl font-bold text-indigo-700">{contentStats.totalBooks}</p>
+                    <p className="text-sm text-indigo-600">Total Books</p>
+                  </div>
+                  <div className="p-3 bg-teal-50 rounded-lg">
+                    <p className="text-2xl font-bold text-teal-700">{contentStats.totalFlashcardDecks}</p>
+                    <p className="text-sm text-teal-600">Study Decks</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">Content Categories</p>
+                  {Object.entries(contentStats.questionsByCategory || {}).slice(0, 4).map(([cat, count]) => (
+                    <div key={cat} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 truncate max-w-[150px]">{cat}</span>
+                      <Badge variant="outline">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-2 border-t flex items-center gap-2">
+                  <Layers className="size-4 text-gray-400" />
+                  <p className="text-sm text-gray-500">
+                    {Object.keys(contentStats.questionsByCategory || {}).length} Categories
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500 text-center py-4">No data available</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Revenue Stats */}
+        <Card className="border-2 hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <DollarSign className="size-5 text-green-600" />
+                Revenue & Sales
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => onTabChange('revenue')}>
+                View All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {revenueStats ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <p className="text-2xl font-bold text-green-700">${revenueStats.monthlyRevenue.toFixed(0)}</p>
+                    <p className="text-sm text-green-600">Monthly Revenue</p>
+                  </div>
+                  <div className="p-3 bg-emerald-50 rounded-lg">
+                    <p className="text-2xl font-bold text-emerald-700">${revenueStats.totalRevenue.toFixed(0)}</p>
+                    <p className="text-sm text-emerald-600">Total Revenue</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">Subscriptions by Tier</p>
+                  {Object.entries(revenueStats.subscriptionsByTier || {}).map(([tier, count]) => (
+                    <div key={tier} className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-1">
+                        {tier === 'Premium' && <Award className="size-3 text-yellow-500" />}
+                        {tier === 'Pro' && <Target className="size-3 text-blue-500" />}
+                        <span className="text-gray-600">{tier}</span>
+                      </span>
+                      <Badge variant="outline">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-2 border-t flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="size-4 text-gray-400" />
+                    <p className="text-sm text-gray-500">
+                      {revenueStats.activeSubscriptions} Active Subs
+                    </p>
+                  </div>
+                  <Badge className="bg-green-100 text-green-800">
+                    ${revenueStats.yearlyRevenue.toFixed(0)}/yr
+                  </Badge>
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500 text-center py-4">No data available</p>
             )}
           </CardContent>
         </Card>
