@@ -4,9 +4,101 @@ import { ResponseHandler } from '../utils/response';
 import emailService from '../services/email.service';
 import { adminService } from '../services/admin.service';
 import { revenueService } from '../services/revenue.service';
+import { adminStatsService } from '../services/adminStats.service';
 import { logger } from '../utils/logger';
 
 const router = Router();
+
+// ==================== DASHBOARD STATISTICS ====================
+
+// Get dashboard overview (key metrics)
+router.get('/stats/overview', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const overview = await adminStatsService.getDashboardOverview();
+    ResponseHandler.success(res, overview);
+  } catch (error: any) {
+    logger.error('Failed to get dashboard overview:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch overview', 500);
+  }
+});
+
+// Get user statistics
+router.get('/stats/users', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await adminStatsService.getUserStats();
+    ResponseHandler.success(res, stats);
+  } catch (error: any) {
+    logger.error('Failed to get user stats:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch user stats', 500);
+  }
+});
+
+// Get quiz statistics
+router.get('/stats/quizzes', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await adminStatsService.getQuizStats();
+    ResponseHandler.success(res, stats);
+  } catch (error: any) {
+    logger.error('Failed to get quiz stats:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch quiz stats', 500);
+  }
+});
+
+// Get content statistics
+router.get('/stats/content', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await adminStatsService.getContentStats();
+    ResponseHandler.success(res, stats);
+  } catch (error: any) {
+    logger.error('Failed to get content stats:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch content stats', 500);
+  }
+});
+
+// Get engagement statistics
+router.get('/stats/engagement', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await adminStatsService.getEngagementStats();
+    ResponseHandler.success(res, stats);
+  } catch (error: any) {
+    logger.error('Failed to get engagement stats:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch engagement stats', 500);
+  }
+});
+
+// Get revenue statistics
+router.get('/stats/revenue', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await adminStatsService.getRevenueStats();
+    ResponseHandler.success(res, stats);
+  } catch (error: any) {
+    logger.error('Failed to get revenue stats:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch revenue stats', 500);
+  }
+});
+
+// Get recent activity
+router.get('/stats/activity', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { limit = '50' } = req.query;
+    const activity = await adminStatsService.getRecentActivity(parseInt(limit as string));
+    ResponseHandler.success(res, activity);
+  } catch (error: any) {
+    logger.error('Failed to get recent activity:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch activity', 500);
+  }
+});
+
+// Get system health
+router.get('/stats/health', authenticate, authorizeRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const health = await adminStatsService.getSystemHealth();
+    ResponseHandler.success(res, health);
+  } catch (error: any) {
+    logger.error('Failed to get system health:', error);
+    ResponseHandler.error(res, 'FETCH_ERROR', error.message || 'Failed to fetch health', 500);
+  }
+});
 
 // Test SMTP Connection with provided config
 router.post('/email/test-connection', authenticate, authorizeRole(['admin']), async (req: Request, res: Response) => {

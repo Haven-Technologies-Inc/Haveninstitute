@@ -50,8 +50,9 @@ export type SettingKey =
 @Table({
   tableName: 'system_settings',
   timestamps: true,
+  underscored: true,
   indexes: [
-    { unique: true, fields: ['key'] },
+    { unique: true, fields: ['setting_key'] },
     { fields: ['category'] },
   ],
 })
@@ -67,6 +68,7 @@ export class SystemSettings extends Model {
     type: DataType.STRING(100),
     allowNull: false,
     unique: true,
+    field: 'setting_key',
   })
   declare key: SettingKey;
 

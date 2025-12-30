@@ -13,11 +13,12 @@ import {
   BarChart3,
   ArrowUpRight,
   Activity,
-  Loader2
+  Loader2,
+  DollarSign,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
-import { analyticsApi } from '../../services/analyticsApi';
-import { questionApi } from '../../services/questionApi';
+import { adminStatsApi, DashboardOverview, RecentActivity } from '../../services/adminStatsApi';
 import { toast } from 'sonner';
 
 interface Stat {
@@ -44,8 +45,9 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stat[]>([]);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [categoryDistribution, setCategoryDistribution] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [categoryDistribution, setCategoryDistribution] = useState<{name: string; count: number; percentage: number; color: string}[]>([]);
+  const [overview, setOverview] = useState<DashboardOverview | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -57,84 +59,69 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
     try {
       setLoading(true);
 
-      // Fetch dashboard stats
-      const dashboardData = await analyticsApi.getDashboardStats(user.id);
+      // Fetch real stats from backend
+      const [overviewData, contentStats, activityData] = await Promise.all([
+        adminStatsApi.getOverview(),
+        adminStatsApi.getContentStats(),
+        adminStatsApi.getRecentActivity(10)
+      ]);
 
-      if (dashboardData) {
-        // Build stats array
-        const statsData: Stat[] = [
-          {
-            label: 'Total Questions',
-            value: dashboardData.overview.questionsAnswered.toLocaleString(),
-            change: `${dashboardData.overview.accuracy.toFixed(1)}% accuracy`,
-            changeType: 'positive',
-            icon: FileText,
-            color: 'blue'
-          },
-          {
-            label: 'Active Users',
-            value: '3,542', // TODO: Implement user count API
-            change: '+12% vs last month',
-            changeType: 'positive',
-            icon: Users,
-            color: 'green'
-          },
-          {
-            label: 'Avg. Quiz Score',
-            value: `${dashboardData.quizzes.averageScore.toFixed(1)}%`,
-            change: `${dashboardData.quizzes.passRate.toFixed(1)}% pass rate`,
-            changeType: dashboardData.quizzes.averageScore >= 70 ? 'positive' : 'negative',
-            icon: TrendingUp,
-            color: 'purple'
-          },
-          {
-            label: 'Study Time',
-            value: `${Math.floor(dashboardData.overview.totalStudyTime / 60)}h`,
-            change: `${dashboardData.overview.studyStreak} day streak`,
-            changeType: 'neutral',
-            icon: Activity,
-            color: 'orange'
-          }
-        ];
+      setOverview(overviewData);
 
-        setStats(statsData);
-
-        // Set category distribution
-        if (dashboardData.categoryPerformance.length > 0) {
-          const categories = dashboardData.categoryPerformance.map((cat: any) => ({
-            name: cat.category,
-            count: cat.questionsAnswered,
-            percentage: cat.accuracy,
-            color: getCategoryColor(cat.category)
-          }));
-          setCategoryDistribution(categories);
+      // Build stats array with real data
+      const statsData: Stat[] = [
+        {
+          label: 'Total Users',
+          value: overviewData.totalUsers.toLocaleString(),
+          change: `+${overviewData.newUsersThisMonth} this month`,
+          changeType: overviewData.newUsersThisMonth > 0 ? 'positive' : 'neutral',
+          icon: Users,
+          color: 'blue'
+        },
+        {
+          label: 'Active Users',
+          value: overviewData.activeUsers.toLocaleString(),
+          change: `${Math.round((overviewData.activeUsers / overviewData.totalUsers) * 100)}% of total`,
+          changeType: 'positive',
+          icon: Activity,
+          color: 'green'
+        },
+        {
+          label: 'Total Questions',
+          value: overviewData.totalQuestions.toLocaleString(),
+          change: `${overviewData.totalQuizAttempts} quiz attempts`,
+          changeType: 'positive',
+          icon: FileText,
+          color: 'purple'
+        },
+        {
+          label: 'Monthly Revenue',
+          value: `$${overviewData.monthlyRevenue.toFixed(2)}`,
+          change: `${overviewData.activeSubscriptions} active subs`,
+          changeType: overviewData.monthlyRevenue > 0 ? 'positive' : 'neutral',
+          icon: DollarSign,
+          color: 'orange'
         }
+      ];
 
-        // Set recent activity
-        if (dashboardData.recentActivity.length > 0) {
-          const activities = dashboardData.recentActivity.map((activity: any) => ({
-            type: activity.type,
-            message: activity.description,
-            time: getTimeAgo(activity.date),
-            user: user.name || 'User',
-            status: activity.score && activity.score >= 70 ? 'success' : 'info'
+      setStats(statsData);
+
+      // Set category distribution from content stats
+      if (contentStats.questionsByCategory) {
+        const totalQuestions = Object.values(contentStats.questionsByCategory).reduce((a, b) => a + b, 0);
+        const categories = Object.entries(contentStats.questionsByCategory)
+          .slice(0, 8)
+          .map(([name, count]) => ({
+            name,
+            count,
+            percentage: totalQuestions > 0 ? Math.round((count / totalQuestions) * 100) : 0,
+            color: getCategoryColor(name)
           }));
-          setRecentActivity(activities);
-        }
+        setCategoryDistribution(categories);
       }
 
-      // Fetch question categories
-      const categories = await questionApi.getCategories();
-      if (categories.length > 0 && categoryDistribution.length === 0) {
-        // If no category performance data, show question distribution
-        const catDist = categories.slice(0, 8).map((cat, index) => ({
-          name: cat,
-          count: Math.floor(Math.random() * 200) + 50, // TODO: Get real counts
-          percentage: Math.floor(Math.random() * 20) + 5,
-          color: getCategoryColor(cat)
-        }));
-        setCategoryDistribution(catDist);
-      }
+      // Set recent activity
+      setRecentActivity(activityData);
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -143,11 +130,11 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
       // Set fallback data
       setStats([
         {
-          label: 'Total Questions',
+          label: 'Total Users',
           value: '0',
-          change: 'No data',
+          change: 'No data available',
           changeType: 'neutral',
-          icon: FileText,
+          icon: Users,
           color: 'blue'
         }
       ]);
@@ -295,26 +282,29 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
           <CardContent>
             {recentActivity.length > 0 ? (
               <div className="space-y-4">
-                {recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-start gap-3 pb-4 border-b last:border-0">
-                    <div className={`p-2 rounded-lg flex-shrink-0 ${
-                      activity.status === 'success' ? 'bg-green-100' :
-                      activity.status === 'warning' ? 'bg-yellow-100' :
-                      'bg-blue-100'
-                    }`}>
-                      {activity.status === 'success' && <CheckCircle2 className="size-4 text-green-600" />}
-                      {activity.status === 'warning' && <AlertCircle className="size-4 text-yellow-600" />}
-                      {activity.status === 'info' && <Clock className="size-4 text-blue-600" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-gray-900 text-sm">{activity.message}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className="text-xs">{activity.user}</Badge>
-                        <span className="text-gray-500 text-xs">• {activity.time}</span>
+                {recentActivity.map((activity, index) => {
+                  const isSuccess = activity.score !== undefined && activity.score >= 70;
+                  const activityColor = activity.type === 'quiz' ? 'blue' : activity.type === 'cat' ? 'purple' : 'green';
+                  return (
+                    <div key={index} className="flex items-start gap-3 pb-4 border-b last:border-0">
+                      <div className={`p-2 rounded-lg flex-shrink-0 ${
+                        isSuccess ? 'bg-green-100' : `bg-${activityColor}-100`
+                      }`}>
+                        {activity.type === 'quiz' && <FileText className={`size-4 ${isSuccess ? 'text-green-600' : 'text-blue-600'}`} />}
+                        {activity.type === 'cat' && <TrendingUp className={`size-4 ${isSuccess ? 'text-green-600' : 'text-purple-600'}`} />}
+                        {activity.type === 'login' && <CheckCircle2 className="size-4 text-green-600" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-900 text-sm">{activity.action}</p>
+                        {activity.details && <p className="text-gray-500 text-xs">{activity.details}</p>}
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-xs">{activity.user}</Badge>
+                          <span className="text-gray-500 text-xs">• {getTimeAgo(activity.timestamp)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-gray-500 text-center py-8">No recent activity</p>
