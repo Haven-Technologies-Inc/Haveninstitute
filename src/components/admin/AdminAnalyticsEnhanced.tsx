@@ -18,15 +18,16 @@ import {
   Download,
   RefreshCw
 } from 'lucide-react';
-import { adminApi } from '../../lib/admin-api-endpoints';
+import { adminStatsApi, QuizStats, ContentStats, RevenueStats, EngagementStats, RecentActivity } from '../../services/adminStatsApi';
+import { toast } from 'sonner';
 
 export function AdminAnalyticsEnhanced() {
   const [loading, setLoading] = useState(true);
-  const [quizStats, setQuizStats] = useState<any>(null);
-  const [flashcardStats, setFlashcardStats] = useState<any>(null);
-  const [plannerStats, setPlannerStats] = useState<any>(null);
-  const [revenueStats, setRevenueStats] = useState<any>(null);
-  const [activityTimeline, setActivityTimeline] = useState<any[]>([]);
+  const [quizStats, setQuizStats] = useState<QuizStats | null>(null);
+  const [contentStats, setContentStats] = useState<ContentStats | null>(null);
+  const [engagementStats, setEngagementStats] = useState<EngagementStats | null>(null);
+  const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null);
+  const [activityTimeline, setActivityTimeline] = useState<RecentActivity[]>([]);
 
   useEffect(() => {
     loadAnalytics();
@@ -35,21 +36,22 @@ export function AdminAnalyticsEnhanced() {
   const loadAnalytics = async () => {
     setLoading(true);
     try {
-      const [quiz, flashcard, planner, revenue, activity] = await Promise.all([
-        adminApi.analytics.getQuizStatistics(),
-        adminApi.analytics.getFlashcardStatistics(),
-        adminApi.analytics.getStudyPlannerStatistics(),
-        adminApi.analytics.getRevenueAnalytics(),
-        adminApi.analytics.getUserActivityTimeline(30)
+      const [quiz, content, engagement, revenue, activity] = await Promise.all([
+        adminStatsApi.getQuizStats(),
+        adminStatsApi.getContentStats(),
+        adminStatsApi.getEngagementStats(),
+        adminStatsApi.getRevenueStats(),
+        adminStatsApi.getRecentActivity(30)
       ]);
 
       setQuizStats(quiz);
-      setFlashcardStats(flashcard);
-      setPlannerStats(planner);
+      setContentStats(content);
+      setEngagementStats(engagement);
       setRevenueStats(revenue);
       setActivityTimeline(activity);
     } catch (error) {
       console.error('Error loading analytics:', error);
+      toast.error('Failed to load analytics data');
     } finally {
       setLoading(false);
     }
@@ -94,9 +96,9 @@ export function AdminAnalyticsEnhanced() {
               <FileText className="size-8 text-blue-600" />
               <TrendingUp className="size-5 text-green-600" />
             </div>
-            <p className="text-3xl mb-1">{quizStats?.totalAttempts.toLocaleString()}</p>
+            <p className="text-3xl mb-1">{quizStats?.totalAttempts.toLocaleString() || 0}</p>
             <p className="text-sm text-gray-600">Quiz Attempts</p>
-            <p className="text-xs text-gray-500 mt-1">Avg Score: {quizStats?.averageScore.toFixed(1)}%</p>
+            <p className="text-xs text-gray-500 mt-1">Avg Score: {quizStats?.averageScore?.toFixed(1) || 0}%</p>
           </CardContent>
         </Card>
 
@@ -104,11 +106,11 @@ export function AdminAnalyticsEnhanced() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
               <Brain className="size-8 text-purple-600" />
-              <Badge className="bg-purple-100 text-purple-800">{flashcardStats?.totalCards}</Badge>
+              <Badge className="bg-purple-100 text-purple-800">{contentStats?.totalFlashcards || 0}</Badge>
             </div>
-            <p className="text-3xl mb-1">{flashcardStats?.totalReviews.toLocaleString()}</p>
-            <p className="text-sm text-gray-600">Flashcard Reviews</p>
-            <p className="text-xs text-gray-500 mt-1">Retention: {flashcardStats?.averageRetention.toFixed(1)}%</p>
+            <p className="text-3xl mb-1">{contentStats?.totalFlashcardDecks?.toLocaleString() || 0}</p>
+            <p className="text-sm text-gray-600">Flashcard Decks</p>
+            <p className="text-xs text-gray-500 mt-1">{contentStats?.totalFlashcards || 0} total cards</p>
           </CardContent>
         </Card>
 
@@ -116,11 +118,11 @@ export function AdminAnalyticsEnhanced() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
               <Calendar className="size-8 text-green-600" />
-              <Badge className="bg-green-100 text-green-800">{plannerStats?.completedSessions}</Badge>
+              <Badge className="bg-green-100 text-green-800">{engagementStats?.dailyActiveUsers || 0}</Badge>
             </div>
-            <p className="text-3xl mb-1">{Math.round(plannerStats?.totalStudyTime / 60)}h</p>
+            <p className="text-3xl mb-1">{Math.round((engagementStats?.totalStudyTime || 0) / 60)}h</p>
             <p className="text-sm text-gray-600">Total Study Time</p>
-            <p className="text-xs text-gray-500 mt-1">{plannerStats?.totalSessions} sessions</p>
+            <p className="text-xs text-gray-500 mt-1">{engagementStats?.monthlyActiveUsers || 0} monthly users</p>
           </CardContent>
         </Card>
 
@@ -129,9 +131,9 @@ export function AdminAnalyticsEnhanced() {
             <div className="flex items-center justify-between mb-2">
               <TrendingUp className="size-8 text-green-600" />
             </div>
-            <p className="text-3xl mb-1">${revenueStats?.totalRevenue.toFixed(2)}</p>
+            <p className="text-3xl mb-1">${revenueStats?.monthlyRevenue?.toFixed(2) || '0.00'}</p>
             <p className="text-sm text-gray-600">Monthly Revenue</p>
-            <p className="text-xs text-gray-500 mt-1">${revenueStats?.projectedRevenue.toFixed(2)}/year</p>
+            <p className="text-xs text-gray-500 mt-1">${revenueStats?.yearlyRevenue?.toFixed(2) || '0.00'}/year</p>
           </CardContent>
         </Card>
       </div>
@@ -259,27 +261,27 @@ export function AdminAnalyticsEnhanced() {
             <Card>
               <CardHeader>
                 <CardTitle>Flashcard Statistics</CardTitle>
-                <CardDescription>Usage and retention metrics</CardDescription>
+                <CardDescription>Content and usage metrics</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
                   <div>
-                    <p className="text-sm text-gray-600">Total Cards</p>
-                    <p className="text-2xl">{flashcardStats?.totalCards.toLocaleString()}</p>
+                    <p className="text-sm text-gray-600">Total Flashcards</p>
+                    <p className="text-2xl">{contentStats?.totalFlashcards?.toLocaleString() || 0}</p>
                   </div>
                   <Brain className="size-12 text-purple-600" />
                 </div>
                 <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
                   <div>
-                    <p className="text-sm text-gray-600">Total Reviews</p>
-                    <p className="text-2xl">{flashcardStats?.totalReviews.toLocaleString()}</p>
+                    <p className="text-sm text-gray-600">Flashcard Decks</p>
+                    <p className="text-2xl">{contentStats?.totalFlashcardDecks?.toLocaleString() || 0}</p>
                   </div>
                   <Activity className="size-12 text-blue-600" />
                 </div>
                 <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
                   <div>
-                    <p className="text-sm text-gray-600">Average Retention</p>
-                    <p className="text-2xl">{flashcardStats?.averageRetention.toFixed(1)}%</p>
+                    <p className="text-sm text-gray-600">Total Questions</p>
+                    <p className="text-2xl">{contentStats?.totalQuestions?.toLocaleString() || 0}</p>
                   </div>
                   <Award className="size-12 text-green-600" />
                 </div>
@@ -288,20 +290,20 @@ export function AdminAnalyticsEnhanced() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Top Flashcard Sets</CardTitle>
-                <CardDescription>Most reviewed sets</CardDescription>
+                <CardTitle>Content by Category</CardTitle>
+                <CardDescription>Questions distribution</CardDescription>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[400px]">
                   <div className="space-y-3">
-                    {flashcardStats?.topSets.map((set: any, index: number) => (
+                    {Object.entries(contentStats?.questionsByCategory || {}).map(([category, count], index) => (
                       <div key={index} className="flex items-center gap-3 p-4 border-2 rounded-lg">
-                        <div className="size-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white">
+                        <div className="size-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white text-xs">
                           {index + 1}
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm">Set ID: {set.setId}</p>
-                          <p className="text-xs text-gray-600">{set.reviewCount} reviews</p>
+                          <p className="text-sm">{category}</p>
+                          <p className="text-xs text-gray-600">{count} questions</p>
                         </div>
                       </div>
                     ))}
@@ -317,61 +319,52 @@ export function AdminAnalyticsEnhanced() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Study Sessions</CardTitle>
+                <CardTitle>User Engagement</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Total Sessions</p>
-                  <p className="text-3xl">{plannerStats?.totalSessions}</p>
+                  <p className="text-sm text-gray-600">Daily Active Users</p>
+                  <p className="text-3xl">{engagementStats?.dailyActiveUsers || 0}</p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Completed</p>
-                  <p className="text-3xl">{plannerStats?.completedSessions}</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {((plannerStats?.completedSessions / plannerStats?.totalSessions) * 100).toFixed(1)}% completion rate
-                  </p>
+                  <p className="text-sm text-gray-600">Weekly Active Users</p>
+                  <p className="text-3xl">{engagementStats?.weeklyActiveUsers || 0}</p>
                 </div>
                 <div className="p-4 bg-purple-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Total Study Time</p>
-                  <p className="text-3xl">{Math.round(plannerStats?.totalStudyTime / 60)}h</p>
+                  <p className="text-sm text-gray-600">Monthly Active Users</p>
+                  <p className="text-3xl">{engagementStats?.monthlyActiveUsers || 0}</p>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Goals Tracking</CardTitle>
+                <CardTitle>Study Metrics</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-4 bg-orange-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Total Goals</p>
-                  <p className="text-3xl">{plannerStats?.totalGoals}</p>
+                  <p className="text-sm text-gray-600">Total Study Time</p>
+                  <p className="text-3xl">{Math.round((engagementStats?.totalStudyTime || 0) / 60)}h</p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Completed Goals</p>
-                  <p className="text-3xl">{plannerStats?.completedGoals}</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {((plannerStats?.completedGoals / plannerStats?.totalGoals) * 100).toFixed(1)}% success rate
-                  </p>
+                  <p className="text-sm text-gray-600">Avg Session Duration</p>
+                  <p className="text-3xl">{engagementStats?.averageSessionDuration || 0}m</p>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Task Management</CardTitle>
+                <CardTitle>Login Activity</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-4 bg-pink-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Total Tasks</p>
-                  <p className="text-3xl">{plannerStats?.totalTasks}</p>
+                  <p className="text-sm text-gray-600">Recent Logins</p>
+                  <p className="text-3xl">{engagementStats?.loginActivity?.[0]?.logins || 0}</p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Completed Tasks</p>
-                  <p className="text-3xl">{plannerStats?.completedTasks}</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {((plannerStats?.completedTasks / plannerStats?.totalTasks) * 100).toFixed(1)}% completion rate
-                  </p>
+                  <p className="text-sm text-gray-600">Top Study Categories</p>
+                  <p className="text-3xl">{engagementStats?.topStudyCategories?.length || 0}</p>
                 </div>
               </CardContent>
             </Card>
@@ -384,33 +377,39 @@ export function AdminAnalyticsEnhanced() {
             <Card>
               <CardHeader>
                 <CardTitle>Revenue Overview</CardTitle>
-                <CardDescription>Monthly and projected revenue</CardDescription>
+                <CardDescription>Monthly and yearly revenue</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-4 bg-green-50 rounded-lg">
                   <p className="text-sm text-gray-600">Monthly Revenue</p>
-                  <p className="text-3xl">${revenueStats?.monthlyRevenue.toFixed(2)}</p>
+                  <p className="text-3xl">${revenueStats?.monthlyRevenue?.toFixed(2) || '0.00'}</p>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Projected Annual</p>
-                  <p className="text-3xl">${revenueStats?.projectedRevenue.toFixed(2)}</p>
+                  <p className="text-sm text-gray-600">Yearly Revenue</p>
+                  <p className="text-3xl">${revenueStats?.yearlyRevenue?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-3xl">${revenueStats?.totalRevenue?.toFixed(2) || '0.00'}</p>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Revenue by Tier</CardTitle>
-                <CardDescription>Breakdown by subscription level</CardDescription>
+                <CardTitle>Subscriptions by Tier</CardTitle>
+                <CardDescription>Active subscriptions breakdown</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Pro Tier</p>
-                  <p className="text-3xl">${revenueStats?.revenueByTier?.pro?.toFixed(2) || '0.00'}</p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Premium Tier</p>
-                  <p className="text-3xl">${revenueStats?.revenueByTier?.premium?.toFixed(2) || '0.00'}</p>
+                {Object.entries(revenueStats?.subscriptionsByTier || {}).map(([tier, count]) => (
+                  <div key={tier} className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">{tier} Tier</p>
+                    <p className="text-3xl">{count} subscribers</p>
+                  </div>
+                ))}
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Active Subscriptions</p>
+                  <p className="text-3xl">{revenueStats?.activeSubscriptions || 0}</p>
                 </div>
               </CardContent>
             </Card>
@@ -431,25 +430,25 @@ export function AdminAnalyticsEnhanced() {
                     <div key={index} className="flex items-start gap-4 p-4 border-2 rounded-lg">
                       <div className={`size-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                         activity.type === 'quiz' ? 'bg-blue-100 text-blue-600' :
-                        activity.type === 'session' ? 'bg-green-100 text-green-600' :
+                        activity.type === 'cat' ? 'bg-green-100 text-green-600' :
                         'bg-purple-100 text-purple-600'
                       }`}>
                         {activity.type === 'quiz' ? <FileText className="size-5" /> :
-                         activity.type === 'session' ? <Calendar className="size-5" /> :
-                         <Brain className="size-5" />}
+                         activity.type === 'cat' ? <Target className="size-5" /> :
+                         <Users className="size-5" />}
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm mb-1">{activity.user}</p>
+                        <p className="text-sm font-medium mb-1">{activity.user}</p>
                         <p className="text-sm text-gray-600">{activity.action}</p>
-                        {activity.score && (
-                          <Badge className="mt-2 bg-green-600">{activity.score}</Badge>
+                        {activity.details && (
+                          <p className="text-xs text-gray-500 mt-1">{activity.details}</p>
                         )}
-                        {activity.duration && (
-                          <Badge className="mt-2 bg-blue-600">{activity.duration}</Badge>
+                        {activity.score !== undefined && (
+                          <Badge className="mt-2 bg-green-600">{activity.score}%</Badge>
                         )}
                       </div>
                       <span className="text-xs text-gray-500">
-                        {activity.timestamp.toLocaleString()}
+                        {new Date(activity.timestamp).toLocaleString()}
                       </span>
                     </div>
                   ))}
