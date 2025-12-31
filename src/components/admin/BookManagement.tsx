@@ -838,10 +838,13 @@ export function BookManagement() {
               >
                 Cancel
               </Button>
-              <Button
+              <button
                 type="button"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 min-w-[140px]"
-                onClick={handleSaveBook}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 min-w-[140px] text-white px-4 py-2 rounded-md font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center"
+                onClick={() => {
+                  console.log('Add Book clicked!');
+                  handleSaveBook();
+                }}
                 disabled={saving}
               >
                 {saving ? (
@@ -852,7 +855,7 @@ export function BookManagement() {
                 ) : (
                   isAdding ? 'Add Book' : 'Save Changes'
                 )}
-              </Button>
+              </button>
             </div>
           </div>
         </DialogContent>
