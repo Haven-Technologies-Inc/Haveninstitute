@@ -707,7 +707,7 @@ export function BookManagement() {
                     <Switch
                       id="isFree"
                       checked={formData.isFree}
-                      onCheckedChange={(checked) => setFormData({ ...formData, isFree: checked })}
+                      onCheckedChange={(checked: boolean) => setFormData({ ...formData, isFree: checked })}
                     />
                     <Label htmlFor="isFree" className="text-sm">Free Book</Label>
                   </div>
@@ -766,7 +766,7 @@ export function BookManagement() {
                   </div>
                   <Switch
                     checked={formData.isPremium}
-                    onCheckedChange={(checked) => setFormData({ ...formData, isPremium: checked })}
+                    onCheckedChange={(checked: boolean) => setFormData({ ...formData, isPremium: checked })}
                   />
                 </div>
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -779,7 +779,7 @@ export function BookManagement() {
                   </div>
                   <Switch
                     checked={formData.isPublished}
-                    onCheckedChange={(checked) => setFormData({ ...formData, isPublished: checked })}
+                    onCheckedChange={(checked: boolean) => setFormData({ ...formData, isPublished: checked })}
                   />
                 </div>
               </div>
@@ -841,6 +841,7 @@ export function BookManagement() {
                 Cancel
               </Button>
               <Button
+                type="button"
                 className="bg-gradient-to-r from-blue-600 to-purple-600 min-w-[140px]"
                 onClick={handleSaveBook}
                 disabled={saving}
