@@ -268,10 +268,18 @@ export function BookManagement() {
   };
 
   const handleSaveBook = async () => {
+    console.log('=== handleSaveBook called ===');
+    console.log('isAdding:', isAdding);
+    console.log('isEditing:', isEditing);
+    console.log('formData:', formData);
+    
     if (!validateForm()) {
+      console.log('Validation failed, errors:', formErrors);
       toast.error('Please fix the form errors');
       return;
     }
+    
+    console.log('Validation passed, starting save...');
 
     setSaving(true);
     try {
@@ -282,7 +290,7 @@ export function BookManagement() {
         formDataUpload.append('file', coverFile);
         formDataUpload.append('type', 'book-cover');
         try {
-          const uploadRes = await api.post('/upload', formDataUpload, {
+          const uploadRes = await api.post('/uploads', formDataUpload, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
           coverImageUrl = uploadRes.data.data?.url || '';
@@ -299,7 +307,7 @@ export function BookManagement() {
         formDataUpload.append('file', contentFile);
         formDataUpload.append('type', 'book-content');
         try {
-          const uploadRes = await api.post('/upload', formDataUpload, {
+          const uploadRes = await api.post('/uploads', formDataUpload, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
           fileUrl = uploadRes.data.data?.url || '';
