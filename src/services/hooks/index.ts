@@ -20,8 +20,8 @@ export * from './useStudyGroups';
 // Study Planner hooks
 export * from './useStudyPlanner';
 
-// Forum hooks
-export * from './useForum';
+// Discussions hooks
+export * from './useDiscussions';
 
 // Chat hooks
 export * from './useChat';

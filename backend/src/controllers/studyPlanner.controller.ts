@@ -19,10 +19,19 @@ export class StudyPlannerController {
       const userId = req.userId;
       if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-      const plan = await studyPlannerService.createPlan(userId, req.body);
+      console.log('Creating study plan with data:', JSON.stringify(req.body, null, 2));
+
+      // Convert targetDate string to Date object
+      const planData = {
+        ...req.body,
+        targetDate: req.body.targetDate ? new Date(req.body.targetDate) : undefined
+      };
+
+      const plan = await studyPlannerService.createPlan(userId, planData);
       res.status(201).json(plan);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      console.error('Failed to create study plan:', error);
+      res.status(400).json({ message: error.message || 'Failed to create study plan' });
     }
   }
 

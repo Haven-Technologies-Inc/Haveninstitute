@@ -120,6 +120,9 @@ export interface TutoringSession {
 export interface IAIProvider {
   name: AIProvider;
   
+  /** Check if the provider is configured with valid API key */
+  isConfigured(): boolean;
+  
   chat(
     messages: AIMessage[],
     options?: AICompletionOptions

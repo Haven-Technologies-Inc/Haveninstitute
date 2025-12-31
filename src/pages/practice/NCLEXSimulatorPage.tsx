@@ -11,7 +11,7 @@ export default function NCLEXSimulatorPage() {
   const handleComplete = (result: any) => {
     // TODO: Store result via API
     console.log('NCLEX Simulator completed:', result);
-    navigate('/app/analytics');
+    navigate('/app/progress/analytics');
   };
 
   return (

@@ -94,7 +94,7 @@ export default function QuizSessionPage() {
         <p className="text-gray-600 dark:text-gray-400 mb-4">
           This quiz session could not be found or has expired.
         </p>
-        <Button onClick={() => navigate('/app/quiz')}>Start New Quiz</Button>
+        <Button onClick={() => navigate('/app/practice/quiz')}>Start New Quiz</Button>
       </div>
     );
   }
@@ -213,7 +213,7 @@ export default function QuizSessionPage() {
     return (
       <div className="max-w-2xl mx-auto p-4 text-center">
         <p>No questions available</p>
-        <Button onClick={() => navigate('/app/quiz')}>Start New Quiz</Button>
+        <Button onClick={() => navigate('/app/practice/quiz')}>Start New Quiz</Button>
       </div>
     );
   }

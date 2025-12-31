@@ -47,6 +47,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { AIQuestionGenerator } from './AIQuestionGenerator';
+import AIFlashcardGenerator from './AIFlashcardGenerator';
 import {
   getAllQuestions,
   getAllFlashcards,
@@ -109,6 +110,7 @@ export function ContentManagement() {
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const [importDialog, setImportDialog] = useState(false);
   const [aiGeneratorDialog, setAiGeneratorDialog] = useState(false);
+  const [aiFlashcardGeneratorDialog, setAiFlashcardGeneratorDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
   // Form data
@@ -525,6 +527,12 @@ export function ContentManagement() {
           </Button>
           {activeTab === 'questions' && (
             <Button onClick={() => setAiGeneratorDialog(true)} variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-950">
+              <Sparkles className="size-4 mr-2" />
+              AI Generate
+            </Button>
+          )}
+          {activeTab === 'flashcards' && (
+            <Button onClick={() => setAiFlashcardGeneratorDialog(true)} variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-950">
               <Sparkles className="size-4 mr-2" />
               AI Generate
             </Button>
@@ -985,9 +993,216 @@ export function ContentManagement() {
         </div>
       )}
 
-      {/* Dialogs - View, Create, Edit, Delete, Import */}
-      {/* Add dialog implementations here similar to UserManagement */}
-      
+      {/* View Dialog */}
+      <Dialog open={viewDialog} onOpenChange={setViewDialog}>
+        <DialogContent className="dark:bg-gray-800 dark:border-gray-700 max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="dark:text-white">
+              {activeTab === 'questions' ? 'View Question' : activeTab === 'flashcards' ? 'View Flashcard' : 'View Book'}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedItem && activeTab === 'flashcards' && (
+            <div className="space-y-4">
+              <div>
+                <Label className="dark:text-gray-300">Front</Label>
+                <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg dark:text-white">
+                  {selectedItem.front}
+                </div>
+              </div>
+              <div>
+                <Label className="dark:text-gray-300">Back</Label>
+                <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg dark:text-white">
+                  {selectedItem.back}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="dark:text-gray-300">Category</Label>
+                  <div className="mt-1">
+                    <Badge>{selectedItem.category}</Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="dark:text-gray-300">Difficulty</Label>
+                  <div className="mt-1">
+                    <Badge>{selectedItem.difficulty}</Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {selectedItem && activeTab === 'questions' && (
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Question Type & Metadata */}
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-purple-100 text-purple-800">{selectedItem.questionType || 'multiple_choice'}</Badge>
+                <Badge className="bg-blue-100 text-blue-800">{selectedItem.category}</Badge>
+                <Badge className={
+                  selectedItem.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+                  selectedItem.difficulty === 'hard' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }>{selectedItem.difficulty}</Badge>
+                {selectedItem.bloomLevel && <Badge className="bg-indigo-100 text-indigo-800">{selectedItem.bloomLevel}</Badge>}
+              </div>
+
+              {/* Question Text */}
+              <div>
+                <Label className="dark:text-gray-300 font-semibold">Question</Label>
+                <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg dark:text-white whitespace-pre-wrap">
+                  {selectedItem.question || selectedItem.text}
+                </div>
+              </div>
+
+              {/* Options with Correct Answer Highlighting */}
+              {selectedItem.options && selectedItem.options.length > 0 && (
+                <div>
+                  <Label className="dark:text-gray-300 font-semibold">Options</Label>
+                  <div className="mt-1 space-y-2">
+                    {selectedItem.options.map((opt: { id: string; text: string }, idx: number) => {
+                      const isCorrect = selectedItem.correctAnswers?.includes(opt.id) || 
+                                       selectedItem.correctAnswer === opt.id ||
+                                       selectedItem.correctAnswers?.includes(String(idx));
+                      return (
+                        <div 
+                          key={opt.id || idx} 
+                          className={`p-2 rounded-lg border ${
+                            isCorrect 
+                              ? 'bg-green-50 border-green-300 dark:bg-green-900/30 dark:border-green-700' 
+                              : 'bg-gray-50 border-gray-200 dark:bg-gray-900 dark:border-gray-700'
+                          }`}
+                        >
+                          <span className="font-medium mr-2">{opt.id?.toUpperCase() || String.fromCharCode(65 + idx)}.</span>
+                          <span className="dark:text-white">{opt.text}</span>
+                          {isCorrect && <span className="ml-2 text-green-600 dark:text-green-400 text-sm">✓ Correct</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Explanation */}
+              <div>
+                <Label className="dark:text-gray-300 font-semibold">Explanation</Label>
+                <div className="mt-1 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg dark:text-white whitespace-pre-wrap">
+                  {selectedItem.explanation}
+                </div>
+              </div>
+
+              {/* Rationale for Correct Answer */}
+              {selectedItem.rationaleCorrect && (
+                <div>
+                  <Label className="dark:text-gray-300 font-semibold text-green-600">Why Correct Answer is Right</Label>
+                  <div className="mt-1 p-3 bg-green-50 dark:bg-green-900/30 rounded-lg dark:text-white whitespace-pre-wrap">
+                    {selectedItem.rationaleCorrect}
+                  </div>
+                </div>
+              )}
+
+              {/* Rationale for Incorrect Answers */}
+              {selectedItem.rationaleIncorrect && (
+                <div>
+                  <Label className="dark:text-gray-300 font-semibold text-red-600">Why Other Options are Wrong</Label>
+                  <div className="mt-1 p-3 bg-red-50 dark:bg-red-900/30 rounded-lg dark:text-white whitespace-pre-wrap">
+                    {selectedItem.rationaleIncorrect}
+                  </div>
+                </div>
+              )}
+
+              {/* Clinical Pearl */}
+              {selectedItem.clinicalPearl && (
+                <div>
+                  <Label className="dark:text-gray-300 font-semibold text-purple-600">💡 Clinical Pearl</Label>
+                  <div className="mt-1 p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg dark:text-white whitespace-pre-wrap">
+                    {selectedItem.clinicalPearl}
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {selectedItem.tags && selectedItem.tags.length > 0 && (
+                <div>
+                  <Label className="dark:text-gray-300 font-semibold">Tags</Label>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {selectedItem.tags.map((tag: string, idx: number) => (
+                      <Badge key={idx} variant="outline" className="text-xs">{tag}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setViewDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialog} onOpenChange={setEditDialog}>
+        <DialogContent className="dark:bg-gray-800 dark:border-gray-700 max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="dark:text-white">
+              {activeTab === 'questions' ? 'Edit Question' : activeTab === 'flashcards' ? 'Edit Flashcard' : 'Edit Book'}
+            </DialogTitle>
+          </DialogHeader>
+          {activeTab === 'flashcards' && (
+            <div className="space-y-4">
+              <div>
+                <Label className="dark:text-gray-300">Front</Label>
+                <Textarea
+                  value={flashcardForm.front}
+                  onChange={(e) => setFlashcardForm({...flashcardForm, front: e.target.value})}
+                  className="mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label className="dark:text-gray-300">Back</Label>
+                <Textarea
+                  value={flashcardForm.back}
+                  onChange={(e) => setFlashcardForm({...flashcardForm, back: e.target.value})}
+                  className="mt-1 dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="dark:text-gray-300">Category</Label>
+                  <select
+                    value={flashcardForm.category}
+                    onChange={(e) => setFlashcardForm({...flashcardForm, category: e.target.value})}
+                    className="mt-1 w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                    title="Select category"
+                  >
+                    {categories.map(cat => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label className="dark:text-gray-300">Difficulty</Label>
+                  <select
+                    value={flashcardForm.difficulty}
+                    onChange={(e) => setFlashcardForm({...flashcardForm, difficulty: e.target.value as 'easy' | 'medium' | 'hard'})}
+                    className="mt-1 w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                    title="Select difficulty"
+                  >
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialog(false)}>Cancel</Button>
+            <Button onClick={submitEdit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Dialog */}
       <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
         <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
@@ -1061,6 +1276,16 @@ export function ContentManagement() {
       <AIQuestionGenerator
         open={aiGeneratorDialog}
         onOpenChange={setAiGeneratorDialog}
+        onComplete={() => {
+          loadData();
+          loadStats();
+        }}
+      />
+
+      {/* AI Flashcard Generator Dialog */}
+      <AIFlashcardGenerator
+        isOpen={aiFlashcardGeneratorDialog}
+        onClose={() => setAiFlashcardGeneratorDialog(false)}
         onComplete={() => {
           loadData();
           loadStats();

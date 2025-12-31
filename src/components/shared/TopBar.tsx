@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import {
   Menu,
   Search,
@@ -10,6 +9,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { LogoIcon } from '../ui/Logo';
+import { GlobalSearch } from './GlobalSearch';
 
 export interface TopBarUser {
   name?: string;
@@ -53,6 +53,7 @@ export function TopBar({
   NotificationsPanel,
   ProfileMenu,
 }: TopBarProps) {
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const displayName = user?.fullName || user?.name || 'User';
   const initials = displayName.charAt(0).toUpperCase();
   
@@ -61,6 +62,7 @@ export function TopBar({
     : 'from-blue-600 to-purple-600';
 
   return (
+    <>
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40 shadow-sm">
       <div className="px-4 lg:px-6 h-16 flex items-center justify-between">
         {/* Left: Logo */}
@@ -76,19 +78,14 @@ export function TopBar({
 
         {/* Center: Search Bar */}
         <div className="hidden lg:flex flex-1 max-w-lg mx-6">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-gray-400" />
-            <Input
-              placeholder="Search..."
-              className="pl-10 h-9 bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-700 text-sm"
-            />
-          </div>
+          <GlobalSearch variant={variant} className="w-full" />
         </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1">
           {/* Search (mobile) */}
           <button 
+            onClick={() => setShowMobileSearch(!showMobileSearch)}
             className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
             title="Search"
           >
@@ -168,5 +165,27 @@ export function TopBar({
         </div>
       </div>
     </header>
+
+    {/* Mobile Search Overlay */}
+    {showMobileSearch && (
+      <div className="lg:hidden fixed inset-0 z-50 bg-black/50" onClick={() => setShowMobileSearch(false)}>
+        <div 
+          className="bg-white dark:bg-gray-900 p-4 shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-2">
+            <GlobalSearch variant={variant} className="flex-1" />
+            <button
+              onClick={() => setShowMobileSearch(false)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+              title="Close search"
+            >
+              <span className="text-gray-500 dark:text-gray-400">✕</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

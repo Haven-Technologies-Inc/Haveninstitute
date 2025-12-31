@@ -29,23 +29,23 @@ export class StudyPlan extends Model {
   @Column(DataType.UUID)
   userId!: string;
 
-  @Column({ type: DataType.STRING, allowNull: false })
+  @Column({ type: DataType.STRING, allowNull: false, field: 'title' })
   name!: string;
 
   @Column(DataType.TEXT)
   description?: string;
 
-  @Column({ type: DataType.DATE, allowNull: false })
-  startDate!: Date;
+  @Column({ type: DataType.DATE, field: 'started_at' })
+  startDate?: Date;
 
-  @Column({ type: DataType.DATE, allowNull: false })
-  targetDate!: Date;
+  @Column({ type: DataType.DATE, field: 'exam_date' })
+  targetDate?: Date;
 
   @Column({
-    type: DataType.ENUM('active', 'paused', 'completed', 'archived'),
+    type: DataType.ENUM('draft', 'active', 'completed', 'abandoned'),
     defaultValue: 'active'
   })
-  status!: 'active' | 'paused' | 'completed' | 'archived';
+  status!: 'draft' | 'active' | 'completed' | 'abandoned';
 
   @Column({ type: DataType.JSON, defaultValue: [] })
   focusAreas!: string[];
@@ -53,7 +53,7 @@ export class StudyPlan extends Model {
   @Column({ type: DataType.JSON, defaultValue: [] })
   weakAreas!: string[];
 
-  @Column({ type: DataType.FLOAT, defaultValue: 2 })
+  @Column({ type: DataType.FLOAT, defaultValue: 2, field: 'study_hours_per_day' })
   dailyStudyHours!: number;
 
   @Column(DataType.JSON)
@@ -77,7 +77,7 @@ export class StudyPlan extends Model {
     categoryProgress: Record<string, { completed: number; total: number }>;
   };
 
-  @Column({ type: DataType.BOOLEAN, defaultValue: false })
+  @Column({ type: DataType.BOOLEAN, defaultValue: false, field: 'ai_generated' })
   isAIGenerated!: boolean;
 
   @Column(DataType.JSON)

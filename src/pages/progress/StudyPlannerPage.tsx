@@ -27,7 +27,13 @@ import {
   FileQuestion,
   Layers,
   Video,
-  RotateCcw
+  RotateCcw,
+  Loader2,
+  X,
+  GraduationCap,
+  CalendarDays,
+  Timer,
+  Focus
 } from 'lucide-react';
 import {
   useStudyPlans,
@@ -71,6 +77,9 @@ export default function StudyPlannerPage() {
   const [dailyHours, setDailyHours] = useState(2);
   const [selectedWeakAreas, setSelectedWeakAreas] = useState<string[]>([]);
   const [useAI, setUseAI] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2>(1);
 
   const { data: plans, isLoading: loadingPlans } = useStudyPlans('active');
   const { data: stats } = useStudyStats();
@@ -84,6 +93,9 @@ export default function StudyPlannerPage() {
 
   const handleCreatePlan = async () => {
     if (!newPlanName.trim() || !targetDate) return;
+
+    setIsCreating(true);
+    setCreateError(null);
 
     try {
       const plan = await createPlanMutation.mutateAsync({
@@ -99,12 +111,41 @@ export default function StudyPlannerPage() {
       }
 
       setShowCreateModal(false);
-      setNewPlanName('');
-      setTargetDate('');
-      setSelectedWeakAreas([]);
-    } catch (error) {
+      resetForm();
+    } catch (error: any) {
       console.error('Failed to create plan:', error);
+      setCreateError(error.message || 'Failed to create plan. Please try again.');
+    } finally {
+      setIsCreating(false);
     }
+  };
+
+  const resetForm = () => {
+    setNewPlanName('');
+    setTargetDate('');
+    setDailyHours(2);
+    setSelectedWeakAreas([]);
+    setUseAI(true);
+    setStep(1);
+    setCreateError(null);
+  };
+
+  const closeModal = () => {
+    setShowCreateModal(false);
+    resetForm();
+  };
+
+  const getMinDate = () => {
+    const today = new Date();
+    today.setDate(today.getDate() + 7); // At least 1 week from now
+    return today.toISOString().split('T')[0];
+  };
+
+  const getDaysUntilExam = () => {
+    if (!targetDate) return 0;
+    const target = new Date(targetDate);
+    const today = new Date();
+    return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
 
   const handleCompleteTask = async (task: StudyPlanTask) => {
@@ -406,7 +447,7 @@ export default function StudyPlannerPage() {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-6 text-gray-500">
+                <div className="text-center py-6 text-gray-500 dark:text-gray-400">
                   <Calendar className="size-10 mx-auto mb-2 text-gray-400" />
                   <p>No active plans</p>
                   <Button 
@@ -445,115 +486,280 @@ export default function StudyPlannerPage() {
         </div>
       </div>
 
-      {/* Create Plan Modal */}
+      {/* Enhanced Create Plan Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Create Study Plan</CardTitle>
-              <CardDescription>
-                Set up your personalized NCLEX preparation plan
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                  Plan Name *
-                </label>
-                <Input
-                  value={newPlanName}
-                  onChange={(e) => setNewPlanName(e.target.value)}
-                  placeholder="e.g., NCLEX Prep - Spring 2025"
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                  Target Exam Date *
-                </label>
-                <Input
-                  type="date"
-                  value={targetDate}
-                  onChange={(e) => setTargetDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                  Daily Study Hours: {dailyHours}h
-                </label>
-                <input
-                  type="range"
-                  min="1"
-                  max="6"
-                  step="0.5"
-                  value={dailyHours}
-                  onChange={(e) => setDailyHours(parseFloat(e.target.value))}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>1h</span>
-                  <span>6h</span>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-600 to-purple-600">
+              <div className="flex items-center gap-3 text-white">
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <GraduationCap className="size-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">Create Study Plan</h2>
+                  <p className="text-sm text-white/80">Step {step} of 2</p>
                 </div>
               </div>
-              
-              <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                  Areas Needing Focus (Optional)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {NCLEX_CATEGORIES.map(category => (
-                    <Badge
-                      key={category}
-                      variant={selectedWeakAreas.includes(category) ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedWeakAreas(prev =>
-                        prev.includes(category)
-                          ? prev.filter(c => c !== category)
-                          : [...prev, category]
-                      )}
-                    >
-                      {category}
-                    </Badge>
-                  ))}
+              <button 
+                onClick={closeModal}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
+                aria-label="Close modal"
+                title="Close"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="h-1 bg-gray-200">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                style={{ width: step === 1 ? '50%' : '100%' }}
+              />
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Error Message */}
+              {createError && (
+                <div className="mb-4 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-3">
+                  <AlertCircle className="size-5 text-red-500 flex-shrink-0" />
+                  <p className="text-red-700 dark:text-red-300 text-sm">{createError}</p>
                 </div>
-              </div>
-              
-              <div className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-950 rounded-xl border-2 border-purple-200 dark:border-purple-800">
-                <input
-                  type="checkbox"
-                  id="useAI"
-                  checked={useAI}
-                  onChange={(e) => setUseAI(e.target.checked)}
-                  className="size-5"
-                />
-                <label htmlFor="useAI" className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-2 font-medium text-purple-900 dark:text-purple-100">
-                    <Sparkles className="size-4" />
-                    Generate AI Study Plan
+              )}
+
+              {step === 1 ? (
+                <div className="space-y-6">
+                  {/* Plan Name */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      <Target className="size-4 text-blue-500" />
+                      Plan Name
+                    </label>
+                    <Input
+                      value={newPlanName}
+                      onChange={(e) => setNewPlanName(e.target.value)}
+                      placeholder="My NCLEX Study Plan"
+                      className="text-lg h-12"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Give your plan a memorable name</p>
                   </div>
-                  <p className="text-sm text-purple-700 dark:text-purple-300">
-                    Let AI create an optimized schedule based on your goals
-                  </p>
-                </label>
-              </div>
-              
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowCreateModal(false)} className="flex-1">
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleCreatePlan}
-                  disabled={!newPlanName.trim() || !targetDate || createPlanMutation.isPending}
-                  className="flex-1"
-                >
-                  {createPlanMutation.isPending || generateAIPlanMutation.isPending 
-                    ? 'Creating...' 
-                    : 'Create Plan'}
-                </Button>
-              </div>
-            </CardContent>
+
+                  {/* Target Date */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      <CalendarDays className="size-4 text-green-500" />
+                      Target Exam Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={targetDate}
+                      onChange={(e) => setTargetDate(e.target.value)}
+                      min={getMinDate()}
+                      className="text-lg h-12"
+                    />
+                    {targetDate && (
+                      <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                        <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                          📅 {getDaysUntilExam()} days until your exam
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Daily Study Hours */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      <Timer className="size-4 text-orange-500" />
+                      Daily Study Commitment
+                    </label>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                          {dailyHours} {dailyHours === 1 ? 'hour' : 'hours'}
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">per day</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max="6"
+                        step="0.5"
+                        value={dailyHours}
+                        onChange={(e) => setDailyHours(parseFloat(e.target.value))}
+                        className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        <span>1 hour (Light)</span>
+                        <span>3 hours (Moderate)</span>
+                        <span>6 hours (Intensive)</span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                        💡 We recommend {dailyHours >= 4 ? '45-minute sessions with 15-minute breaks' : '25-minute sessions with 5-minute breaks'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Focus Areas */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      <Focus className="size-4 text-purple-500" />
+                      Areas Needing Focus (Select any that apply)
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">The AI will prioritize these topics in your study plan</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {NCLEX_CATEGORIES.map(category => (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => setSelectedWeakAreas(prev =>
+                            prev.includes(category)
+                              ? prev.filter(c => c !== category)
+                              : [...prev, category]
+                          )}
+                          className={`p-3 text-left rounded-xl border-2 transition-all ${
+                            selectedWeakAreas.includes(category)
+                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-purple-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`size-5 rounded-full border-2 flex items-center justify-center ${
+                              selectedWeakAreas.includes(category)
+                                ? 'border-purple-500 bg-purple-500'
+                                : 'border-gray-300'
+                            }`}>
+                              {selectedWeakAreas.includes(category) && (
+                                <CheckCircle2 className="size-3 text-white" />
+                              )}
+                            </div>
+                            <span className="text-sm font-medium">{category}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* AI Generation Option */}
+                  <div
+                    onClick={() => setUseAI(!useAI)}
+                    className={`p-5 rounded-xl border-2 cursor-pointer transition-all ${
+                      useAI
+                        ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`p-3 rounded-xl ${
+                        useAI ? 'bg-purple-500 text-white' : 'bg-gray-100 dark:bg-gray-800'
+                      }`}>
+                        <Sparkles className="size-6" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-gray-900 dark:text-white">AI-Powered Study Plan</h4>
+                          <div className={`w-12 h-7 rounded-full p-1 transition-colors ${
+                            useAI ? 'bg-purple-500' : 'bg-gray-300'
+                          }`}>
+                            <div className={`size-5 bg-white rounded-full shadow transition-transform ${
+                              useAI ? 'translate-x-5' : 'translate-x-0'
+                            }`} />
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          Let our AI create an optimized daily schedule with quizzes, flashcards, and practice tests tailored to your weak areas and timeline.
+                        </p>
+                        {useAI && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                              <Brain className="size-3 mr-1" /> Smart Scheduling
+                            </Badge>
+                            <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                              <Target className="size-3 mr-1" /> Weakness Focus
+                            </Badge>
+                            <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                              <TrendingUp className="size-3 mr-1" /> Progress Tracking
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Plan Summary</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Plan Name</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{newPlanName || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Exam Date</span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {targetDate ? new Date(targetDate).toLocaleDateString() : '-'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Daily Commitment</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{dailyHours} hours</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Focus Areas</span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {selectedWeakAreas.length > 0 ? `${selectedWeakAreas.length} selected` : 'All areas'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t bg-gray-50 dark:bg-gray-800 flex gap-3">
+              {step === 1 ? (
+                <>
+                  <Button variant="outline" onClick={closeModal} className="flex-1">
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => setStep(2)}
+                    disabled={!newPlanName.trim() || !targetDate}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    Continue
+                    <ChevronRight className="size-4 ml-1" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+                    Back
+                  </Button>
+                  <Button 
+                    onClick={handleCreatePlan}
+                    disabled={isCreating}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    {isCreating ? (
+                      <>
+                        <Loader2 className="size-4 mr-2 animate-spin" />
+                        {useAI ? 'Generating AI Plan...' : 'Creating Plan...'}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="size-4 mr-2" />
+                        Create Plan
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
           </Card>
         </div>
       )}

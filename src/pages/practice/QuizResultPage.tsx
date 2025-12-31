@@ -47,7 +47,7 @@ export default function QuizResultPage() {
         <p className="text-gray-600 dark:text-gray-400 mb-4">
           Could not load quiz results.
         </p>
-        <Button onClick={() => navigate('/app/quiz')}>Start New Quiz</Button>
+        <Button onClick={() => navigate('/app/practice/quiz')}>Start New Quiz</Button>
       </div>
     );
   }
@@ -222,7 +222,7 @@ export default function QuizResultPage() {
               Review Questions
             </Button>
             <Button 
-              onClick={() => navigate('/app/quiz')} 
+              onClick={() => navigate('/app/practice/quiz')} 
               variant="outline" 
               className="flex-1"
             >

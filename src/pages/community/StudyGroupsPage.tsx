@@ -17,7 +17,14 @@ import {
   Globe,
   Lock,
   X,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+  MessageSquare,
+  Calendar,
+  Target,
+  Info
 } from 'lucide-react';
 import {
   useMyGroups,
@@ -53,6 +60,9 @@ export default function StudyGroupsPage() {
   const [newGroupMaxMembers, setNewGroupMaxMembers] = useState(6);
   const [newGroupCategory, setNewGroupCategory] = useState('');
   const [createSuccess, setCreateSuccess] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [formStep, setFormStep] = useState<1 | 2>(1);
+  const [touched, setTouched] = useState({ name: false, description: false });
 
   // API hooks
   const { data: myGroups, isLoading: loadingMyGroups } = useMyGroups();
@@ -65,7 +75,12 @@ export default function StudyGroupsPage() {
   const joinGroupMutation = useJoinGroup();
 
   const handleCreateGroup = async () => {
-    if (!newGroupName.trim()) return;
+    if (!newGroupName.trim()) {
+      setCreateError('Group name is required');
+      return;
+    }
+    
+    setCreateError(null);
     
     try {
       const group = await createGroupMutation.mutateAsync({
@@ -76,17 +91,35 @@ export default function StudyGroupsPage() {
         category: newGroupCategory || undefined
       });
       
+      if (!group || !group.id) {
+        setCreateError('Group created but could not get group details. Please check My Groups.');
+        return;
+      }
+      
       setCreateSuccess(true);
       
+      const groupId = group.id;
       setTimeout(() => {
         setShowCreateModal(false);
         setCreateSuccess(false);
         resetForm();
-        navigate(`/app/study-groups/${group.id}`);
+        navigate(`/app/community/groups/${groupId}`);
       }, 1500);
-    } catch (error) {
-      console.error('Failed to create group:', error);
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to create group. Please try again.';
+      setCreateError(errorMessage);
     }
+  };
+
+  const validateName = () => {
+    if (!newGroupName.trim()) return 'Group name is required';
+    if (newGroupName.trim().length < 3) return 'Name must be at least 3 characters';
+    if (newGroupName.trim().length > 100) return 'Name must be less than 100 characters';
+    return null;
+  };
+
+  const canProceedToStep2 = () => {
+    return newGroupName.trim().length >= 3;
   };
 
   const handleJoinGroup = async (groupId: string) => {
@@ -101,7 +134,7 @@ export default function StudyGroupsPage() {
   };
 
   const handleGroupClick = (groupId: string) => {
-    navigate(`/app/study-groups/${groupId}`);
+    navigate(`/app/community/groups/${groupId}`);
   };
 
   const resetForm = () => {
@@ -110,6 +143,9 @@ export default function StudyGroupsPage() {
     setNewGroupIsPublic(true);
     setNewGroupMaxMembers(6);
     setNewGroupCategory('');
+    setFormStep(1);
+    setCreateError(null);
+    setTouched({ name: false, description: false });
   };
 
   const isMemberOfGroup = (group: StudyGroup) => {
@@ -262,140 +298,126 @@ export default function StudyGroupsPage() {
         </>
       )}
 
-      {/* Create Group Modal */}
+      {/* Enhanced Create Group Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-hidden">
-            <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800 relative">
-              <button
-                onClick={() => { setShowCreateModal(false); resetForm(); }}
-                className="absolute right-4 top-4 p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                aria-label="Close modal"
-              >
-                <X className="size-5 text-gray-500" />
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                  <Users className="size-6 text-blue-600" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-600 to-indigo-600">
+              <div className="flex items-center gap-4 text-white">
+                <div className="p-3 bg-white/20 rounded-xl">
+                  <Users className="size-7" />
                 </div>
                 <div>
-                  <CardTitle>Create Study Group</CardTitle>
-                  <CardDescription>Start a new group to study with others</CardDescription>
+                  <h2 className="text-xl font-bold">Create Study Group</h2>
+                  <p className="text-sm text-white/80">Step {formStep} of 2 • {formStep === 1 ? 'Basic Info' : 'Settings'}</p>
                 </div>
               </div>
-            </CardHeader>
+              <button
+                onClick={() => { setShowCreateModal(false); resetForm(); }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
+                aria-label="Close modal"
+                title="Close"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
 
-            <CardContent className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
-              {createSuccess ? (
-                <div className="text-center py-8">
-                  <div className="size-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 className="size-8 text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    Group Created!
-                  </h3>
-                  <p className="text-sm text-gray-500">Redirecting to your new group...</p>
+            {/* Progress Bar */}
+            <div className="h-1 bg-gray-200">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300"
+                style={{ width: formStep === 1 ? '50%' : '100%' }}
+              />
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Error Message */}
+              {createError && (
+                <div className="mb-6 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-3">
+                  <AlertCircle className="size-5 text-red-500 flex-shrink-0" />
+                  <p className="text-red-700 dark:text-red-300 text-sm">{createError}</p>
                 </div>
-              ) : (
-                <>
+              )}
+
+              {createSuccess ? (
+                <div className="text-center py-12">
+                  <div className="size-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
+                    <CheckCircle2 className="size-10 text-green-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    Group Created Successfully!
+                  </h3>
+                  <p className="text-gray-500">Redirecting to your new study group...</p>
+                </div>
+              ) : formStep === 1 ? (
+                <div className="space-y-6">
                   {/* Group Name */}
                   <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      <Target className="size-4 text-blue-500" />
                       Group Name <span className="text-red-500">*</span>
                     </label>
                     <Input
                       value={newGroupName}
                       onChange={(e) => setNewGroupName(e.target.value)}
+                      onBlur={() => setTouched(t => ({ ...t, name: true }))}
                       placeholder="e.g., NCLEX Med-Surg Masters"
                       maxLength={100}
+                      className={`text-lg h-12 ${
+                        touched.name && validateName() 
+                          ? 'border-red-500 focus:ring-red-500' 
+                          : ''
+                      }`}
                     />
-                  </div>
-                  
-                  {/* Description */}
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                      Description
-                    </label>
-                    <textarea
-                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg resize-none dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={3}
-                      value={newGroupDescription}
-                      onChange={(e) => setNewGroupDescription(e.target.value)}
-                      placeholder="What is this group about?"
-                      maxLength={500}
-                    />
-                  </div>
-                  
-                  {/* Visibility */}
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                      Visibility
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setNewGroupIsPublic(true)}
-                        className={`p-4 rounded-xl border-2 transition-all ${
-                          newGroupIsPublic
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        <Globe className={`size-6 mx-auto mb-1 ${newGroupIsPublic ? 'text-blue-600' : 'text-gray-400'}`} />
-                        <span className={`text-sm font-medium ${newGroupIsPublic ? 'text-blue-700 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}>
-                          Public
-                        </span>
-                        <p className="text-xs text-gray-500 mt-1">Anyone can join</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setNewGroupIsPublic(false)}
-                        className={`p-4 rounded-xl border-2 transition-all ${
-                          !newGroupIsPublic
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        <Lock className={`size-6 mx-auto mb-1 ${!newGroupIsPublic ? 'text-blue-600' : 'text-gray-400'}`} />
-                        <span className={`text-sm font-medium ${!newGroupIsPublic ? 'text-blue-700 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}>
-                          Private
-                        </span>
-                        <p className="text-xs text-gray-500 mt-1">Invite only</p>
-                      </button>
+                    <div className="flex justify-between mt-1">
+                      <span className={`text-xs ${
+                        touched.name && validateName() ? 'text-red-500' : 'text-gray-500'
+                      }`}>
+                        {touched.name && validateName() ? validateName() : 'Choose a unique, descriptive name'}
+                      </span>
+                      <span className="text-xs text-gray-400">{newGroupName.length}/100</span>
                     </div>
                   </div>
 
-                  {/* Max Members */}
+                  {/* Description */}
                   <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                      Maximum Members: {newGroupMaxMembers}
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      <MessageSquare className="size-4 text-green-500" />
+                      Description
                     </label>
-                    <input
-                      type="range"
-                      min={2}
-                      max={10}
-                      value={newGroupMaxMembers}
-                      onChange={(e) => setNewGroupMaxMembers(parseInt(e.target.value))}
-                      className="w-full"
+                    <textarea
+                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl resize-none dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      rows={4}
+                      value={newGroupDescription}
+                      onChange={(e) => setNewGroupDescription(e.target.value)}
+                      placeholder="Describe your group's goals, study schedule, and what members can expect..."
+                      maxLength={500}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Optimal size: 4-6 members</p>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-xs text-gray-500">Help others understand what your group is about</span>
+                      <span className="text-xs text-gray-400">{newGroupDescription.length}/500</span>
+                    </div>
                   </div>
-                  
+
                   {/* Category */}
                   <div>
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                      Category (Optional)
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                      <Calendar className="size-4 text-purple-500" />
+                      Focus Category
+                      <span className="text-xs font-normal text-gray-400">(Optional)</span>
                     </label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {CATEGORIES.map(cat => (
                         <button
                           key={cat}
                           type="button"
                           onClick={() => setNewGroupCategory(newGroupCategory === cat ? '' : cat)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                          className={`px-3 py-2 rounded-lg text-xs font-medium transition-all border ${
                             newGroupCategory === cat
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
                           }`}
                         >
                           {cat}
@@ -403,37 +425,178 @@ export default function StudyGroupsPage() {
                       ))}
                     </div>
                   </div>
-                </>
-              )}
-            </CardContent>
-
-            {!createSuccess && (
-              <div className="p-6 border-t bg-gray-50 dark:bg-gray-800/50">
-                <div className="flex gap-3">
-                  <Button
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
-                    onClick={() => { setShowCreateModal(false); resetForm(); }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleCreateGroup}
-                    disabled={!newGroupName.trim() || createGroupMutation.isPending}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  >
-                    {createGroupMutation.isPending ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="size-4 mr-2" />
-                        Create Group
-                      </>
-                    )}
-                  </Button>
                 </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Visibility */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                      <Globe className="size-4 text-blue-500" />
+                      Group Visibility
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setNewGroupIsPublic(true)}
+                        className={`p-5 rounded-xl border-2 transition-all text-left ${
+                          newGroupIsPublic
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+                        }`}
+                      >
+                        <div className={`p-3 rounded-lg inline-block mb-3 ${
+                          newGroupIsPublic ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800'
+                        }`}>
+                          <Globe className="size-5" />
+                        </div>
+                        <h4 className={`font-semibold mb-1 ${
+                          newGroupIsPublic ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
+                        }`}>Public</h4>
+                        <p className="text-xs text-gray-500">Anyone can find and join your group</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewGroupIsPublic(false)}
+                        className={`p-5 rounded-xl border-2 transition-all text-left ${
+                          !newGroupIsPublic
+                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-purple-300'
+                        }`}
+                      >
+                        <div className={`p-3 rounded-lg inline-block mb-3 ${
+                          !newGroupIsPublic ? 'bg-purple-500 text-white' : 'bg-gray-100 dark:bg-gray-800'
+                        }`}>
+                          <Lock className="size-5" />
+                        </div>
+                        <h4 className={`font-semibold mb-1 ${
+                          !newGroupIsPublic ? 'text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300'
+                        }`}>Private</h4>
+                        <p className="text-xs text-gray-500">Only invited members can join</p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Max Members */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                      <Users className="size-4 text-orange-500" />
+                      Group Size
+                    </label>
+                    <div className="p-5 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-4xl font-bold text-gray-900 dark:text-white">
+                          {newGroupMaxMembers}
+                        </span>
+                        <span className="text-sm text-gray-500">members max</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={2}
+                        max={20}
+                        value={newGroupMaxMembers}
+                        onChange={(e) => setNewGroupMaxMembers(parseInt(e.target.value))}
+                        className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        aria-label="Maximum members"
+                        title="Maximum members"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-2">
+                        <span>2 (Duo)</span>
+                        <span>6 (Optimal)</span>
+                        <span>20 (Large)</span>
+                      </div>
+                      <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-start gap-2">
+                        <Info className="size-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                          Research shows groups of 4-6 members have the best engagement and accountability.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  <div className="p-5 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-800 rounded-xl border">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Sparkles className="size-4 text-yellow-500" />
+                      Group Summary
+                    </h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">Name</span>
+                        <span className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]">
+                          {newGroupName || '-'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">Visibility</span>
+                        <Badge variant={newGroupIsPublic ? 'default' : 'secondary'}>
+                          {newGroupIsPublic ? 'Public' : 'Private'}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">Max Members</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{newGroupMaxMembers}</span>
+                      </div>
+                      {newGroupCategory && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-500">Category</span>
+                          <Badge variant="outline">{newGroupCategory}</Badge>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {!createSuccess && (
+              <div className="p-6 border-t bg-gray-50 dark:bg-gray-800/50 flex gap-3">
+                {formStep === 1 ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setShowCreateModal(false); resetForm(); }}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => setFormStep(2)}
+                      disabled={!canProceedToStep2()}
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      Continue
+                      <span className="ml-2">→</span>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setFormStep(1)}
+                      className="flex-1"
+                    >
+                      ← Back
+                    </Button>
+                    <Button
+                      onClick={handleCreateGroup}
+                      disabled={!canProceedToStep2() || createGroupMutation.isPending}
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      {createGroupMutation.isPending ? (
+                        <>
+                          <Loader2 className="size-4 mr-2 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="size-4 mr-2" />
+                          Create Group
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
               </div>
             )}
           </Card>

@@ -143,7 +143,7 @@ export async function getAllTransactions(filters: BillingFilters = {}): Promise<
 
 export async function getTransactionById(id: string): Promise<Transaction | null> {
   // Transaction detail would be fetched from backend if needed
-  console.log('Getting transaction:', id);
+  // Get transaction by ID
   return null;
 }
 
@@ -154,7 +154,7 @@ export async function getUserTransactions(userId: string): Promise<Transaction[]
 
 export async function createTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> {
   // Transactions are created via Stripe webhooks, not manually
-  console.log('Create transaction:', data);
+  // Create transaction - handled by Stripe webhooks
   throw new Error('Transactions are created automatically via payment processing');
 }
 
@@ -163,7 +163,7 @@ export async function updateTransactionStatus(
   status: Transaction['status']
 ): Promise<Transaction> {
   // Status updates happen via backend/Stripe
-  console.log('Update transaction status:', id, status);
+  // Update transaction status - handled by payment system
   throw new Error('Transaction status is managed by the payment system');
 }
 

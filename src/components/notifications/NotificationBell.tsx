@@ -148,7 +148,7 @@ export function NotificationBell() {
       </Button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+        <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
           <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
             <h3 className="font-semibold text-gray-900 dark:text-white">
               Notifications
@@ -175,7 +175,7 @@ export function NotificationBell() {
             </div>
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[60vh] overflow-y-auto">
             {loading ? (
               <div className="p-4 text-center text-gray-500">Loading...</div>
             ) : notifications.length === 0 ? (
@@ -239,10 +239,10 @@ export function NotificationBell() {
             )}
           </div>
 
-          <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="p-3 border-t border-gray-200 dark:border-gray-700">
             <a
               href="/app/notifications"
-              className="block text-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              className="block text-center text-sm text-blue-600 dark:text-blue-400 hover:underline py-2"
             >
               View all notifications
             </a>

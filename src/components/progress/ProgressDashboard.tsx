@@ -16,9 +16,10 @@ import { Progress } from '../ui/progress';
 import { useDashboard, useInsights } from '../../services/hooks/useProgress';
 
 export function ProgressDashboard() {
-  const { data: dashboard, isLoading: dashboardLoading } = useDashboard();
-  const { data: insights, isLoading: insightsLoading } = useInsights();
+  const { data: dashboard, isLoading: dashboardLoading, error: dashboardError } = useDashboard();
+  const { data: insights, isLoading: insightsLoading, error: insightsError } = useInsights();
 
+  // Show loading state
   if (dashboardLoading || insightsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -27,9 +28,35 @@ export function ProgressDashboard() {
     );
   }
 
-  const stats = dashboard?.stats;
-  const streak = dashboard?.streak;
+  // Fallback data for when API returns nothing or errors
+  const stats = dashboard?.stats || {
+    questionsAnswered: 0,
+    quizAccuracy: 0,
+    catTestsTaken: 0,
+    catPassRate: 0,
+    currentAbility: 0,
+    totalStudyTime: 0,
+    confidenceLevel: 0
+  };
+  const streak = dashboard?.streak || { current: 0, longest: 0 };
   const goals = dashboard?.goals || [];
+  
+  // Fallback insights
+  const safeInsights = insights || {
+    categoryPerformance: [],
+    weeklyActivity: [
+      { day: 'Mon', questions: 0 },
+      { day: 'Tue', questions: 0 },
+      { day: 'Wed', questions: 0 },
+      { day: 'Thu', questions: 0 },
+      { day: 'Fri', questions: 0 },
+      { day: 'Sat', questions: 0 },
+      { day: 'Sun', questions: 0 }
+    ],
+    strengths: [],
+    weaknesses: [],
+    recommendations: []
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -85,32 +112,32 @@ export function ProgressDashboard() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* CAT Performance */}
         <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-indigo-600" />
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
               NCLEX Readiness
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                <p className="text-2xl font-bold text-indigo-600">{stats?.catTestsTaken || 0}</p>
-                <p className="text-sm text-gray-500">CAT Tests</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+              <div className="text-center p-2 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                <p className="text-xl sm:text-2xl font-bold text-indigo-600">{stats?.catTestsTaken || 0}</p>
+                <p className="text-xs sm:text-sm text-gray-500">CAT Tests</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                <p className="text-2xl font-bold text-green-600">{stats?.catPassRate || 0}%</p>
-                <p className="text-sm text-gray-500">Pass Rate</p>
+              <div className="text-center p-2 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{stats?.catPassRate || 0}%</p>
+                <p className="text-xs sm:text-sm text-gray-500">Pass Rate</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                <p className="text-2xl font-bold text-purple-600">{stats?.confidenceLevel || 0}%</p>
-                <p className="text-sm text-gray-500">Confidence</p>
+              <div className="text-center p-2 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">{stats?.confidenceLevel || 0}%</p>
+                <p className="text-xs sm:text-sm text-gray-500">Confidence</p>
               </div>
-              <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                <p className="text-2xl font-bold text-blue-600">{((stats?.currentAbility || 0) + 3).toFixed(1)}</p>
-                <p className="text-sm text-gray-500">Ability Level</p>
+              <div className="text-center p-2 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{((stats?.currentAbility || 0) + 3).toFixed(1)}</p>
+                <p className="text-xs sm:text-sm text-gray-500">Ability Level</p>
               </div>
             </div>
 
@@ -132,9 +159,9 @@ export function ProgressDashboard() {
 
         {/* Study Goals */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-emerald-600" />
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Target className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
               Study Goals
             </CardTitle>
           </CardHeader>
@@ -167,18 +194,18 @@ export function ProgressDashboard() {
       </div>
 
       {/* Insights Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Strengths & Weaknesses */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
               Category Performance
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {insights?.categoryPerformance?.map((cat) => (
+              {safeInsights.categoryPerformance?.length > 0 ? safeInsights.categoryPerformance.map((cat) => (
                 <div key={cat.category} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
@@ -206,7 +233,7 @@ export function ProgressDashboard() {
                     }`}
                   />
                 </div>
-              )) || (
+              )) : (
                 <p className="text-center text-gray-500 py-8">
                   Take some practice tests to see your category breakdown
                 </p>
@@ -217,43 +244,43 @@ export function ProgressDashboard() {
 
         {/* Recommendations */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-purple-600" />
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Award className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
               Recommendations
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {insights?.strengths && insights.strengths.length > 0 && (
+              {safeInsights.strengths && safeInsights.strengths.length > 0 && (
                 <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
                     <div>
                       <p className="font-medium text-green-800 dark:text-green-400">Strengths</p>
                       <p className="text-sm text-green-700 dark:text-green-300">
-                        {insights.strengths.join(', ')}
+                        {safeInsights.strengths.join(', ')}
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {insights?.weaknesses && insights.weaknesses.length > 0 && (
+              {safeInsights.weaknesses && safeInsights.weaknesses.length > 0 && (
                 <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5" />
                     <div>
                       <p className="font-medium text-orange-800 dark:text-orange-400">Areas to Improve</p>
                       <p className="text-sm text-orange-700 dark:text-orange-300">
-                        {insights.weaknesses.join(', ')}
+                        {safeInsights.weaknesses.join(', ')}
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {insights?.recommendations?.map((rec, i) => (
+              {safeInsights.recommendations?.map((rec, i) => (
                 <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm font-medium">
                     {i + 1}
@@ -262,7 +289,7 @@ export function ProgressDashboard() {
                 </div>
               ))}
 
-              {(!insights?.recommendations || insights.recommendations.length === 0) && (
+              {(!safeInsights.recommendations || safeInsights.recommendations.length === 0) && (
                 <p className="text-center text-gray-500 py-4">
                   Complete more activities to get personalized recommendations
                 </p>
@@ -274,27 +301,27 @@ export function ProgressDashboard() {
 
       {/* Weekly Activity */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-indigo-600" />
+        <CardHeader className="pb-2 sm:pb-4">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
             This Week's Activity
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end justify-between h-40 gap-2">
-            {insights?.weeklyActivity?.map((day) => {
-              const maxQuestions = Math.max(...(insights.weeklyActivity?.map(d => d.questions) || [1]));
+          <div className="flex items-end justify-between h-32 sm:h-40 gap-1 sm:gap-2">
+            {safeInsights.weeklyActivity?.map((day) => {
+              const maxQuestions = Math.max(...(safeInsights.weeklyActivity?.map(d => d.questions) || [1]));
               const height = maxQuestions > 0 ? (day.questions / maxQuestions) * 100 : 0;
               
               return (
-                <div key={day.day} className="flex-1 flex flex-col items-center gap-2">
+                <div key={day.day} className="flex-1 flex flex-col items-center gap-1 sm:gap-2">
                   <div 
                     className="w-full bg-gradient-to-t from-indigo-500 to-purple-500 rounded-t-lg transition-all"
                     style={{ height: `${Math.max(height, 4)}%` }}
                   />
                   <div className="text-center">
-                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{day.day}</p>
-                    <p className="text-xs text-gray-500">{day.questions}q</p>
+                    <p className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400">{day.day}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500">{day.questions}q</p>
                   </div>
                 </div>
               );

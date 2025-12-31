@@ -1,5 +1,8 @@
 // AI Integration API Service
-// Handles OpenAI and DeepSeek AI configuration and testing
+// Handles OpenAI, DeepSeek, and Grok AI configuration and testing
+// Now syncs with backend database for proper server-side API key storage
+
+import api from './api';
 
 export interface AIProvider {
   id: string;
@@ -25,6 +28,13 @@ export interface DeepSeekConfig extends AIProvider {
   id: 'deepseek';
   name: 'DeepSeek AI';
   model: 'deepseek-chat' | 'deepseek-coder';
+  apiUrl: string;
+}
+
+export interface GrokConfig extends AIProvider {
+  id: 'grok';
+  name: 'Grok (xAI)';
+  model: 'grok-beta' | 'grok-2';
   apiUrl: string;
 }
 
@@ -64,15 +74,29 @@ const DEFAULT_DEEPSEEK_CONFIG: DeepSeekConfig = {
   status: 'inactive'
 };
 
+const DEFAULT_GROK_CONFIG: GrokConfig = {
+  id: 'grok',
+  name: 'Grok (xAI)',
+  enabled: false,
+  apiKey: '',
+  apiUrl: 'https://api.x.ai/v1',
+  model: 'grok-beta',
+  maxTokens: 4000,
+  temperature: 0.7,
+  status: 'inactive'
+};
+
 // Get all AI integrations
 export const getAllAIIntegrations = (): {
   openai: OpenAIConfig;
   deepseek: DeepSeekConfig;
+  grok: GrokConfig;
 } => {
   if (typeof window === 'undefined') {
     return {
       openai: DEFAULT_OPENAI_CONFIG,
-      deepseek: DEFAULT_DEEPSEEK_CONFIG
+      deepseek: DEFAULT_DEEPSEEK_CONFIG,
+      grok: DEFAULT_GROK_CONFIG
     };
   }
 
@@ -82,7 +106,8 @@ export const getAllAIIntegrations = (): {
       const parsed = JSON.parse(stored);
       return {
         openai: { ...DEFAULT_OPENAI_CONFIG, ...parsed.openai },
-        deepseek: { ...DEFAULT_DEEPSEEK_CONFIG, ...parsed.deepseek }
+        deepseek: { ...DEFAULT_DEEPSEEK_CONFIG, ...parsed.deepseek },
+        grok: { ...DEFAULT_GROK_CONFIG, ...parsed.grok }
       };
     }
   } catch (error) {
@@ -91,22 +116,87 @@ export const getAllAIIntegrations = (): {
 
   return {
     openai: DEFAULT_OPENAI_CONFIG,
-    deepseek: DEFAULT_DEEPSEEK_CONFIG
+    deepseek: DEFAULT_DEEPSEEK_CONFIG,
+    grok: DEFAULT_GROK_CONFIG
   };
 };
 
-// Save AI integration configuration
+// Save AI integration configuration (localStorage + backend sync)
 export const saveAIIntegration = (
-  provider: 'openai' | 'deepseek',
-  config: OpenAIConfig | DeepSeekConfig
+  provider: 'openai' | 'deepseek' | 'grok',
+  config: OpenAIConfig | DeepSeekConfig | GrokConfig
 ): void => {
   try {
     const current = getAllAIIntegrations();
-    current[provider] = config;
+    if (provider === 'openai') {
+      current.openai = config as OpenAIConfig;
+    } else if (provider === 'deepseek') {
+      current.deepseek = config as DeepSeekConfig;
+    } else if (provider === 'grok') {
+      current.grok = config as GrokConfig;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
   } catch (error) {
     console.error('Error saving AI integration:', error);
     throw new Error('Failed to save AI integration configuration');
+  }
+};
+
+// Sync AI settings to backend database (called on save)
+export const syncAISettingsToBackend = async (
+  openaiConfig: OpenAIConfig,
+  deepseekConfig: DeepSeekConfig,
+  grokConfig: GrokConfig
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    await api.put('/admin/settings/ai', {
+      openaiApiKey: openaiConfig.apiKey || null,
+      openaiModel: openaiConfig.model || null,
+      deepseekApiKey: deepseekConfig.apiKey || null,
+      grokApiKey: grokConfig.apiKey || null,
+      aiProvider: openaiConfig.enabled ? 'openai' : (deepseekConfig.enabled ? 'deepseek' : 'grok')
+    });
+    return { success: true, message: 'AI settings synced to database' };
+  } catch (error: any) {
+    console.error('Error syncing AI settings to backend:', error);
+    return { success: false, message: error.message || 'Failed to sync AI settings' };
+  }
+};
+
+// Fetch AI settings from backend
+export const fetchAISettingsFromBackend = async (): Promise<{
+  openaiApiKey: string | null;
+  openaiModel: string | null;
+  deepseekApiKey: string | null;
+  grokApiKey: string | null;
+  aiProvider: string | null;
+} | null> => {
+  try {
+    const response = await api.get('/admin/settings/ai');
+    return response.data?.data || null;
+  } catch (error) {
+    console.error('Error fetching AI settings from backend:', error);
+    return null;
+  }
+};
+
+// Test AI connection via backend
+export const testAIConnectionViaBackend = async (
+  provider: 'openai' | 'deepseek' | 'grok'
+): Promise<AITestResult> => {
+  try {
+    const response = await api.post('/admin/settings/ai/test', { provider });
+    return {
+      success: true,
+      message: response.data?.data?.message || `${provider} connection successful`,
+      model: response.data?.data?.model
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.response?.data?.message || error.message || 'Connection test failed',
+      error: error.message
+    };
   }
 };
 
@@ -246,6 +336,80 @@ export const testDeepSeekConnection = async (
     return {
       success: true,
       message: `✅ DeepSeek connection successful! Model: ${data.model}`,
+      responseTime,
+      model: data.model
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      message: `Connection failed: ${error.message}`,
+      error: error.message,
+      responseTime: Date.now() - startTime
+    };
+  }
+};
+
+// Test Grok connection
+export const testGrokConnection = async (
+  config: GrokConfig
+): Promise<AITestResult> => {
+  const startTime = Date.now();
+
+  try {
+    // Validate API key
+    if (!config.apiKey) {
+      return {
+        success: false,
+        message: 'API key is required',
+        error: 'Missing API key'
+      };
+    }
+
+    // Test API call
+    const response = await fetch(`${config.apiUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          {
+            role: 'user',
+            content: 'Hello! This is a test message from NurseHaven. Please respond with "OK".'
+          }
+        ],
+        max_tokens: 10,
+        temperature: 0.5
+      })
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        message: `Grok API error: ${errorData.error?.message || response.statusText}`,
+        responseTime,
+        error: errorData.error?.message || response.statusText
+      };
+    }
+
+    const data = await response.json();
+
+    // Update status and last tested
+    const updatedConfig = {
+      ...config,
+      status: 'active' as const,
+      lastTested: new Date().toISOString()
+    };
+    saveAIIntegration('grok', updatedConfig);
+
+    return {
+      success: true,
+      message: `✅ Grok connection successful! Model: ${data.model}`,
       responseTime,
       model: data.model
     };
@@ -406,10 +570,11 @@ export const getAIUsageStats = (): {
 };
 
 // Reset AI integration
-export const resetAIIntegration = (provider: 'openai' | 'deepseek'): void => {
+export const resetAIIntegration = (provider: 'openai' | 'deepseek' | 'grok'): void => {
   const defaults = {
     openai: DEFAULT_OPENAI_CONFIG,
-    deepseek: DEFAULT_DEEPSEEK_CONFIG
+    deepseek: DEFAULT_DEEPSEEK_CONFIG,
+    grok: DEFAULT_GROK_CONFIG
   };
 
   saveAIIntegration(provider, defaults[provider]);
@@ -429,6 +594,10 @@ export const exportAIConfiguration = (): string => {
     deepseek: {
       ...integrations.deepseek,
       apiKey: integrations.deepseek.apiKey ? '***HIDDEN***' : ''
+    },
+    grok: {
+      ...integrations.grok,
+      apiKey: integrations.grok.apiKey ? '***HIDDEN***' : ''
     }
   };
 

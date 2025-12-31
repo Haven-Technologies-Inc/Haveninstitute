@@ -27,8 +27,6 @@ export * from './bookApi';
 // ============= CAT TESTING =============
 export * from './catTestingApi';
 
-// ============= FORUM =============
-export * from './forumApi';
 
 // ============= AI SERVICES =============
 export * from './aiApi';

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { flashcardService } from '../services/flashcard.service';
+import { flashcardGeneratorService } from '../services/flashcardGenerator.service';
 import { authenticate } from '../middleware/authenticate';
 import { ResponseHandler, errorCodes } from '../utils/response';
 
@@ -199,6 +200,94 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
     return ResponseHandler.success(res, stats);
   } catch (error) {
     return ResponseHandler.error(res, errorCodes.SYS_INTERNAL_ERROR, error instanceof Error ? error.message : 'Failed to get stats', 500);
+  }
+});
+
+// ==================== AI GENERATION ROUTES ====================
+
+// Start AI flashcard generation
+router.post('/generate', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { 
+      totalCards, 
+      categories, 
+      cardTypes, 
+      topics, 
+      difficulty,
+      deckTitle,
+      deckDescription 
+    } = req.body;
+
+    // Validate request
+    if (!totalCards || totalCards < 5 || totalCards > 200) {
+      return ResponseHandler.error(res, errorCodes.VAL_INVALID_INPUT, 'Total cards must be between 5 and 200', 400);
+    }
+
+    if (!categories || !Array.isArray(categories) || categories.length === 0) {
+      return ResponseHandler.error(res, errorCodes.VAL_INVALID_INPUT, 'At least one category is required', 400);
+    }
+
+    if (!cardTypes || !Array.isArray(cardTypes) || cardTypes.length === 0) {
+      return ResponseHandler.error(res, errorCodes.VAL_INVALID_INPUT, 'At least one card type is required', 400);
+    }
+
+    const jobId = await flashcardGeneratorService.startGeneration(userId, {
+      totalCards,
+      categories,
+      cardTypes,
+      topics,
+      difficulty: difficulty || 'intermediate',
+      deckTitle,
+      deckDescription
+    });
+
+    return ResponseHandler.success(res, { jobId, message: 'Flashcard generation started' }, 202);
+  } catch (error) {
+    return ResponseHandler.error(res, errorCodes.SYS_INTERNAL_ERROR, error instanceof Error ? error.message : 'Failed to start generation', 500);
+  }
+});
+
+// Get generation job status
+router.get('/generate/:jobId', async (req: AuthRequest, res: Response) => {
+  try {
+    const { jobId } = req.params;
+    const job = flashcardGeneratorService.getJobStatus(jobId);
+
+    if (!job) {
+      return ResponseHandler.error(res, errorCodes.RES_NOT_FOUND, 'Job not found', 404);
+    }
+
+    return ResponseHandler.success(res, job);
+  } catch (error) {
+    return ResponseHandler.error(res, errorCodes.SYS_INTERNAL_ERROR, error instanceof Error ? error.message : 'Failed to get job status', 500);
+  }
+});
+
+// Cancel generation job
+router.delete('/generate/:jobId', async (req: AuthRequest, res: Response) => {
+  try {
+    const { jobId } = req.params;
+    const cancelled = flashcardGeneratorService.cancelJob(jobId);
+
+    if (!cancelled) {
+      return ResponseHandler.error(res, errorCodes.RES_NOT_FOUND, 'Job not found or cannot be cancelled', 404);
+    }
+
+    return ResponseHandler.success(res, { message: 'Generation cancelled' });
+  } catch (error) {
+    return ResponseHandler.error(res, errorCodes.SYS_INTERNAL_ERROR, error instanceof Error ? error.message : 'Failed to cancel job', 500);
+  }
+});
+
+// Get user's generation jobs
+router.get('/generate/jobs/list', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const jobs = flashcardGeneratorService.getUserJobs(userId);
+    return ResponseHandler.success(res, jobs);
+  } catch (error) {
+    return ResponseHandler.error(res, errorCodes.SYS_INTERNAL_ERROR, error instanceof Error ? error.message : 'Failed to get jobs', 500);
   }
 });
 

@@ -3,7 +3,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { getProvider } from './providers';
+import { getProvider, chatWithFallback } from './providers';
 import { SYSTEM_PROMPTS, NCLEX_CATEGORIES } from './prompts';
 import {
   AIProvider,
@@ -193,17 +193,21 @@ Return ONLY a valid JSON array of questions. Each question must have:
   }
 
   /**
-   * Generate personalized study plan
+   * Generate personalized study plan (with automatic fallback to backup providers)
    */
   async generateStudyPlan(
     request: StudyPlanRequest,
     provider?: AIProvider
   ): Promise<StudyPlan> {
-    const ai = getProvider(provider || this.defaultProvider);
-
-    const targetDate = request.targetDate 
-      ? request.targetDate.toISOString().split('T')[0]
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // Handle targetDate as string or Date object
+    let targetDate: string;
+    if (request.targetDate) {
+      targetDate = request.targetDate instanceof Date 
+        ? request.targetDate.toISOString().split('T')[0]
+        : String(request.targetDate).split('T')[0];
+    } else {
+      targetDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    }
 
     const prompt = `Create a personalized NCLEX study plan with these parameters:
 - Current ability level: ${request.currentAbility} (logit scale, 0 = passing threshold)
@@ -233,13 +237,14 @@ Return ONLY valid JSON matching this structure:
   "milestones": [...]
 }`;
 
-    const result = await ai.chat([
+    // Use chatWithFallback for automatic failover to DeepSeek/Grok
+    const result = await chatWithFallback([
       { role: 'system', content: SYSTEM_PROMPTS.studyPlanGenerator },
       { role: 'user', content: prompt }
     ], {
       temperature: 0.7,
       maxTokens: 4096
-    });
+    }, provider);
 
     try {
       const jsonMatch = result.content.match(/\{[\s\S]*\}/);

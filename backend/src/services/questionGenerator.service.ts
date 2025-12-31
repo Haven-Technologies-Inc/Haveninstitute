@@ -8,7 +8,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getProvider } from './ai/providers';
 import { 
-  HIGH_YIELD_QUESTION_GENERATOR, 
   BATCH_GENERATION_SYSTEM,
   QUESTION_TYPE_PROMPTS 
 } from './ai/prompts';
@@ -78,7 +77,7 @@ const generationJobs: Map<string, GenerationJob> = new Map();
 // Event emitter for real-time updates
 export const generationEvents = new EventEmitter();
 
-// Constants
+// Constants - API key now configured
 const BATCH_SIZE = 5; // Questions per API call (reduced to fit token limits)
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
@@ -240,11 +239,11 @@ class QuestionGeneratorService {
     const prompt = this.buildGenerationPrompt(distribution, request);
 
     const result = await ai.chat([
-      { role: 'system', content: HIGH_YIELD_QUESTION_GENERATOR + '\n\n' + BATCH_GENERATION_SYSTEM },
+      { role: 'system', content: BATCH_GENERATION_SYSTEM },
       { role: 'user', content: prompt }
     ], {
-      temperature: 0.8,
-      maxTokens: 4000
+      temperature: 0.7,
+      maxTokens: 8000
     });
 
     // Parse response
@@ -271,29 +270,42 @@ class QuestionGeneratorService {
       ? `\nFocus on these specific topics:\n${request.topics.map(t => `- ${t}`).join('\n')}`
       : '';
 
-    return `Generate exactly ${distribution.totalCount} HIGH-YIELD NCLEX questions with the following specifications:
+    return `Generate exactly ${distribution.totalCount} HIGH-YIELD NCLEX questions.
 
-## Question Type Distribution
+## Specifications
 ${typeInstructions}
-
-## Category Distribution (NCLEX Client Needs)
 ${categoryList}
-
-## Difficulty Distribution
 ${difficultyList}
 ${topicsSection}
 
-## Requirements
-1. Each question must be UNIQUE with different clinical scenarios
-2. Include SPECIFIC patient data (age, vitals, labs) in every question
-3. Every distractor must represent a common student error
-4. Provide comprehensive rationales that teach, not just explain
-5. Include clinical pearls for high-yield learning
-6. Map IRT difficulty parameters accurately
+## CRITICAL: Output Format (MUST FOLLOW EXACTLY)
+Return a JSON array. Each question object MUST have these exact fields:
 
-Return ONLY a valid JSON array containing ${distribution.totalCount} question objects.
-Do NOT include any markdown formatting, code blocks, or additional text.
-Start directly with [ and end with ]`;
+{
+  "text": "A 65-year-old patient with diabetes presents with...",
+  "options": [
+    {"id": "a", "text": "First option text"},
+    {"id": "b", "text": "Second option text"},
+    {"id": "c", "text": "Third option text"},
+    {"id": "d", "text": "Fourth option text"}
+  ],
+  "correctAnswers": ["a"],
+  "explanation": "Detailed explanation of why A is correct...",
+  "rationaleCorrect": "Why the correct answer is right",
+  "rationaleIncorrect": "Why other options are wrong",
+  "category": "management_of_care",
+  "difficulty": "medium",
+  "bloomLevel": "apply",
+  "irtDifficulty": 0.5,
+  "tags": ["diabetes", "assessment"],
+  "clinicalPearl": "High-yield tip for this topic"
+}
+
+IMPORTANT RULES:
+1. Options MUST be an array of objects with "id" and "text" fields
+2. correctAnswers MUST be an array of option IDs like ["a"] or ["a","c"]
+3. Return ONLY the JSON array - no markdown, no code blocks, no extra text
+4. Start your response with [ and end with ]`;
   }
 
   /**
@@ -301,31 +313,85 @@ Start directly with [ and end with ]`;
    */
   private parseGeneratedQuestions(content: string): GeneratedQuestion[] {
     try {
+      console.log('=== AI RESPONSE LENGTH ===', content.length);
+      console.log('=== AI RESPONSE FIRST 2000 CHARS ===');
+      console.log(content.substring(0, 2000));
+      console.log('=== END PREVIEW ===');
+
       // Try to extract JSON array
       let jsonStr = content.trim();
       
-      // Remove markdown code blocks if present
-      if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```\n?$/g, '');
+      // Remove markdown code blocks if present (multiple formats)
+      jsonStr = jsonStr.replace(/```json\s*/gi, '');
+      jsonStr = jsonStr.replace(/```\s*/g, '');
+      jsonStr = jsonStr.trim();
+      
+      // Try multiple parsing strategies
+      let questionsArray: any[] = [];
+      
+      // Strategy 1: Direct parse if it starts with [
+      if (jsonStr.startsWith('[')) {
+        try {
+          questionsArray = JSON.parse(jsonStr);
+          console.log('Strategy 1 (direct array) succeeded');
+        } catch (e) {
+          console.log('Strategy 1 failed, trying next...');
+        }
       }
       
-      // Find the JSON array
-      const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
-      if (!arrayMatch) {
-        throw new Error('No JSON array found in response');
+      // Strategy 2: Find array pattern with greedy match
+      if (questionsArray.length === 0) {
+        const arrayMatch = jsonStr.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (arrayMatch) {
+          try {
+            questionsArray = JSON.parse(arrayMatch[0]);
+            console.log('Strategy 2 (regex array) succeeded');
+          } catch (e) {
+            console.log('Strategy 2 failed, trying next...');
+          }
+        }
       }
-
-      const questions = JSON.parse(arrayMatch[0]) as GeneratedQuestion[];
       
-      // Validate basic structure
-      if (!Array.isArray(questions)) {
-        throw new Error('Response is not an array');
+      // Strategy 3: Find all individual objects and combine
+      if (questionsArray.length === 0) {
+        const objects: any[] = [];
+        // Match complete JSON objects by tracking braces
+        let depth = 0;
+        let start = -1;
+        for (let i = 0; i < jsonStr.length; i++) {
+          if (jsonStr[i] === '{') {
+            if (depth === 0) start = i;
+            depth++;
+          } else if (jsonStr[i] === '}') {
+            depth--;
+            if (depth === 0 && start >= 0) {
+              try {
+                const obj = JSON.parse(jsonStr.substring(start, i + 1));
+                objects.push(obj);
+              } catch (e) {
+                // Skip malformed objects
+              }
+              start = -1;
+            }
+          }
+        }
+        if (objects.length > 0) {
+          questionsArray = objects;
+          console.log(`Strategy 3 (individual objects) found ${objects.length} objects`);
+        }
       }
+      
+      if (questionsArray.length === 0) {
+        console.error('All parsing strategies failed. Raw content:', jsonStr.substring(0, 500));
+        throw new Error('Could not parse any questions from AI response');
+      }
+      
+      console.log(`Parsed ${questionsArray.length} raw questions`);
 
-      return questions.map(q => this.normalizeQuestion(q));
+      return questionsArray.map(q => this.normalizeQuestion(q));
     } catch (error: any) {
       console.error('Failed to parse generated questions:', error);
-      console.error('Raw content:', content.substring(0, 500));
+      console.error('Raw content (first 1000 chars):', content.substring(0, 1000));
       throw new Error(`Failed to parse AI response: ${error.message}`);
     }
   }
@@ -334,23 +400,157 @@ Start directly with [ and end with ]`;
    * Normalize a question to ensure consistent structure
    */
   private normalizeQuestion(q: any): GeneratedQuestion {
+    console.log('=== NORMALIZING QUESTION ===');
+    console.log('Raw question keys:', Object.keys(q || {}));
+    
+    // Handle various option formats from AI
+    let options: { id: string; text: string }[] = [];
+    
+    // Try multiple possible option field names
+    const optionSource = q.options || q.choices || q.answers || q.answerOptions || q.answer_options;
+    
+    if (Array.isArray(optionSource) && optionSource.length > 0) {
+      console.log(`Found ${optionSource.length} options in field`);
+      options = optionSource.map((opt: any, index: number) => {
+        if (typeof opt === 'string') {
+          return { id: String.fromCharCode(97 + index), text: opt };
+        } else if (opt && typeof opt === 'object') {
+          const id = String(opt.id || opt.label || opt.key || String.fromCharCode(97 + index)).toLowerCase();
+          const text = opt.text || opt.value || opt.content || opt.answer || opt.option || JSON.stringify(opt);
+          return { id, text };
+        }
+        return { id: String.fromCharCode(97 + index), text: String(opt) };
+      });
+    } else {
+      // Try to extract options from lettered fields (a, b, c, d)
+      console.log('No options array found, checking for lettered fields...');
+      const letters = ['a', 'b', 'c', 'd', 'e', 'f'];
+      for (const letter of letters) {
+        if (q[letter] || q[letter.toUpperCase()]) {
+          const text = q[letter] || q[letter.toUpperCase()];
+          options.push({ id: letter, text: String(text) });
+        }
+        // Also check option_a, option_b format
+        if (q[`option_${letter}`] || q[`option${letter.toUpperCase()}`]) {
+          const text = q[`option_${letter}`] || q[`option${letter.toUpperCase()}`];
+          options.push({ id: letter, text: String(text) });
+        }
+      }
+    }
+    
+    console.log(`Extracted ${options.length} options`);
+
+    // Handle various correct answer formats
+    const correctAnswers: string[] = [];
+    let rawAnswers: any[] = [];
+    
+    // Try multiple field names for correct answers
+    if (q.correctAnswers) rawAnswers = Array.isArray(q.correctAnswers) ? q.correctAnswers : [q.correctAnswers];
+    else if (q.correct_answers) rawAnswers = Array.isArray(q.correct_answers) ? q.correct_answers : [q.correct_answers];
+    else if (q.correctAnswer !== undefined) rawAnswers = [q.correctAnswer];
+    else if (q.correct_answer !== undefined) rawAnswers = [q.correct_answer];
+    else if (q.answer !== undefined) rawAnswers = Array.isArray(q.answer) ? q.answer : [q.answer];
+    else if (q.correct !== undefined) rawAnswers = Array.isArray(q.correct) ? q.correct : [q.correct];
+    
+    console.log(`Raw answers found: ${JSON.stringify(rawAnswers)}`);
+    
+    // Map answers to option IDs
+    for (const ans of rawAnswers) {
+      if (ans === null || ans === undefined) continue;
+      const ansStr = String(ans).toLowerCase().trim();
+      
+      // Check if it's already a valid option ID (a, b, c, d...)
+      if (/^[a-z]$/.test(ansStr)) {
+        correctAnswers.push(ansStr);
+      }
+      // Check if it's a number (0, 1, 2...) - convert to letter
+      else if (/^\d+$/.test(ansStr)) {
+        const idx = parseInt(ansStr);
+        if (idx < 26) correctAnswers.push(String.fromCharCode(97 + idx));
+      }
+      // Check if it matches option text
+      else if (options.length > 0) {
+        const matchingOpt = options.find(o => 
+          o.text.toLowerCase().includes(ansStr.substring(0, 20)) || 
+          ansStr.includes(o.text.toLowerCase().substring(0, 20))
+        );
+        if (matchingOpt) {
+          correctAnswers.push(matchingOpt.id);
+        }
+      }
+    }
+    
+    // Ensure we have at least one correct answer
+    if (correctAnswers.length === 0 && options.length > 0) {
+      console.log('No correct answers mapped, defaulting to first option');
+      correctAnswers.push(options[0].id);
+    }
+
+    // Handle explanation - try multiple field names
+    const explanation = q.explanation || q.rationale || q.reasoning || 
+                       q.answer_explanation || q.answerExplanation || 
+                       q.detailed_rationale || q.detailedRationale ||
+                       'Explanation not provided by AI.';
+
+    // Handle question text - try multiple field names
+    const text = q.text || q.question || q.stem || q.questionText || 
+                q.question_text || q.questionStem || q.content || '';
+
+    // Map category to valid values
+    let category = q.category || q.nclex_category || q.clientNeeds || 'management_of_care';
+    const validCategories = [
+      'management_of_care', 'safety_infection_control', 'health_promotion',
+      'psychosocial_integrity', 'basic_care_comfort', 'pharmacological_therapies',
+      'risk_reduction', 'physiological_adaptation'
+    ];
+    if (!validCategories.includes(category)) {
+      // Try to map common variations
+      const categoryMap: Record<string, string> = {
+        'management': 'management_of_care',
+        'safety': 'safety_infection_control',
+        'infection': 'safety_infection_control',
+        'health': 'health_promotion',
+        'psychosocial': 'psychosocial_integrity',
+        'basic': 'basic_care_comfort',
+        'comfort': 'basic_care_comfort',
+        'pharmacology': 'pharmacological_therapies',
+        'medication': 'pharmacological_therapies',
+        'risk': 'risk_reduction',
+        'physiological': 'physiological_adaptation',
+        'adaptation': 'physiological_adaptation'
+      };
+      const lowerCat = category.toLowerCase();
+      for (const [key, value] of Object.entries(categoryMap)) {
+        if (lowerCat.includes(key)) {
+          category = value;
+          break;
+        }
+      }
+      if (!validCategories.includes(category)) {
+        category = 'management_of_care';
+      }
+    }
+
+    console.log(`Normalized: "${text.substring(0, 50)}..." Options: ${options.length}, Correct: ${correctAnswers.length}, Category: ${category}`);
+
     return {
-      questionType: q.questionType || 'multiple_choice',
-      text: q.text || '',
-      scenario: q.scenario,
-      options: Array.isArray(q.options) ? q.options : [],
-      correctAnswers: Array.isArray(q.correctAnswers) ? q.correctAnswers : [q.correctAnswer],
-      explanation: q.explanation || '',
-      rationaleCorrect: q.rationaleCorrect,
-      rationaleIncorrect: q.rationaleIncorrect,
-      category: q.category || 'management_of_care',
-      difficulty: q.difficulty || 'medium',
-      bloomLevel: q.bloomLevel || 'apply',
-      irtDifficulty: typeof q.irtDifficulty === 'number' ? q.irtDifficulty : 0,
+      questionType: q.questionType || q.question_type || q.type || 'multiple_choice',
+      text,
+      scenario: q.scenario || q.context || q.clinical_scenario || q.clinicalScenario,
+      options,
+      correctAnswers,
+      explanation,
+      rationaleCorrect: q.rationaleCorrect || q.rationale_correct || q.whyCorrect || q.why_correct,
+      rationaleIncorrect: q.rationaleIncorrect || q.rationale_incorrect || q.whyIncorrect || q.why_incorrect,
+      category: category as any,
+      difficulty: q.difficulty || q.level || 'medium',
+      bloomLevel: q.bloomLevel || q.bloom_level || q.cognitiveLevel || 'apply',
+      irtDifficulty: typeof q.irtDifficulty === 'number' ? q.irtDifficulty : 
+                     typeof q.irt_difficulty === 'number' ? q.irt_difficulty : 0,
       irtDiscrimination: typeof q.irtDiscrimination === 'number' ? q.irtDiscrimination : 1.0,
-      tags: Array.isArray(q.tags) ? q.tags : [],
-      clinicalPearl: q.clinicalPearl,
-      source: q.source
+      tags: Array.isArray(q.tags) ? q.tags : (q.keywords ? q.keywords : []),
+      clinicalPearl: q.clinicalPearl || q.clinical_pearl || q.tip || q.highYieldTip,
+      source: q.source || q.reference
     };
   }
 
@@ -436,7 +636,7 @@ Start directly with [ and end with ]`;
           text: q.text,
           options: q.options,
           correctAnswers: q.correctAnswers,
-          explanation: q.explanation + (q.clinicalPearl ? `\n\n💡 Clinical Pearl: ${q.clinicalPearl}` : ''),
+          explanation: q.explanation,
           category: q.category,
           questionType: q.questionType,
           bloomLevel: q.bloomLevel,
@@ -447,6 +647,8 @@ Start directly with [ and end with ]`;
           tags: q.tags,
           rationaleCorrect: q.rationaleCorrect,
           rationaleIncorrect: q.rationaleIncorrect,
+          clinicalPearl: q.clinicalPearl,
+          scenario: q.scenario,
           source: q.source || 'AI Generated (High-Yield)',
           isActive: true,
           timesAnswered: 0,

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
@@ -10,86 +9,55 @@ import {
   Calendar, 
   CheckCircle2,
   X,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
+import { 
+  useNotifications, 
+  useMarkAsRead, 
+  useMarkAllAsRead, 
+  useDeleteNotification 
+} from '../services/hooks/useNotifications';
+import type { Notification as ApiNotification } from '../services/api/notificationApi';
 
-interface Notification {
-  id: string;
-  type: 'achievement' | 'reminder' | 'system' | 'quiz';
-  title: string;
-  message: string;
-  timestamp: Date;
-  read: boolean;
-  icon?: any;
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'achievement',
-    title: 'New Achievement Unlocked!',
-    message: 'You completed 5 quizzes this week',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    read: false,
-    icon: Trophy
-  },
-  {
-    id: '2',
-    type: 'reminder',
-    title: 'Study Session Reminder',
-    message: 'Your planned study session starts in 30 minutes',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60),
-    read: false,
-    icon: Calendar
-  },
-  {
-    id: '3',
-    type: 'quiz',
-    title: 'Quiz Score Available',
-    message: 'Your Pharmacology quiz score: 85%',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    read: true,
-    icon: Target
-  },
-  {
-    id: '4',
-    type: 'system',
-    title: 'New Study Material',
-    message: 'New chapter added to NCLEX Review Book',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    read: true,
-    icon: BookOpen
-  }
-];
+// Map notification types to icons
+const typeIcons: Record<string, any> = {
+  achievement: Trophy,
+  reminder: Calendar,
+  study: Target,
+  social: BookOpen,
+  system: Bell,
+  subscription: Target
+};
 
 interface NotificationsPanelProps {
   onClose: () => void;
 }
 
 export function NotificationsPanel({ onClose }: NotificationsPanelProps) {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  // Fetch notifications from API
+  const { data: notificationsData, isLoading } = useNotifications({}, 1, 20);
+  const markAsReadMutation = useMarkAsRead();
+  const markAllAsReadMutation = useMarkAllAsRead();
+  const deleteNotificationMutation = useDeleteNotification();
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const notifications = notificationsData?.notifications ?? [];
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+  const handleMarkAsRead = (id: string) => {
+    markAsReadMutation.mutate(id);
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const handleMarkAllAsRead = () => {
+    markAllAsReadMutation.mutate();
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const handleDeleteNotification = (id: string) => {
+    deleteNotificationMutation.mutate(id);
   };
 
-  const clearAll = () => {
-    setNotifications([]);
-  };
-
-  const getTimeAgo = (date: Date) => {
+  const getTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
     
     if (seconds < 60) return 'Just now';
@@ -112,7 +80,7 @@ export function NotificationsPanel({ onClose }: NotificationsPanelProps) {
   };
 
   return (
-    <div className="absolute top-full right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50">
+    <div className="absolute top-full right-0 mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-2">
@@ -125,6 +93,7 @@ export function NotificationsPanel({ onClose }: NotificationsPanelProps) {
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label="Close notifications"
           >
             <X className="size-5 text-gray-500 dark:text-gray-400" />
           </button>
@@ -136,29 +105,26 @@ export function NotificationsPanel({ onClose }: NotificationsPanelProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={markAllAsRead}
+                onClick={handleMarkAllAsRead}
+                disabled={markAllAsReadMutation.isPending}
                 className="text-xs dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 <CheckCircle2 className="size-3 mr-1" />
                 Mark all read
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearAll}
-              className="text-xs text-red-600 dark:text-red-400 dark:hover:bg-gray-700"
-            >
-              <Trash2 className="size-3 mr-1" />
-              Clear all
-            </Button>
           </div>
         )}
       </div>
 
       {/* Notifications List */}
-      <ScrollArea className="h-[400px]">
-        {notifications.length === 0 ? (
+      <ScrollArea className="max-h-[60vh] sm:h-[400px]">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+            <Loader2 className="size-8 mb-3 animate-spin text-blue-500" />
+            <p className="text-sm">Loading notifications...</p>
+          </div>
+        ) : notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
             <Bell className="size-12 mb-3 text-gray-400 dark:text-gray-600" />
             <p className="text-sm">No notifications</p>
@@ -166,16 +132,16 @@ export function NotificationsPanel({ onClose }: NotificationsPanelProps) {
         ) : (
           <div className="p-2">
             {notifications.map((notification) => {
-              const Icon = notification.icon || Bell;
+              const Icon = typeIcons[notification.type] || Bell;
               return (
                 <div
                   key={notification.id}
                   className={`p-3 mb-2 rounded-lg transition-all cursor-pointer group ${
-                    notification.read
+                    notification.isRead
                       ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
                       : 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30'
                   }`}
-                  onClick={() => !notification.read && markAsRead(notification.id)}
+                  onClick={() => !notification.isRead && handleMarkAsRead(notification.id)}
                 >
                   <div className="flex gap-3">
                     <div className={`size-10 rounded-full flex items-center justify-center flex-shrink-0 ${getNotificationColor(notification.type)}`}>
@@ -189,9 +155,10 @@ export function NotificationsPanel({ onClose }: NotificationsPanelProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteNotification(notification.id);
+                            handleDeleteNotification(notification.id);
                           }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                          className="opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                          aria-label="Delete notification"
                         >
                           <X className="size-3 text-gray-500 dark:text-gray-400" />
                         </button>
@@ -200,7 +167,7 @@ export function NotificationsPanel({ onClose }: NotificationsPanelProps) {
                         {notification.message}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {getTimeAgo(notification.timestamp)}
+                        {getTimeAgo(notification.createdAt)}
                       </p>
                     </div>
                   </div>

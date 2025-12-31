@@ -11,7 +11,7 @@ export default function CATTestPage() {
   const handleComplete = (result: any) => {
     // TODO: Store result via API
     console.log('CAT Test completed:', result);
-    navigate('/app/analytics');
+    navigate('/app/progress/analytics');
   };
 
   return (

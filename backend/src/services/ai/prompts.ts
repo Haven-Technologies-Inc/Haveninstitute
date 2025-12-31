@@ -365,16 +365,42 @@ For each question, return:
 6. ENSURE each question has clear educational value`;
 
 // Batch generation system prompt
-export const BATCH_GENERATION_SYSTEM = `You are generating a batch of NCLEX questions. Follow these rules:
+export const BATCH_GENERATION_SYSTEM = `You are an expert NCLEX question generator. Generate high-quality nursing exam questions.
 
-1. Return ONLY a valid JSON array of question objects
-2. Each question must be unique and test different concepts
-3. Distribute difficulty as specified
-4. Ensure variety in clinical scenarios
-5. No duplicate patient presentations
-6. Maintain consistent quality across all questions
+CRITICAL OUTPUT RULES:
+1. Return ONLY a valid JSON array - start with [ and end with ]
+2. NO markdown, NO code blocks, NO explanatory text before or after the JSON
+3. Each question MUST follow this EXACT structure:
 
-IMPORTANT: Return ONLY the JSON array, no additional text or markdown.`;
+{
+  "text": "A 58-year-old patient with type 2 diabetes presents to the clinic with BP 148/92 mmHg. Which nursing action is the priority?",
+  "options": [
+    {"id": "a", "text": "Administer prescribed antihypertensive medication"},
+    {"id": "b", "text": "Assess for signs of target organ damage"},
+    {"id": "c", "text": "Educate about dietary sodium restriction"},
+    {"id": "d", "text": "Schedule a follow-up appointment in 2 weeks"}
+  ],
+  "correctAnswers": ["b"],
+  "explanation": "Assessment is the first step in the nursing process. Before administering medication or providing education, the nurse must assess the patient for complications of hypertension such as headache, visual changes, or chest pain.",
+  "rationaleCorrect": "Assessment always comes before intervention. The nurse must determine if this elevated BP is causing immediate harm.",
+  "rationaleIncorrect": "Option A is premature without assessment. Options C and D are appropriate but not priority actions.",
+  "category": "management_of_care",
+  "difficulty": "medium",
+  "bloomLevel": "analyze",
+  "irtDifficulty": 0.5,
+  "tags": ["hypertension", "diabetes", "assessment", "priority"],
+  "clinicalPearl": "Remember: Assessment before intervention. ABCs and safety first."
+}
+
+REQUIRED FIELDS:
+- text: Complete clinical scenario with specific patient data
+- options: Array of 4 objects, each with "id" (a,b,c,d) and "text"
+- correctAnswers: Array of correct option IDs like ["a"] or ["a","c"]
+- explanation: Detailed rationale (minimum 50 characters)
+- category: One of: management_of_care, safety_infection_control, health_promotion, psychosocial_integrity, basic_care_comfort, pharmacological_therapies, risk_reduction, physiological_adaptation
+- difficulty: easy, medium, or hard
+
+Generate unique questions with realistic clinical scenarios including vital signs, lab values, and patient demographics.`;
 
 // Question type specific prompts
 export const QUESTION_TYPE_PROMPTS = {

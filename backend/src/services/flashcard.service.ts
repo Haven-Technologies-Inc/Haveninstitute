@@ -44,7 +44,10 @@ class FlashcardService {
 
     const decks = await FlashcardDeck.findAll({
       where,
-      include: [{ model: User, as: 'creator', attributes: ['id', 'fullName'] }],
+      include: [
+        { model: User, as: 'creator', attributes: ['id', 'fullName'] },
+        { model: Flashcard, as: 'cards', where: { isActive: true }, required: false }
+      ],
       order: [['updatedAt', 'DESC']],
     });
 

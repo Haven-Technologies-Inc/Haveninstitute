@@ -21,6 +21,8 @@ export class OpenAIProvider implements IAIProvider {
   private cachedApiKey: string | null = null;
   private cacheExpiry: number = 0;
   private readonly CACHE_TTL = 60000; // 1 minute cache
+  private readonly MAX_RETRIES = 3;
+  private readonly INITIAL_RETRY_DELAY = 1000; // 1 second
 
   constructor() {
     this.baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
@@ -64,48 +66,81 @@ export class OpenAIProvider implements IAIProvider {
     return !!key && key !== 'sk-xxxxx' && !key.includes('your-');
   }
 
+  /**
+   * Sleep helper for retry delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   async chat(
     messages: AIMessage[],
     options: AICompletionOptions = {}
   ): Promise<AICompletionResponse> {
     const apiKey = await this.getApiKey();
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: options.model || this.defaultModel,
-        messages: messages.map(m => ({ role: m.role, content: m.content })),
-        temperature: options.temperature ?? 0.7,
-        max_tokens: options.maxTokens ?? 2048,
-        top_p: options.topP ?? 1,
-        frequency_penalty: options.frequencyPenalty ?? 0,
-        presence_penalty: options.presencePenalty ?? 0,
-        stop: options.stop
-      })
-    });
+    let lastError: Error | null = null;
 
-    if (!response.ok) {
-      const error = await response.json() as any;
-      throw new Error(`OpenAI API error: ${error.error?.message || response.statusText}`);
+    for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch(`${this.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: options.model || this.defaultModel,
+            messages: messages.map(m => ({ role: m.role, content: m.content })),
+            temperature: options.temperature ?? 0.7,
+            max_tokens: options.maxTokens ?? 2048,
+            top_p: options.topP ?? 1,
+            frequency_penalty: options.frequencyPenalty ?? 0,
+            presence_penalty: options.presencePenalty ?? 0,
+            stop: options.stop
+          })
+        });
+
+        // Handle rate limiting with retry
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('retry-after');
+          const delay = retryAfter 
+            ? parseInt(retryAfter) * 1000 
+            : this.INITIAL_RETRY_DELAY * Math.pow(2, attempt);
+          console.warn(`OpenAI rate limited. Retrying in ${delay}ms (attempt ${attempt + 1}/${this.MAX_RETRIES})`);
+          await this.sleep(delay);
+          continue;
+        }
+
+        if (!response.ok) {
+          const error = await response.json() as any;
+          throw new Error(`OpenAI API error: ${error.error?.message || response.statusText}`);
+        }
+
+        const data = await response.json() as any;
+        const choice = data.choices[0];
+
+        return {
+          content: choice.message.content,
+          model: data.model,
+          provider: 'openai',
+          usage: {
+            promptTokens: data.usage?.prompt_tokens || 0,
+            completionTokens: data.usage?.completion_tokens || 0,
+            totalTokens: data.usage?.total_tokens || 0
+          },
+          finishReason: choice.finish_reason
+        };
+      } catch (error: any) {
+        lastError = error;
+        if (attempt < this.MAX_RETRIES - 1) {
+          const delay = this.INITIAL_RETRY_DELAY * Math.pow(2, attempt);
+          console.warn(`OpenAI request failed. Retrying in ${delay}ms (attempt ${attempt + 1}/${this.MAX_RETRIES}):`, error.message);
+          await this.sleep(delay);
+        }
+      }
     }
 
-    const data = await response.json() as any;
-    const choice = data.choices[0];
-
-    return {
-      content: choice.message.content,
-      model: data.model,
-      provider: 'openai',
-      usage: {
-        promptTokens: data.usage?.prompt_tokens || 0,
-        completionTokens: data.usage?.completion_tokens || 0,
-        totalTokens: data.usage?.total_tokens || 0
-      },
-      finishReason: choice.finish_reason
-    };
+    throw lastError || new Error('OpenAI API request failed after retries');
   }
 
   async *chatStream(

@@ -55,7 +55,7 @@ class WebSocketClient {
    */
   connect(token: string): void {
     if (this.socket?.connected) {
-      console.log('WebSocket already connected');
+      // Already connected
       return;
     }
 
@@ -81,13 +81,13 @@ class WebSocketClient {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('🔌 WebSocket connected');
+      // WebSocket connected
       this.reconnectAttempts = 0;
       this.connectionHandlers.forEach(handler => handler(true));
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('WebSocket disconnected:', reason);
+      // WebSocket disconnected
       this.connectionHandlers.forEach(handler => handler(false));
     });
 

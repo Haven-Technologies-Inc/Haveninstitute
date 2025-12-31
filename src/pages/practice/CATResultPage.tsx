@@ -49,7 +49,7 @@ export default function CATResultPage() {
         <p className="text-gray-600 dark:text-gray-400 mb-4">
           Could not load CAT test results.
         </p>
-        <Button onClick={() => navigate('/app/cat-test')}>Start New Test</Button>
+        <Button onClick={() => navigate('/app/practice/cat')}>Start New Test</Button>
       </div>
     );
   }
@@ -325,7 +325,7 @@ export default function CATResultPage() {
           {/* Action Buttons */}
           <div className="flex gap-3">
             <Button 
-              onClick={() => navigate('/app/cat-test')} 
+              onClick={() => navigate('/app/practice/cat')} 
               variant="outline" 
               className="flex-1"
             >
@@ -333,7 +333,7 @@ export default function CATResultPage() {
               New CAT Test
             </Button>
             <Button 
-              onClick={() => navigate('/app/analytics')} 
+              onClick={() => navigate('/app/progress/analytics')} 
               variant="outline" 
               className="flex-1"
             >

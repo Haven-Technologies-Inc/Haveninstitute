@@ -12,7 +12,6 @@ import { PracticeQuizEnhanced } from './components/PracticeQuizEnhanced';
 import { Progress } from './components/ProgressEnhanced';
 import { CATTestEnhanced } from './components/CATTestEnhanced';
 import { Analytics } from './components/Analytics';
-import { Forum } from './components/ForumEnhanced';
 import { GroupStudy } from './components/GroupStudy';
 import { GroupStudyComplete } from './components/GroupStudyComplete';
 import { StudyPlanner } from './components/StudyPlanner';
@@ -27,7 +26,7 @@ import { NCLEXSimulator } from './components/NCLEXSimulator';
 import { Settings } from './components/Settings';
 import { UserProfile } from './components/UserProfile';
 
-type View = 'hero' | 'dashboard' | 'quiz' | 'flashcards' | 'progress' | 'cat-test' | 'analytics' | 'forum' | 'group-study' | 'planner' | 'admin' | 'subscription' | 'books' | 'ai-chat' | 'nclex-simulator' | 'settings' | 'profile';
+type View = 'hero' | 'dashboard' | 'quiz' | 'flashcards' | 'progress' | 'cat-test' | 'analytics' | 'group-study' | 'planner' | 'admin' | 'subscription' | 'books' | 'ai-chat' | 'nclex-simulator' | 'settings' | 'profile';
 
 export interface QuizResult {
   topic: string;
@@ -151,7 +150,7 @@ function AppContent() {
     // Stay on simulator results page
   };
 
-  const handleNavigate = (view: 'progress' | 'analytics' | 'forum' | 'group-study' | 'planner' | 'subscription' | 'books' | 'ai-chat' | 'nclex-simulator' | 'settings' | 'profile') => {
+  const handleNavigate = (view: 'progress' | 'analytics' | 'group-study' | 'planner' | 'subscription' | 'books' | 'ai-chat' | 'nclex-simulator' | 'settings' | 'profile') => {
     setCurrentView(view);
   };
 
@@ -223,9 +222,6 @@ function AppContent() {
           onBack={() => setCurrentView('dashboard')}
         />
       );
-    }
-    if (currentView === 'forum') {
-      return <Forum onBack={() => setCurrentView('dashboard')} />;
     }
     if (currentView === 'group-study') {
       return <GroupStudyComplete onBack={() => setCurrentView('dashboard')} />;

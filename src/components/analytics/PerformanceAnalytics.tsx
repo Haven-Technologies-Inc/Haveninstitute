@@ -100,57 +100,6 @@ const COLORS = {
   categories: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316']
 };
 
-// Mock data generator for demo
-function generateMockData(): { nclexResults: NCLEXSimulatorResult[], practiceResults: PracticeSessionResult[] } {
-  const nclexResults: NCLEXSimulatorResult[] = [];
-  const practiceResults: PracticeSessionResult[] = [];
-  
-  // Generate NCLEX simulator results (last 5 attempts)
-  for (let i = 0; i < 5; i++) {
-    const ability = -0.5 + (i * 0.4) + (Math.random() * 0.3 - 0.15);
-    const se = 0.4 - (i * 0.05);
-    
-    nclexResults.push({
-      id: `nclex-${i}`,
-      date: new Date(Date.now() - (4 - i) * 7 * 24 * 60 * 60 * 1000),
-      passed: ability > 0,
-      abilityEstimate: ability,
-      confidenceInterval: [ability - 1.96 * se, ability + 1.96 * se],
-      standardError: se,
-      questionsAnswered: 85 + Math.floor(Math.random() * 40),
-      timeSpent: (180 + Math.random() * 60) * 60 * 1000,
-      passingProbability: Math.min(95, Math.max(20, 50 + ability * 30)),
-      categoryPerformance: NCLEX_CATEGORIES.reduce((acc, cat) => {
-        const total = 8 + Math.floor(Math.random() * 8);
-        const correct = Math.floor(total * (0.5 + Math.random() * 0.4));
-        acc[cat.id] = { correct, total, percentage: Math.round((correct / total) * 100) };
-        return acc;
-      }, {} as Record<NCLEXCategory, { correct: number; total: number; percentage: number }>),
-      stoppingReason: 'confidence_interval'
-    });
-  }
-  
-  // Generate practice session results (last 20 sessions)
-  for (let i = 0; i < 20; i++) {
-    const total = [10, 25, 50][Math.floor(Math.random() * 3)];
-    const score = Math.floor(total * (0.5 + Math.random() * 0.4));
-    
-    practiceResults.push({
-      id: `practice-${i}`,
-      date: new Date(Date.now() - (19 - i) * 2 * 24 * 60 * 60 * 1000),
-      score,
-      total,
-      percentage: Math.round((score / total) * 100),
-      timeSpent: total * (60 + Math.random() * 30) * 1000,
-      categories: NCLEX_CATEGORIES.slice(0, 3 + Math.floor(Math.random() * 5)).map(c => c.id),
-      questionTypes: ['multiple-choice', 'select-all'],
-      difficulty: ['easy', 'medium', 'hard'][Math.floor(Math.random() * 3)],
-      adaptive: Math.random() > 0.5
-    });
-  }
-  
-  return { nclexResults, practiceResults };
-}
 
 export function PerformanceAnalytics({ 
   nclexResults: propNclexResults, 
@@ -160,16 +109,9 @@ export function PerformanceAnalytics({
   const [activeTab, setActiveTab] = useState<'overview' | 'nclex' | 'practice' | 'insights'>('overview');
   const [showAllInsights, setShowAllInsights] = useState(false);
   
-  // Use provided data or generate mock data
-  const { nclexResults, practiceResults } = useMemo(() => {
-    if (propNclexResults?.length || propPracticeResults?.length) {
-      return { 
-        nclexResults: propNclexResults || [], 
-        practiceResults: propPracticeResults || [] 
-      };
-    }
-    return generateMockData();
-  }, [propNclexResults, propPracticeResults]);
+  // Use provided data - no mock data in production
+  const nclexResults = propNclexResults || [];
+  const practiceResults = propPracticeResults || [];
   
   // Calculate analytics
   const analytics = useMemo(() => {
@@ -375,20 +317,36 @@ export function PerformanceAnalytics({
     return null;
   };
 
+  // Show empty state if no data
+  if (nclexResults.length === 0 && practiceResults.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <BarChart3 className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Analytics Data Yet</h3>
+        <p className="text-gray-500 dark:text-gray-400 max-w-md mb-6">
+          Complete some practice sessions or NCLEX simulations to see your performance analytics here.
+        </p>
+        <Button onClick={() => onNavigate?.('practice')} className="bg-blue-600 hover:bg-blue-700">
+          Start Practice Session
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-          <CardContent className="pt-6">
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm">Pass Probability</p>
-                <p className="text-3xl font-bold">
+                <p className="text-blue-100 text-xs sm:text-sm">Pass Probability</p>
+                <p className="text-2xl sm:text-3xl font-bold">
                   {analytics.latestNCLEX?.passingProbability.toFixed(0) || '--'}%
                 </p>
               </div>
-              <Target className="w-10 h-10 text-blue-200" />
+              <Target className="w-8 h-8 sm:w-10 sm:h-10 text-blue-200" />
             </div>
             {analytics.abilityImprovement !== 0 && (
               <div className={`flex items-center gap-1 mt-2 text-sm ${
@@ -402,15 +360,15 @@ export function PerformanceAnalytics({
         </Card>
         
         <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-          <CardContent className="pt-6">
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm">Ability Level</p>
-                <p className="text-3xl font-bold">
+                <p className="text-purple-100 text-xs sm:text-sm">Ability Level</p>
+                <p className="text-2xl sm:text-3xl font-bold">
                   {analytics.latestNCLEX?.abilityEstimate.toFixed(2) || '--'}
                 </p>
               </div>
-              <Brain className="w-10 h-10 text-purple-200" />
+              <Brain className="w-8 h-8 sm:w-10 sm:h-10 text-purple-200" />
             </div>
             <p className="text-purple-200 text-sm mt-2">
               {analytics.latestNCLEX?.abilityEstimate > 0 ? 'Above passing' : 'Below passing'}
@@ -419,13 +377,13 @@ export function PerformanceAnalytics({
         </Card>
         
         <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
-          <CardContent className="pt-6">
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-100 text-sm">Practice Score</p>
-                <p className="text-3xl font-bold">{analytics.avgPracticeScore}%</p>
+                <p className="text-green-100 text-xs sm:text-sm">Practice Score</p>
+                <p className="text-2xl sm:text-3xl font-bold">{analytics.avgPracticeScore}%</p>
               </div>
-              <CheckCircle2 className="w-10 h-10 text-green-200" />
+              <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-green-200" />
             </div>
             <p className="text-green-200 text-sm mt-2">
               {analytics.totalPracticeQuestions} questions answered
@@ -434,13 +392,13 @@ export function PerformanceAnalytics({
         </Card>
         
         <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
-          <CardContent className="pt-6">
+          <CardContent className="p-3 sm:pt-6 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-100 text-sm">NCLEX Attempts</p>
-                <p className="text-3xl font-bold">{nclexResults.length}</p>
+                <p className="text-orange-100 text-xs sm:text-sm">NCLEX Attempts</p>
+                <p className="text-2xl sm:text-3xl font-bold">{nclexResults.length}</p>
               </div>
-              <Award className="w-10 h-10 text-orange-200" />
+              <Award className="w-8 h-8 sm:w-10 sm:h-10 text-orange-200" />
             </div>
             <p className="text-orange-200 text-sm mt-2">
               {nclexResults.filter(r => r.passed).length} passed
@@ -450,24 +408,24 @@ export function PerformanceAnalytics({
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+      <div className="flex gap-1 sm:gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto pb-px -mb-px scrollbar-hide">
         {[
           { id: 'overview', label: 'Overview', icon: BarChart3 },
-          { id: 'nclex', label: 'NCLEX Simulator', icon: Target },
-          { id: 'practice', label: 'Practice Sessions', icon: BookOpen },
-          { id: 'insights', label: 'AI Insights', icon: Sparkles }
+          { id: 'nclex', label: 'NCLEX', icon: Target },
+          { id: 'practice', label: 'Practice', icon: BookOpen },
+          { id: 'insights', label: 'Insights', icon: Sparkles }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as typeof activeTab)}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 whitespace-nowrap transition-colors ${
+            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 border-b-2 whitespace-nowrap transition-colors text-sm sm:text-base ${
               activeTab === tab.id
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
             <tab.icon className="w-4 h-4" />
-            {tab.label}
+            <span className="hidden xs:inline sm:inline">{tab.label}</span>
           </button>
         ))}
       </div>
@@ -487,7 +445,7 @@ export function PerformanceAnalytics({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
+              <div className="h-56 sm:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={analytics.abilityTrend} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <defs>
@@ -545,7 +503,7 @@ export function PerformanceAnalytics({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-72">
+              <div className="h-56 sm:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={analytics.categoryPerf}>
                     <PolarGrid />
@@ -574,7 +532,7 @@ export function PerformanceAnalytics({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-72">
+              <div className="h-56 sm:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={analytics.questionTypePerf} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
@@ -604,7 +562,7 @@ export function PerformanceAnalytics({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64">
+              <div className="h-48 sm:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={analytics.practiceTrend}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -721,7 +679,7 @@ export function PerformanceAnalytics({
               )}
 
               {/* Historical CI Chart */}
-              <div className="h-72">
+              <div className="h-56 sm:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={analytics.abilityTrend} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <defs>
@@ -795,22 +753,22 @@ export function PerformanceAnalytics({
                         : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${
                           result.passed ? 'bg-green-500' : 'bg-red-500'
-                        } text-white font-bold`}>
+                        } text-white font-bold text-sm sm:text-base`}>
                           {nclexResults.length - i}
                         </div>
                         <div>
-                          <p className="font-semibold">{result.passed ? 'PASS' : 'FAIL'}</p>
-                          <p className="text-sm text-gray-500">{result.date.toLocaleDateString()}</p>
+                          <p className="font-semibold text-sm sm:text-base">{result.passed ? 'PASS' : 'FAIL'}</p>
+                          <p className="text-xs sm:text-sm text-gray-500">{result.date.toLocaleDateString()}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold">{result.questionsAnswered} questions</p>
-                        <p className="text-sm text-gray-500">
-                          Ability: {result.abilityEstimate.toFixed(2)} | Pass Prob: {result.passingProbability.toFixed(0)}%
+                      <div className="text-left sm:text-right pl-11 sm:pl-0">
+                        <p className="font-semibold text-sm sm:text-base">{result.questionsAnswered} questions</p>
+                        <p className="text-xs sm:text-sm text-gray-500">
+                          Ability: {result.abilityEstimate.toFixed(2)} | Pass: {result.passingProbability.toFixed(0)}%
                         </p>
                       </div>
                     </div>
@@ -834,7 +792,7 @@ export function PerformanceAnalytics({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-72">
+              <div className="h-56 sm:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={analytics.practiceTrend}>
                     <defs>
@@ -906,7 +864,7 @@ export function PerformanceAnalytics({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-64">
+                <div className="h-48 sm:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -1016,15 +974,17 @@ export function PerformanceAnalytics({
             <CardContent>
               <div className="space-y-4">
                 {analytics.weakCategories.map((cat, i) => (
-                  <div key={cat.id} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center font-bold text-blue-600">
-                      {i + 1}
+                  <div key={cat.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center font-bold text-blue-600 shrink-0">
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm sm:text-base truncate">{cat.fullName}</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Current: {cat.percentage}% | Target: 70%</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-semibold">{cat.fullName}</p>
-                      <p className="text-sm text-gray-500">Current: {cat.percentage}% | Target: 70%</p>
-                    </div>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" className="self-end sm:self-auto">
                       Practice
                     </Button>
                   </div>

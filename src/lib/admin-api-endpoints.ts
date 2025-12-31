@@ -8,7 +8,14 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 
 // Helper function to check if we should use mock data
+// In production, NEVER use mock data - throw an error instead
 const shouldUseMockData = (): boolean => {
+  const isProduction = import.meta.env.PROD || import.meta.env.MODE === 'production';
+  
+  if (isProduction && !isSupabaseConfigured()) {
+    throw new Error('Database not configured. Please set up Supabase environment variables.');
+  }
+  
   return !isSupabaseConfigured();
 };
 

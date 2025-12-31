@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { useQuery } from '@tanstack/react-query';
+import { getBooks, getUserLibrary, type Book as ApiBook, type UserBook } from '../services/api/bookApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -51,6 +53,7 @@ import {
   ListTodo
 } from 'lucide-react';
 import { useAuth } from './auth/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 interface Book {
   id: string;
@@ -106,8 +109,8 @@ interface BookReaderProps {
   onBack: () => void;
 }
 
-// Comprehensive book library
-const allBooks: Book[] = [
+// Fallback book data when API returns empty (for demo/development)
+const fallbackBooks: Book[] = [
   {
     id: '1',
     title: 'NCLEX-RN Complete Review 2024',
@@ -449,6 +452,39 @@ export function BookReaderComplete({ onBack }: BookReaderProps) {
   const [showAITools, setShowAITools] = useState(false);
   const [aiToolType, setAIToolType] = useState<'summary' | 'questions' | 'flashcards' | 'explain'>('summary');
   
+  // Fetch books from API
+  const { data: allBooksData, isLoading: booksLoading } = useQuery({
+    queryKey: ['books'],
+    queryFn: () => getBooks({ limit: 50 }),
+  });
+  
+  const { data: userLibraryData, isLoading: libraryLoading } = useQuery({
+    queryKey: ['userLibrary'],
+    queryFn: getUserLibrary,
+  });
+
+  // Transform API data to component format, fallback to demo data if API empty
+  const allBooks: Book[] = useMemo(() => {
+    if (!allBooksData?.data || allBooksData.data.length === 0) {
+      return fallbackBooks; // Use fallback demo data when API returns empty
+    }
+    const userBookIds = new Set((userLibraryData?.data || []).map((ub: UserBook) => ub.bookId));
+    
+    return allBooksData.data.map((book: ApiBook) => ({
+      id: book.id,
+      title: book.title,
+      author: book.author,
+      coverImage: book.coverUrl || 'https://images.unsplash.com/photo-1652787544912-137c7f92f99b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
+      content: [book.description || 'Content loading...'],
+      totalPages: book.pageCount || 1,
+      price: book.price || 0,
+      isOwned: userBookIds.has(book.id) || book.isFree,
+      category: book.category,
+      rating: 4.5,
+      description: book.description || ''
+    }));
+  }, [allBooksData, userLibraryData]);
+  
   // Reading settings
   const [fontSize, setFontSize] = useState(16);
   const [theme, setTheme] = useState<'light' | 'sepia' | 'dark'>('light');
@@ -472,6 +508,7 @@ export function BookReaderComplete({ onBack }: BookReaderProps) {
   // Progress tracking
   const [readingProgress, setReadingProgress] = useState<Record<string, number>>({});
 
+  const isLoading = booksLoading || libraryLoading;
   const ownedBooks = allBooks.filter(b => b.isOwned);
   const availableBooks = allBooks.filter(b => !b.isOwned);
 

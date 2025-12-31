@@ -45,13 +45,19 @@ import {
   AreaChart
 } from 'recharts';
 
+import type { DashboardStats, WeeklyActivity, RecentActivity } from '../services/api/analytics.api';
+
 interface DashboardProps {
   onStartQuiz: (topic: string) => void;
   onStartFlashcards: (topic: string) => void;
   onStartCATTest: () => void;
-  onNavigate: (view: 'progress' | 'analytics' | 'forum' | 'group-study' | 'planner' | 'subscription' | 'books') => void;
+  onNavigate: (view: 'progress' | 'analytics' | 'group-study' | 'planner' | 'subscription' | 'books') => void;
   recentResults: QuizResult[];
   catResults: CATResult[];
+  dashboardStats?: DashboardStats;
+  weeklyActivity?: WeeklyActivity[];
+  recentActivity?: RecentActivity[];
+  streakData?: { currentStreak: number; longestStreak: number; lastActivityDate: string };
 }
 
 const NCLEX_CATEGORIES = [
@@ -71,7 +77,11 @@ export function Dashboard({
   onStartCATTest, 
   onNavigate, 
   recentResults,
-  catResults 
+  catResults,
+  dashboardStats,
+  weeklyActivity: weeklyActivityProp,
+  recentActivity: recentActivityProp,
+  streakData
 }: DashboardProps) {
   const { user } = useAuth();
 
@@ -87,9 +97,9 @@ export function Dashboard({
     ? Math.round(latestCAT.passingProbability * 100) 
     : 0;
 
-  // Study streak calculation (mock data for now)
-  const studyStreak = 7;
-  const hoursStudied = 24;
+  // Study streak from API or fallback
+  const studyStreak = streakData?.currentStreak ?? dashboardStats?.streak ?? 0;
+  const hoursStudied = dashboardStats?.hoursStudied ?? 0;
 
   // Confidence over time data
   const confidenceData = catResults.map((result, index) => ({
@@ -126,24 +136,28 @@ export function Dashboard({
     };
   });
 
-  // Weekly activity data
-  const weeklyActivity = [
-    { day: 'Mon', questions: 45, time: 60 },
-    { day: 'Tue', questions: 32, time: 45 },
-    { day: 'Wed', questions: 58, time: 75 },
-    { day: 'Thu', questions: 41, time: 55 },
-    { day: 'Fri', questions: 67, time: 90 },
-    { day: 'Sat', questions: 53, time: 70 },
-    { day: 'Sun', questions: 38, time: 50 }
+  // Weekly activity from API or empty fallback
+  const weeklyActivity = weeklyActivityProp?.map(w => ({
+    day: w.day,
+    questions: w.questions,
+    time: w.timeMinutes
+  })) ?? [
+    { day: 'Mon', questions: 0, time: 0 },
+    { day: 'Tue', questions: 0, time: 0 },
+    { day: 'Wed', questions: 0, time: 0 },
+    { day: 'Thu', questions: 0, time: 0 },
+    { day: 'Fri', questions: 0, time: 0 },
+    { day: 'Sat', questions: 0, time: 0 },
+    { day: 'Sun', questions: 0, time: 0 }
   ];
 
-  // Recent activity
-  const recentActivity = [
-    { action: 'Completed CAT Test', score: '82%', time: '2 hours ago', type: 'cat' },
-    { action: 'Pharmacology Quiz', score: '90%', time: '5 hours ago', type: 'quiz' },
-    { action: 'Safety Protocol Flashcards', score: '45/50', time: '1 day ago', type: 'flashcard' },
-    { action: 'Practice Quiz - Basic Care', score: '78%', time: '2 days ago', type: 'quiz' }
-  ];
+  // Recent activity from API or empty
+  const recentActivity = recentActivityProp?.map(a => ({
+    action: a.action,
+    score: a.score,
+    time: a.time,
+    type: a.type
+  })) ?? [];
 
   return (
     <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
@@ -660,13 +674,13 @@ export function Dashboard({
         </Card>
 
         {/* Quick Actions */}
-        <Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="size-5 text-blue-600" />
+            <CardTitle className="flex items-center gap-2 dark:text-white">
+              <Target className="size-5 text-blue-600 dark:text-blue-400" />
               Quick Actions
             </CardTitle>
-            <CardDescription>Start your study session</CardDescription>
+            <CardDescription className="dark:text-gray-400">Start your study session</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button 
@@ -788,21 +802,7 @@ export function Dashboard({
       </div>
 
       {/* Community & Resources */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700" onClick={() => onNavigate('forum')}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 dark:text-white">
-              <MessageSquare className="size-5 text-blue-600 dark:text-blue-400" />
-              Discussion Forum
-            </CardTitle>
-            <CardDescription className="dark:text-gray-400">Connect with other students</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 dark:text-gray-400">423 active discussions</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">52 new posts today</p>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="cursor-pointer hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700" onClick={() => onNavigate('group-study')}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 dark:text-white">

@@ -6,58 +6,38 @@ import {
   Receipt,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { subscriptionApi, PaymentTransaction } from '../../services/api/subscriptionApi';
 
-interface Invoice {
-  id: string;
-  date: string;
-  amount: number;
-  status: 'paid' | 'pending' | 'failed';
-  description: string;
-  paymentMethod: string;
-  invoiceUrl?: string;
-}
-
-const mockInvoices: Invoice[] = [
-  {
-    id: 'inv_001',
-    date: '2024-11-01',
-    amount: 29.99,
-    status: 'paid',
-    description: 'Pro Plan - Monthly Subscription',
-    paymentMethod: 'Visa •••• 4242'
-  },
-  {
-    id: 'inv_002',
-    date: '2024-10-01',
-    amount: 29.99,
-    status: 'paid',
-    description: 'Pro Plan - Monthly Subscription',
-    paymentMethod: 'Visa •••• 4242'
-  },
-  {
-    id: 'inv_003',
-    date: '2024-09-01',
-    amount: 29.99,
-    status: 'paid',
-    description: 'Pro Plan - Monthly Subscription',
-    paymentMethod: 'Visa •••• 4242'
-  },
-  {
-    id: 'inv_004',
-    date: '2024-08-01',
-    amount: 29.99,
-    status: 'paid',
-    description: 'Pro Plan - Monthly Subscription',
-    paymentMethod: 'Visa •••• 4242'
+// Map API status to display status
+const mapStatus = (status: PaymentTransaction['status']): 'paid' | 'pending' | 'failed' => {
+  switch (status) {
+    case 'succeeded': return 'paid';
+    case 'pending': return 'pending';
+    case 'failed':
+    case 'refunded':
+    default: return 'failed';
   }
-];
+};
 
 export function BillingHistory() {
-  const handleDownloadInvoice = (invoiceId: string) => {
-    // In production, this would download the actual PDF
-    alert(`Downloading invoice ${invoiceId}...`);
+  // Fetch payment history from API
+  const { data: invoices = [], isLoading } = useQuery({
+    queryKey: ['paymentHistory'],
+    queryFn: () => subscriptionApi.getPaymentHistory(20),
+  });
+
+  const handleDownloadInvoice = (invoice: PaymentTransaction) => {
+    if (invoice.invoicePdf) {
+      window.open(invoice.invoicePdf, '_blank');
+    } else if (invoice.receiptUrl) {
+      window.open(invoice.receiptUrl, '_blank');
+    } else {
+      alert('Invoice PDF not available');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -96,9 +76,23 @@ export function BillingHistory() {
     });
   };
 
-  const totalSpent = mockInvoices
-    .filter(inv => inv.status === 'paid')
+  const totalSpent = invoices
+    .filter(inv => inv.status === 'succeeded')
     .reduce((sum, inv) => sum + inv.amount, 0);
+
+  // Calculate next billing date (30 days from last payment)
+  const lastPayment = invoices.length > 0 ? new Date(invoices[0].createdAt) : null;
+  const nextBillingDate = lastPayment 
+    ? new Date(lastPayment.getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : 'N/A';
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="size-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -118,11 +112,11 @@ export function BillingHistory() {
             </div>
             <div className="text-center sm:text-left">
               <p className="text-gray-600 dark:text-gray-400 mb-1 text-sm">Total Invoices</p>
-              <p className="text-2xl sm:text-3xl text-gray-900 dark:text-white">{mockInvoices.length}</p>
+              <p className="text-2xl sm:text-3xl text-gray-900 dark:text-white">{invoices.length}</p>
             </div>
             <div className="text-center sm:text-left">
               <p className="text-gray-600 dark:text-gray-400 mb-1 text-sm">Next Billing Date</p>
-              <p className="text-2xl sm:text-3xl text-gray-900 dark:text-white">Dec 1</p>
+              <p className="text-2xl sm:text-3xl text-gray-900 dark:text-white">{nextBillingDate}</p>
             </div>
           </div>
         </CardContent>
@@ -149,10 +143,10 @@ export function BillingHistory() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {mockInvoices.map((invoice) => (
+                {invoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="py-4 px-4">
-                      <p className="text-gray-900 dark:text-white">{formatDate(invoice.date)}</p>
+                      <p className="text-gray-900 dark:text-white">{formatDate(invoice.createdAt)}</p>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2">
@@ -167,13 +161,14 @@ export function BillingHistory() {
                       <p className="text-gray-900 dark:text-white">${invoice.amount.toFixed(2)}</p>
                     </td>
                     <td className="py-4 px-4">
-                      {getStatusBadge(invoice.status)}
+                      {getStatusBadge(mapStatus(invoice.status))}
                     </td>
                     <td className="py-4 px-4">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDownloadInvoice(invoice.id)}
+                        onClick={() => handleDownloadInvoice(invoice)}
+                        disabled={!invoice.invoicePdf && !invoice.receiptUrl}
                       >
                         <Download className="size-4 mr-2" />
                         Download
@@ -187,14 +182,14 @@ export function BillingHistory() {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-3">
-            {mockInvoices.map((invoice) => (
+            {invoices.map((invoice) => (
               <div key={invoice.id} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{formatDate(invoice.date)}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{formatDate(invoice.createdAt)}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{invoice.description}</p>
                   </div>
-                  {getStatusBadge(invoice.status)}
+                  {getStatusBadge(mapStatus(invoice.status))}
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
@@ -204,7 +199,8 @@ export function BillingHistory() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDownloadInvoice(invoice.id)}
+                    onClick={() => handleDownloadInvoice(invoice)}
+                    disabled={!invoice.invoicePdf && !invoice.receiptUrl}
                   >
                     <Download className="size-4 mr-1" />
                     PDF

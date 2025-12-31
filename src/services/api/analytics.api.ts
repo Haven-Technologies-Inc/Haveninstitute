@@ -95,7 +95,7 @@ export const analyticsApi = {
 
   // Get recent activity log
   getRecentActivity: async (limit: number = 10): Promise<RecentActivity[]> => {
-    const response = await apiClient.get('/analytics/recent-activity', {
+    const response = await apiClient.get('/analytics/activity', {
       params: { limit },
     });
     return response.data;

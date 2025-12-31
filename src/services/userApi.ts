@@ -286,7 +286,7 @@ export async function exportUsersToCSV(filters: UserFilters = {}): Promise<strin
 export async function sendEmailToUser(id: string, subject: string, message: string): Promise<boolean> {
   try {
     // This would call a backend endpoint to send email
-    console.log(`Sending email to user ${id}: ${subject}`);
+    // Email would be sent via backend
     // For now, just log it - implement actual email sending via backend
     return true;
   } catch (error: any) {
@@ -296,7 +296,7 @@ export async function sendEmailToUser(id: string, subject: string, message: stri
 
 // POST: Send bulk email to users
 export async function sendBulkEmail(userIds: string[], subject: string, message: string): Promise<boolean> {
-  console.log(`Sending bulk email to ${userIds.length} users: ${subject}`);
+  // Bulk email would be sent via backend
   return true;
 }
 

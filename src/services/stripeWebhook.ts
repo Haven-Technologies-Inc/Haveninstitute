@@ -20,7 +20,7 @@ import type {
  * Main webhook handler - routes events to appropriate handlers
  */
 export const handleStripeWebhook = async (event: StripeWebhookEvent): Promise<void> => {
-  console.log(`Handling Stripe webhook event: ${event.type}`);
+  // Webhook event handled: ${event.type}
 
   try {
     switch (event.type) {
@@ -74,7 +74,7 @@ export const handleStripeWebhook = async (event: StripeWebhookEvent): Promise<vo
         break;
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        // Unhandled event type: ${event.type}
     }
   } catch (error) {
     console.error(`Error handling webhook event ${event.type}:`, error);
@@ -120,7 +120,7 @@ const handleSubscriptionCreated = async (event: StripeWebhookEvent): Promise<voi
       .update({ subscription_plan: plan })
       .eq('id', userId);
 
-    console.log(`Subscription created for user ${userId}`);
+    // Subscription created for user
   } catch (error) {
     console.error('Error creating subscription:', error);
     throw error;
@@ -160,7 +160,7 @@ const handleSubscriptionUpdated = async (event: StripeWebhookEvent): Promise<voi
       .update({ subscription_plan: plan })
       .eq('id', userId);
 
-    console.log(`Subscription updated for user ${userId}`);
+    // Subscription updated for user
   } catch (error) {
     console.error('Error updating subscription:', error);
     throw error;
@@ -192,7 +192,7 @@ const handleSubscriptionDeleted = async (event: StripeWebhookEvent): Promise<voi
       .update({ subscription_plan: 'free' })
       .eq('id', userId);
 
-    console.log(`Subscription cancelled for user ${userId}`);
+    // Subscription cancelled for user
   } catch (error) {
     console.error('Error cancelling subscription:', error);
     throw error;
@@ -234,7 +234,7 @@ const handleInvoicePaymentSucceeded = async (event: StripeWebhookEvent): Promise
       description: 'Subscription payment'
     });
 
-    console.log(`Payment succeeded for user ${userId}, amount: $${invoice.amount_paid / 100}`);
+    // Payment succeeded
   } catch (error) {
     console.error('Error recording payment:', error);
     throw error;
@@ -279,7 +279,7 @@ const handleInvoicePaymentFailed = async (event: StripeWebhookEvent): Promise<vo
       .eq('user_id', userId)
       .eq('status', 'active');
 
-    console.log(`Payment failed for user ${userId}`);
+    // Payment failed for user
 
     // TODO: Send email notification to user
   } catch (error) {
@@ -293,7 +293,7 @@ const handleInvoicePaymentFailed = async (event: StripeWebhookEvent): Promise<vo
  */
 const handleInvoiceFinalized = async (event: StripeWebhookEvent): Promise<void> => {
   const invoice = event.data.object as StripeInvoice;
-  console.log(`Invoice finalized: ${invoice.id}`);
+  // Invoice finalized
   // Additional logic can be added here if needed
 };
 
@@ -306,7 +306,7 @@ const handleInvoiceFinalized = async (event: StripeWebhookEvent): Promise<void> 
  */
 const handleCheckoutCompleted = async (event: StripeWebhookEvent): Promise<void> => {
   const session = event.data.object as any;
-  console.log(`Checkout completed for session: ${session.id}`);
+  // Checkout completed
 
   // The subscription will be created via subscription.created event
   // This event can be used for additional processing like sending welcome emails
@@ -317,7 +317,7 @@ const handleCheckoutCompleted = async (event: StripeWebhookEvent): Promise<void>
  */
 const handleCheckoutExpired = async (event: StripeWebhookEvent): Promise<void> => {
   const session = event.data.object as any;
-  console.log(`Checkout expired for session: ${session.id}`);
+  // Checkout expired
 };
 
 // ============================================================================
@@ -329,7 +329,7 @@ const handleCheckoutExpired = async (event: StripeWebhookEvent): Promise<void> =
  */
 const handlePaymentIntentSucceeded = async (event: StripeWebhookEvent): Promise<void> => {
   const paymentIntent = event.data.object as any;
-  console.log(`Payment intent succeeded: ${paymentIntent.id}`);
+  // Payment intent succeeded
 };
 
 /**
@@ -337,7 +337,7 @@ const handlePaymentIntentSucceeded = async (event: StripeWebhookEvent): Promise<
  */
 const handlePaymentIntentFailed = async (event: StripeWebhookEvent): Promise<void> => {
   const paymentIntent = event.data.object as any;
-  console.log(`Payment intent failed: ${paymentIntent.id}`);
+  // Payment intent failed
 };
 
 // ============================================================================
@@ -349,7 +349,7 @@ const handlePaymentIntentFailed = async (event: StripeWebhookEvent): Promise<voi
  */
 const handleCustomerCreated = async (event: StripeWebhookEvent): Promise<void> => {
   const customer = event.data.object as any;
-  console.log(`Customer created: ${customer.id}`);
+  // Customer created
 };
 
 /**
@@ -357,7 +357,7 @@ const handleCustomerCreated = async (event: StripeWebhookEvent): Promise<void> =
  */
 const handleCustomerUpdated = async (event: StripeWebhookEvent): Promise<void> => {
   const customer = event.data.object as any;
-  console.log(`Customer updated: ${customer.id}`);
+  // Customer updated
 };
 
 /**
@@ -365,7 +365,7 @@ const handleCustomerUpdated = async (event: StripeWebhookEvent): Promise<void> =
  */
 const handleCustomerDeleted = async (event: StripeWebhookEvent): Promise<void> => {
   const customer = event.data.object as any;
-  console.log(`Customer deleted: ${customer.id}`);
+  // Customer deleted
 };
 
 // ============================================================================

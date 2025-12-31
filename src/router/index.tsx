@@ -51,8 +51,6 @@ const StudyPlannerPage = lazy(() => import('../pages/progress/StudyPlannerPage')
 const StudyGroupsPage = lazy(() => import('../pages/community/StudyGroupsPage').then(m => ({ default: m.StudyGroupsPage })));
 // GroupChatPage removed - using new GroupDetailPage
 const GroupDetailPage = lazy(() => import('../pages/community/GroupDetailPage'));
-const DiscussionForumPage = lazy(() => import('../pages/community/DiscussionForumPage').then(m => ({ default: m.DiscussionForumPage })));
-const ForumPage = lazy(() => import('../pages/community/ForumPage').then(m => ({ default: m.ForumPage })));
 const SubscriptionPage = lazy(() => import('../pages/account/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
 const ProfilePage = lazy(() => import('../pages/account/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import('../pages/account/SettingsPage').then(m => ({ default: m.SettingsPage })));
@@ -140,9 +138,6 @@ export const router = createBrowserRouter([
           { path: 'planner-legacy', element: <PlannerPage /> },
           { path: 'study-groups', element: <StudyGroupsPage /> },
           { path: 'study-groups/:groupId', element: <GroupDetailPage /> },
-          { path: 'forum', element: <DiscussionForumPage /> },
-          { path: 'forum/:slug', element: <DiscussionForumPage /> },
-          { path: 'forum-legacy', element: <ForumPage /> },
           { path: 'subscription', element: <SubscriptionPage /> },
           { path: 'profile', element: <ProfilePage /> },
           { path: 'settings', element: <SettingsPage /> },

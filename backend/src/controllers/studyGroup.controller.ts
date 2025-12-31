@@ -16,7 +16,7 @@ class StudyGroupController {
    * Create a new study group
    * POST /api/v1/study-groups
    */
-  async createGroup(req: AuthRequest, res: Response, next: NextFunction) {
+  async createGroup(req: AuthRequest, res: Response, _next: NextFunction) {
     try {
       const userId = req.userId;
       if (!userId) return res.status(401).json({ success: false, message: 'Unauthorized' });

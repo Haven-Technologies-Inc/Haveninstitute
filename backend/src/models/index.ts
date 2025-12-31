@@ -14,7 +14,7 @@ import { Subscription, PaymentTransaction } from './Subscription';
 import { UserSettings } from './UserSettings';
 import { StudyPlan, StudyPlanTask, StudyPlanMilestone } from './StudyPlan';
 import { StudyGroup, GroupMember, GroupMessage, GroupInvitation } from './StudyGroup';
-import { ForumCategory, ForumPost, ForumComment, ForumReaction, ForumBookmark } from './Forum';
+import { DiscussionCategory, DiscussionPost, DiscussionComment, DiscussionReaction, DiscussionBookmark, DiscussionTag } from './Discussion';
 import { Achievement, UserAchievement } from './Achievement';
 import { Notification } from './Notification';
 import { FileUpload } from './FileUpload';
@@ -29,8 +29,8 @@ export {
   StudyMaterial, UserStudyMaterial, FlashcardDeck, Flashcard,
   UserFlashcardProgress, Subscription, PaymentTransaction,
   UserSettings, StudyPlan, StudyPlanTask, StudyPlanMilestone, StudyGroup,
-  GroupMember, GroupMessage, GroupInvitation, ForumCategory, ForumPost, 
-  ForumComment, ForumReaction, ForumBookmark,
+  GroupMember, GroupMessage, GroupInvitation, DiscussionCategory, DiscussionPost, 
+  DiscussionComment, DiscussionReaction, DiscussionBookmark, DiscussionTag,
   Achievement, UserAchievement, Notification, FileUpload,
   Book, UserBook, LoginAudit, PasswordHistory, SystemSettings
 };
@@ -73,11 +73,12 @@ export const models = [
   GroupMember,
   GroupMessage,
   GroupInvitation,
-  ForumCategory,
-  ForumPost,
-  ForumComment,
-  ForumReaction,
-  ForumBookmark,
+  DiscussionCategory,
+  DiscussionPost,
+  DiscussionComment,
+  DiscussionReaction,
+  DiscussionBookmark,
+  DiscussionTag,
   Achievement,
   UserAchievement,
   Notification,

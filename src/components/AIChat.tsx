@@ -15,7 +15,12 @@ import {
   List,
   FileCheck,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Menu,
+  X,
+  ChevronDown,
+  Check,
+  MessageCircle
 } from 'lucide-react';
 import { useAuth } from './auth/AuthContext';
 import * as aiApi from '../services/api/ai.api';
@@ -40,8 +45,19 @@ export function AIChat() {
   const [error, setError] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [showUploadZone, setShowUploadZone] = useState(false);
+  const [showModeMenu, setShowModeMenu] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Detect mobile screen
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Initialize with welcome message
   useEffect(() => {
@@ -276,144 +292,202 @@ export function AIChat() {
     setError(null);
   };
 
+  const modeConfig = {
+    tutor: { icon: BookOpen, label: 'Tutor', color: 'blue', emoji: '📚', desc: 'Ask questions about nursing concepts' },
+    questions: { icon: HelpCircle, label: 'Questions', color: 'purple', emoji: '📝', desc: 'Generate NCLEX-style practice questions' },
+    clinical: { icon: Brain, label: 'Clinical', color: 'green', emoji: '🏥', desc: 'Analyze clinical scenarios' }
+  };
+
+  const currentMode = modeConfig[mode];
+  const ModeIcon = currentMode.icon;
+
   return (
-    <div className="h-[calc(100vh-180px)] flex flex-col">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-t-xl">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-3 rounded-xl">
-              <Sparkles className="size-7 text-white" />
+    <div className="h-[calc(100vh-120px)] md:h-[calc(100vh-180px)] flex flex-col bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden shadow-xl">
+      {/* Header - Mobile Optimized */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-3 md:p-5 shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          {/* Logo & Title */}
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+            <div className="bg-white/20 p-2 md:p-3 rounded-xl shrink-0">
+              <Sparkles className="size-5 md:size-6 text-white" />
             </div>
-            <div>
-              <h2 className="text-2xl text-white">AI Study Assistant</h2>
-              <p className="text-blue-100">Powered by advanced AI technology</p>
+            <div className="min-w-0">
+              <h2 className="text-base md:text-xl font-semibold text-white truncate">AI Study Assistant</h2>
+              <p className="text-xs md:text-sm text-blue-100 hidden sm:block">Powered by advanced AI</p>
             </div>
           </div>
 
-          {/* Mode Toggle */}
-          <div className="flex gap-1 bg-white/10 p-1 rounded-lg">
-            <button
-              onClick={() => setMode('tutor')}
-              className={`px-3 py-2 rounded-lg transition-all text-sm ${
-                mode === 'tutor'
-                  ? 'bg-white text-blue-600 shadow-md'
-                  : 'text-white hover:bg-white/20'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <BookOpen className="size-4" />
-                <span>Tutor</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setMode('questions')}
-              className={`px-3 py-2 rounded-lg transition-all text-sm ${
-                mode === 'questions'
-                  ? 'bg-white text-purple-600 shadow-md'
-                  : 'text-white hover:bg-white/20'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <HelpCircle className="size-4" />
-                <span>Questions</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setMode('clinical')}
-              className={`px-3 py-2 rounded-lg transition-all text-sm ${
-                mode === 'clinical'
-                  ? 'bg-white text-green-600 shadow-md'
-                  : 'text-white hover:bg-white/20'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Brain className="size-4" />
-                <span>Clinical</span>
-              </div>
-            </button>
+          {/* Mode Toggle - Desktop */}
+          <div className="hidden md:flex gap-1 bg-white/10 p-1 rounded-lg">
+            {(Object.entries(modeConfig) as [ChatMode, typeof currentMode][]).map(([key, config]) => {
+              const Icon = config.icon;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setMode(key)}
+                  className={`px-3 py-2 rounded-lg transition-all text-sm font-medium ${
+                    mode === key
+                      ? 'bg-white text-blue-600 shadow-md'
+                      : 'text-white hover:bg-white/20'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon className="size-4" />
+                    <span>{config.label}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-          <Button onClick={clearSession} variant="ghost" className="text-white/80 hover:text-white hover:bg-white/10">
-            <RefreshCw className="size-4" />
-          </Button>
+
+          {/* Mode Toggle - Mobile Dropdown */}
+          <div className="md:hidden relative">
+            <button
+              onClick={() => setShowModeMenu(!showModeMenu)}
+              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg transition-all"
+            >
+              <ModeIcon className="size-4" />
+              <span className="text-sm font-medium">{currentMode.label}</span>
+              <ChevronDown className={`size-4 transition-transform ${showModeMenu ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showModeMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowModeMenu(false)} />
+                <div className="absolute right-0 top-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border dark:border-gray-700 overflow-hidden z-50 min-w-[180px]">
+                  {(Object.entries(modeConfig) as [ChatMode, typeof currentMode][]).map(([key, config]) => {
+                    const Icon = config.icon;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => { setMode(key); setShowModeMenu(false); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                          mode === key 
+                            ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        <Icon className="size-5" />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{config.label}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{config.desc}</p>
+                        </div>
+                        {mode === key && <Check className="size-4 text-blue-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Clear Session Button */}
+          <button 
+            onClick={clearSession} 
+            className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            title="Clear conversation"
+          >
+            <RefreshCw className="size-4 md:size-5" />
+          </button>
         </div>
 
-        {/* Mode Description */}
-        <div className="bg-white/10 rounded-lg p-3 text-white text-sm">
-          {mode === 'tutor' && (
-            <p>📚 <strong>Tutor Mode:</strong> Ask questions about nursing concepts, get detailed NCLEX explanations</p>
-          )}
-          {mode === 'questions' && (
-            <p>📝 <strong>Questions Mode:</strong> Generate practice NCLEX-style questions on any topic</p>
-          )}
-          {mode === 'clinical' && (
-            <p>🏥 <strong>Clinical Mode:</strong> Analyze clinical scenarios using the Clinical Judgment Model</p>
-          )}
+        {/* Mode Description - Compact on Mobile */}
+        <div className="mt-3 bg-white/10 rounded-lg px-3 py-2 text-white text-xs md:text-sm flex items-center gap-2">
+          <span>{currentMode.emoji}</span>
+          <span className="font-medium">{currentMode.label}:</span>
+          <span className="opacity-90 truncate">{currentMode.desc}</span>
         </div>
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 bg-white overflow-hidden flex flex-col">
+      <div className="flex-1 bg-white dark:bg-gray-900 overflow-hidden flex flex-col">
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4">
+          {/* Quick Actions - Mobile Optimized */}
           {messages.length === 1 && (
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 mb-4">
               {quickActions.map((action) => {
                 const Icon = action.icon;
                 return (
                   <button
                     key={action.label}
                     onClick={() => handleQuickAction(action.prompt)}
-                    className="p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all text-left group"
+                    className="p-3 md:p-4 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all text-left group active:scale-[0.98]"
                   >
-                    <Icon className="size-5 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
-                    <p className="text-gray-900">{action.label}</p>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{action.prompt}</p>
+                    <div className="flex items-start gap-3">
+                      <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-lg shrink-0">
+                        <Icon className="size-4 md:size-5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 dark:text-white text-sm md:text-base">{action.label}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{action.prompt}</p>
+                      </div>
+                    </div>
                   </button>
                 );
               })}
             </div>
           )}
 
+          {/* Messages List */}
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
             >
               <div
-                className={`max-w-[80%] ${
+                className={`max-w-[90%] md:max-w-[80%] ${
                   message.role === 'user'
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                    : 'bg-gray-100 text-gray-900'
-                } rounded-2xl p-4 shadow-sm`}
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl rounded-br-md'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-2xl rounded-bl-md'
+                } p-3 md:p-4 shadow-sm`}
               >
                 {message.role === 'assistant' && (
                   <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="size-4 text-blue-600" />
-                    <span className="text-xs text-gray-600">AI Assistant</span>
+                    <div className="bg-blue-100 dark:bg-blue-900/50 p-1 rounded-full">
+                      <Sparkles className="size-3 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">AI Assistant</span>
                   </div>
                 )}
 
-                <div className="whitespace-pre-wrap">{message.content}</div>
+                {/* Message Content with Better Formatting */}
+                <div className="whitespace-pre-wrap text-sm md:text-base leading-relaxed break-words">
+                  {message.content.split('\n').map((line, i) => {
+                    // Bold text handling
+                    const parts = line.split(/(\*\*[^*]+\*\*)/g);
+                    return (
+                      <span key={i}>
+                        {parts.map((part, j) => {
+                          if (part.startsWith('**') && part.endsWith('**')) {
+                            return <strong key={j} className="font-semibold">{part.slice(2, -2)}</strong>;
+                          }
+                          return part;
+                        })}
+                        {i < message.content.split('\n').length - 1 && <br />}
+                      </span>
+                    );
+                  })}
+                </div>
 
                 {message.type === 'document' && (
-                  <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 rounded-lg">
-                    <FileText className="size-4 text-blue-600" />
-                    <span className="text-sm text-blue-800">Document uploaded</span>
+                  <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                    <FileText className="size-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-sm text-blue-800 dark:text-blue-300">Document uploaded</span>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-200/50">
-                  <span className="text-xs opacity-70">
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/30 dark:border-gray-600/30">
+                  <span className="text-[10px] md:text-xs opacity-60">
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   {message.role === 'assistant' && (
                     <button
                       onClick={() => copyMessage(message.content)}
-                      className="p-1 hover:bg-white/20 rounded transition-colors"
+                      className="p-1.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors active:scale-95"
                       title="Copy message"
                     >
-                      <Copy className="size-3" />
+                      <Copy className="size-3.5" />
                     </button>
                   )}
                 </div>
@@ -421,21 +495,27 @@ export function AIChat() {
             </div>
           ))}
 
+          {/* Loading Indicator */}
           {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-gray-100 rounded-2xl p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="size-4 text-blue-600 animate-pulse" />
-                  <span className="text-gray-600">AI is thinking...</span>
+            <div className="flex justify-start animate-in fade-in duration-300">
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-bl-md p-3 md:p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                    <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                    <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                  </div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">AI is thinking...</span>
                 </div>
               </div>
             </div>
           )}
 
+          {/* Error Message */}
           {error && (
-            <div className="flex justify-center">
-              <div className="bg-red-50 text-red-600 rounded-lg px-4 py-2 text-sm flex items-center gap-2">
-                <AlertCircle className="size-4" />
+            <div className="flex justify-center animate-in fade-in duration-300">
+              <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl px-4 py-3 text-sm flex items-center gap-2 shadow-sm">
+                <AlertCircle className="size-4 shrink-0" />
                 <span>Connection error. Please try again.</span>
               </div>
             </div>
@@ -444,95 +524,110 @@ export function AIChat() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Actions Bar (when document uploaded) */}
+        {/* Quick Actions Bar (when document uploaded) - Mobile Optimized */}
         {uploadedFile && (
-          <div className="px-6 py-3 bg-blue-50 border-t border-blue-100">
-            <div className="flex items-center gap-3">
-              <FileCheck className="size-5 text-blue-600" />
-              <span className="text-sm text-blue-900">Document ready: {uploadedFile.name}</span>
-              <div className="flex-1"></div>
-              <Button
-                variant="outline"
-                onClick={handleGenerateQuestions}
-                className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white text-sm px-3 py-1 h-8"
-                disabled={isLoading}
-              >
-                <List className="size-4 mr-2" />
-                Generate Questions
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleGenerateSummary}
-                className="border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white text-sm px-3 py-1 h-8"
-                disabled={isLoading}
-              >
-                <FileText className="size-4 mr-2" />
-                Create Summary
-              </Button>
+          <div className="px-3 md:px-6 py-2 md:py-3 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-100 dark:border-blue-800 shrink-0">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileCheck className="size-4 md:size-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                <span className="text-xs md:text-sm text-blue-900 dark:text-blue-200 truncate">{uploadedFile.name}</span>
+              </div>
+              <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
+                <Button
+                  variant="outline"
+                  onClick={handleGenerateQuestions}
+                  className="flex-1 sm:flex-none border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white text-xs md:text-sm px-2 md:px-3 py-1 h-8"
+                  disabled={isLoading}
+                >
+                  <List className="size-3 md:size-4 mr-1 md:mr-2" />
+                  Questions
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleGenerateSummary}
+                  className="flex-1 sm:flex-none border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white text-xs md:text-sm px-2 md:px-3 py-1 h-8"
+                  disabled={isLoading}
+                >
+                  <FileText className="size-3 md:size-4 mr-1 md:mr-2" />
+                  Summary
+                </Button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Input Area */}
-        <div className="p-6 bg-gray-50 border-t border-gray-200">
+        {/* Input Area - Mobile Optimized */}
+        <div className="p-3 md:p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shrink-0">
           {showUploadZone ? (
-            <div className="border-2 border-dashed border-blue-300 rounded-xl p-8 bg-blue-50/50 text-center">
+            <div className="border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-xl p-4 md:p-8 bg-blue-50/50 dark:bg-blue-900/20 text-center">
               <input
                 ref={fileInputRef}
                 type="file"
                 onChange={handleFileUpload}
                 accept=".pdf,.doc,.docx,.txt"
                 className="hidden"
+                aria-label="Upload document"
               />
-              <Upload className="size-12 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-gray-900 mb-2">Upload a Document</h3>
-              <p className="text-gray-600 text-sm mb-4">
-                Drag and drop or click to upload PDF, Word, or text files
+              <Upload className="size-8 md:size-12 text-blue-600 dark:text-blue-400 mx-auto mb-3 md:mb-4" />
+              <h3 className="text-gray-900 dark:text-white text-sm md:text-base font-medium mb-1 md:mb-2">Upload a Document</h3>
+              <p className="text-gray-600 dark:text-gray-400 text-xs md:text-sm mb-3 md:mb-4">
+                PDF, Word, or text files
               </p>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="size-4 mr-2" />
+              <div className="flex gap-2 md:gap-3 justify-center">
+                <Button onClick={() => fileInputRef.current?.click()} size="sm" className="text-xs md:text-sm">
+                  <Upload className="size-3 md:size-4 mr-1 md:mr-2" />
                   Choose File
                 </Button>
-                <Button variant="outline" onClick={() => setShowUploadZone(false)}>
+                <Button variant="outline" onClick={() => setShowUploadZone(false)} size="sm" className="text-xs md:text-sm">
                   Cancel
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="flex gap-3">
+            <div className="flex gap-2 md:gap-3 items-end">
+              {/* Upload Button */}
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => setShowUploadZone(true)}
                 title="Upload document"
+                className="shrink-0 size-10 md:size-11 rounded-xl border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-500 transition-colors"
               >
-                <Upload className="size-5" />
+                <Upload className="size-4 md:size-5 text-gray-600 dark:text-gray-400" />
               </Button>
 
-              <Input
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder={
-                  mode === 'study'
-                    ? 'Ask a question or request an explanation...'
-                    : 'Request practice questions or exercises...'
-                }
-                className="flex-1"
-              />
+              {/* Input Field */}
+              <div className="flex-1 relative">
+                <Input
+                  ref={inputRef}
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                  placeholder={
+                    mode === 'tutor'
+                      ? 'Ask about nursing concepts...'
+                      : mode === 'questions'
+                      ? 'Enter a topic for practice questions...'
+                      : 'Describe a clinical scenario...'
+                  }
+                  className="w-full h-10 md:h-11 pr-4 rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
+                  disabled={isLoading}
+                />
+              </div>
 
+              {/* Send Button */}
               <Button
                 onClick={handleSendMessage}
-                disabled={!inputMessage.trim()}
-                className="bg-gradient-to-r from-blue-600 to-purple-600"
+                disabled={!inputMessage.trim() || isLoading}
+                className="shrink-0 size-10 md:size-11 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
               >
-                <Send className="size-5" />
+                <Send className="size-4 md:size-5" />
               </Button>
             </div>
           )}
 
-          <p className="text-xs text-gray-500 mt-2 text-center">
+          {/* Disclaimer - Hidden on very small screens */}
+          <p className="hidden sm:block text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
             AI responses are for study purposes only. Always verify critical information.
           </p>
         </div>

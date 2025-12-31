@@ -46,6 +46,19 @@ export const OAUTH_SETTINGS: Array<{
   { key: 'google_client_secret', description: 'Google OAuth Client Secret', isSecret: true },
 ];
 
+// AI settings definition
+export const AI_SETTINGS: Array<{
+  key: SettingKey;
+  description: string;
+  isSecret: boolean;
+}> = [
+  { key: 'openai_api_key', description: 'OpenAI API Key', isSecret: true },
+  { key: 'openai_model', description: 'OpenAI Model (e.g., gpt-4-turbo)', isSecret: false },
+  { key: 'deepseek_api_key', description: 'DeepSeek API Key', isSecret: true },
+  { key: 'grok_api_key', description: 'Grok (xAI) API Key', isSecret: true },
+  { key: 'ai_provider', description: 'Default AI Provider (openai/deepseek/grok)', isSecret: false },
+];
+
 // Feature flags definition
 export const FEATURE_FLAGS: Array<{
   key: SettingKey;
@@ -272,6 +285,7 @@ export class SystemSettingsService {
       { defs: STRIPE_SETTINGS, category: 'stripe' as SettingCategory },
       { defs: EMAIL_SETTINGS, category: 'email' as SettingCategory },
       { defs: OAUTH_SETTINGS, category: 'oauth' as SettingCategory },
+      { defs: AI_SETTINGS, category: 'general' as SettingCategory },
       { defs: FEATURE_FLAGS, category: 'features' as SettingCategory },
     ];
 
@@ -301,6 +315,7 @@ export class SystemSettingsService {
       case 'email': return EMAIL_SETTINGS;
       case 'oauth': return OAUTH_SETTINGS;
       case 'features': return FEATURE_FLAGS;
+      case 'general': return AI_SETTINGS;
       default: return [];
     }
   }
@@ -309,6 +324,7 @@ export class SystemSettingsService {
     if (STRIPE_SETTINGS.some(s => s.key === key)) return 'stripe';
     if (EMAIL_SETTINGS.some(s => s.key === key)) return 'email';
     if (OAUTH_SETTINGS.some(s => s.key === key)) return 'oauth';
+    if (AI_SETTINGS.some(s => s.key === key)) return 'general';
     if (FEATURE_FLAGS.some(s => s.key === key)) return 'features';
     return 'general';
   }
@@ -329,6 +345,11 @@ export class SystemSettingsService {
       'email_from': 'EMAIL_FROM',
       'google_client_id': 'GOOGLE_CLIENT_ID',
       'google_client_secret': 'GOOGLE_CLIENT_SECRET',
+      'openai_api_key': 'OPENAI_API_KEY',
+      'openai_model': 'OPENAI_MODEL',
+      'deepseek_api_key': 'DEEPSEEK_API_KEY',
+      'grok_api_key': 'GROK_API_KEY',
+      'ai_provider': 'AI_PROVIDER',
       'enable_payments': 'ENABLE_PAYMENTS',
       'enable_ai_chat': 'ENABLE_AI_CHAT',
       'enable_email': 'ENABLE_EMAIL',

@@ -2,14 +2,24 @@ import { useNavigate } from 'react-router-dom';
 import { Dashboard } from '../../components/Dashboard';
 import { useAuth } from '../../components/auth/AuthContext';
 import { useQuizHistory, useCATHistory } from '../../services/hooks';
+import { 
+  useDashboardStats, 
+  useWeeklyActivity, 
+  useRecentActivity,
+  useStudyStreak 
+} from '../../services/hooks/useDashboard';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
   // Fetch real data using React Query hooks
-  const { data: quizHistory = [], isLoading: quizLoading } = useQuizHistory({ limit: 10 });
-  const { data: catHistory = [], isLoading: catLoading } = useCATHistory(10);
+  const { data: quizHistory = [] } = useQuizHistory({ limit: 10 });
+  const { data: catHistory = [] } = useCATHistory(10);
+  const { data: dashboardStats } = useDashboardStats();
+  const { data: weeklyActivityData } = useWeeklyActivity();
+  const { data: recentActivityData } = useRecentActivity(5);
+  const { data: streakData } = useStudyStreak();
 
   // Transform API data to match Dashboard component props
   const quizResults = quizHistory.map(item => ({
@@ -72,6 +82,10 @@ export default function DashboardPage() {
       onNavigate={handleNavigate}
       recentResults={quizResults}
       catResults={catResults}
+      dashboardStats={dashboardStats}
+      weeklyActivity={weeklyActivityData}
+      recentActivity={recentActivityData}
+      streakData={streakData}
     />
   );
 }

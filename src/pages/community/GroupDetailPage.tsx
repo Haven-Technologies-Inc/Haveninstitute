@@ -70,7 +70,7 @@ export default function GroupDetailPage() {
     if (confirm('Are you sure you want to leave this group?')) {
       try {
         await leaveGroupMutation.mutateAsync(groupId);
-        navigate('/app/study-groups');
+        navigate('/app/community/groups');
       } catch (error) {
         console.error('Failed to leave group:', error);
       }
@@ -93,7 +93,7 @@ export default function GroupDetailPage() {
   };
 
   const handleCopyLink = async () => {
-    const link = `${window.location.origin}/app/study-groups/join/${groupId}`;
+    const link = `${window.location.origin}/app/community/groups/join/${groupId}`;
     await navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -129,7 +129,7 @@ export default function GroupDetailPage() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               Group not found
             </h2>
-            <Button onClick={() => navigate('/app/study-groups')}>
+            <Button onClick={() => navigate('/app/community/groups')}>
               <ArrowLeft className="size-4 mr-2" />
               Back to Groups
             </Button>
@@ -146,7 +146,7 @@ export default function GroupDetailPage() {
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            onClick={() => navigate('/app/study-groups')}
+            onClick={() => navigate('/app/community/groups')}
             className="p-2"
           >
             <ArrowLeft className="size-5" />
@@ -367,7 +367,7 @@ export default function GroupDetailPage() {
                 </label>
                 <div className="flex gap-2">
                   <Input
-                    value={`${window.location.origin}/app/study-groups/join/${groupId}`}
+                    value={`${window.location.origin}/app/community/groups/join/${groupId}`}
                     readOnly
                     className="text-sm bg-gray-50"
                   />

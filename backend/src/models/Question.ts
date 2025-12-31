@@ -157,6 +157,19 @@ export class Question extends Model {
   })
   source?: string;
 
+  @Column({
+    type: DataType.TEXT,
+    field: 'clinical_pearl',
+    comment: 'High-yield clinical tip related to the question'
+  })
+  clinicalPearl?: string;
+
+  @Column({
+    type: DataType.TEXT,
+    comment: 'Extended scenario context for case studies'
+  })
+  scenario?: string;
+
   @Default(true)
   @Column({
     type: DataType.BOOLEAN,

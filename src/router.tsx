@@ -39,10 +39,14 @@ const AIChatPage = lazy(() => import('./pages/study/AIChatPage'));
 const ProgressPage = lazy(() => import('./pages/progress/ProgressPage'));
 const AnalyticsPage = lazy(() => import('./pages/progress/AnalyticsPage'));
 const StudyPlannerPage = lazy(() => import('./pages/progress/StudyPlannerPage'));
+const StudyPlanDetailPage = lazy(() => import('./pages/progress/StudyPlanDetailPage'));
 
 // Community Pages
-const ForumPage = lazy(() => import('./pages/community/ForumPage'));
 const StudyGroupsPage = lazy(() => import('./pages/community/StudyGroupsPage'));
+const GroupDetailPage = lazy(() => import('./pages/community/GroupDetailPage'));
+const DiscussionsPage = lazy(() => import('./pages/community/DiscussionsPage'));
+const DiscussionDetailPage = lazy(() => import('./pages/community/DiscussionDetailPage'));
+const CreateDiscussionPage = lazy(() => import('./pages/community/CreateDiscussionPage'));
 
 // Account Pages
 const ProfilePage = lazy(() => import('./pages/account/ProfilePage'));
@@ -288,14 +292,30 @@ export const router = createBrowserRouter([
         path: 'progress/planner',
         element: <StudyPlannerPage />,
       },
-      // Community routes
       {
-        path: 'community/forum',
-        element: <ForumPage />,
+        path: 'planner/:planId',
+        element: <StudyPlanDetailPage />,
       },
+      // Community routes
       {
         path: 'community/groups',
         element: <StudyGroupsPage />,
+      },
+      {
+        path: 'community/groups/:groupId',
+        element: <GroupDetailPage />,
+      },
+      {
+        path: 'discussions',
+        element: <DiscussionsPage />,
+      },
+      {
+        path: 'discussions/new',
+        element: <CreateDiscussionPage />,
+      },
+      {
+        path: 'discussions/:slug',
+        element: <DiscussionDetailPage />,
       },
       // Account routes
       {
@@ -309,6 +329,31 @@ export const router = createBrowserRouter([
       {
         path: 'account/subscription',
         element: <SubscriptionPage />,
+      },
+      // Redirect routes for backwards compatibility
+      {
+        path: 'study-groups',
+        element: <Navigate to="/app/community/groups" replace />,
+      },
+      {
+        path: 'study-groups/:groupId',
+        element: <StudyGroupsPage />,
+      },
+      {
+        path: 'quiz',
+        element: <Navigate to="/app/practice/quiz" replace />,
+      },
+      {
+        path: 'cat-test',
+        element: <Navigate to="/app/practice/cat" replace />,
+      },
+      {
+        path: 'analytics',
+        element: <Navigate to="/app/progress/analytics" replace />,
+      },
+      {
+        path: 'flashcards',
+        element: <Navigate to="/app/study/flashcards" replace />,
       },
     ],
   },

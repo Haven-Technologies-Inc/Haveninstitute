@@ -7,7 +7,6 @@ import analyticsRoutes from './analytics.routes';
 import aiRoutes from './ai.routes';
 import studyGroupRoutes from './studyGroup.routes';
 import studyPlannerRoutes from './studyPlanner.routes';
-import forumRoutes from './forum.routes';
 import questionRoutes from './question.routes';
 import studyMaterialRoutes from './studyMaterial.routes';
 import flashcardRoutes from './flashcard.routes';
@@ -24,6 +23,9 @@ import oauthRoutes from './oauth.routes';
 import mfaRoutes from './mfa.routes';
 import securityRoutes from './security.routes';
 import systemSettingsRoutes from './systemSettings.routes';
+// import searchRoutes from './search.routes'; // Temporarily disabled - needs fixing
+// import stripeRoutes from './stripe.routes'; // Temporarily disabled - needs fixing
+// import discussionsRoutes from './discussions.routes'; // Temporarily disabled - needs fixing
 
 const router = Router();
 
@@ -48,8 +50,8 @@ router.use('/quiz', quizRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/ai', aiRoutes);
 router.use('/study-groups', studyGroupRoutes);
+// router.use('/discussions', discussionsRoutes); // Temporarily disabled
 router.use('/planner', studyPlannerRoutes);
-router.use('/forum', forumRoutes);
 router.use('/questions', questionRoutes);
 router.use('/materials', studyMaterialRoutes);
 router.use('/flashcards', flashcardRoutes);
@@ -65,5 +67,7 @@ router.use('/oauth', oauthRoutes);
 router.use('/mfa', mfaRoutes);
 router.use('/security', securityRoutes);
 router.use('/admin/settings', systemSettingsRoutes);
+// router.use('/search', searchRoutes); // Temporarily disabled
+// router.use('/stripe', stripeRoutes); // Temporarily disabled
 
 export default router;

@@ -40,14 +40,17 @@ import { adminApi } from '../../services/adminApi';
 import {
   getAllAIIntegrations,
   saveAIIntegration,
+  syncAISettingsToBackend,
   testOpenAIConnection,
   testDeepSeekConnection,
+  testGrokConnection,
   validateAPIKey,
   exportAIConfiguration,
   resetAIIntegration,
   getAIUsageStats,
   type OpenAIConfig,
-  type DeepSeekConfig
+  type DeepSeekConfig,
+  type GrokConfig
 } from '../../services/aiIntegrationApi';
 import { toast } from 'sonner';
 
@@ -105,8 +108,21 @@ export function AdminSettings() {
     status: 'inactive'
   });
 
+  const [grokConfig, setGrokConfig] = useState<GrokConfig>({
+    id: 'grok',
+    name: 'Grok (xAI)',
+    enabled: false,
+    apiKey: '',
+    apiUrl: 'https://api.x.ai/v1',
+    model: 'grok-beta',
+    maxTokens: 4000,
+    temperature: 0.7,
+    status: 'inactive'
+  });
+
   const [showOpenAIKey, setShowOpenAIKey] = useState(false);
   const [showDeepSeekKey, setShowDeepSeekKey] = useState(false);
+  const [showGrokKey, setShowGrokKey] = useState(false);
 
   useEffect(() => {
     // Load saved configurations
@@ -137,6 +153,9 @@ export function AdminSettings() {
     }
     if (savedAI.deepseek) {
       setDeepSeekConfig(savedAI.deepseek);
+    }
+    if (savedAI.grok) {
+      setGrokConfig(savedAI.grok);
     }
   }, []);
 
@@ -211,7 +230,14 @@ export function AdminSettings() {
     try {
       saveAIIntegration('openai', openAIConfig);
       saveAIIntegration('deepseek', deepSeekConfig);
-      toast.success('AI integration configuration saved successfully');
+      saveAIIntegration('grok', grokConfig);
+      
+      const syncResult = await syncAISettingsToBackend(openAIConfig, deepSeekConfig, grokConfig);
+      if (syncResult.success) {
+        toast.success('AI settings saved and synced to server');
+      } else {
+        toast.success('AI settings saved locally (server sync failed)');
+      }
     } catch (error) {
       toast.error('Failed to save AI integration configuration');
     } finally {
@@ -246,6 +272,22 @@ export function AdminSettings() {
       }
     } catch (error) {
       toast.error('Failed to test DeepSeek connection');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleTestGrokConnection = async () => {
+    setTesting(true);
+    try {
+      const result = await testGrokConnection(grokConfig);
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error('Failed to test Grok connection');
     } finally {
       setTesting(false);
     }
@@ -289,9 +331,11 @@ export function AdminSettings() {
     try {
       resetAIIntegration('openai');
       resetAIIntegration('deepseek');
+      resetAIIntegration('grok');
       const defaults = getAllAIIntegrations();
       setOpenAIConfig(defaults.openai);
       setDeepSeekConfig(defaults.deepseek);
+      setGrokConfig(defaults.grok);
       toast.success('AI integration reset successfully');
     } catch (error) {
       toast.error('Failed to reset AI integration');
@@ -659,9 +703,10 @@ export function AdminSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <Tabs defaultValue="openai">
-            <TabsList className="grid grid-cols-2">
+            <TabsList className="grid grid-cols-3">
               <TabsTrigger value="openai">OpenAI</TabsTrigger>
               <TabsTrigger value="deepseek">DeepSeek</TabsTrigger>
+              <TabsTrigger value="grok">Grok</TabsTrigger>
             </TabsList>
             <TabsContent value="openai">
               <div className="space-y-4">
@@ -819,11 +864,89 @@ export function AdminSettings() {
                 </div>
               </div>
             </TabsContent>
+            <TabsContent value="grok">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-gray-700 dark:text-gray-300 mb-2 block">API Key</label>
+                  <div className="relative">
+                    <Input 
+                      type={showGrokKey ? "text" : "password"}
+                      value={grokConfig.apiKey}
+                      onChange={(e) => setGrokConfig({ ...grokConfig, apiKey: e.target.value })}
+                      placeholder="Your Grok/xAI API key"
+                      className="dark:bg-gray-700 dark:text-white dark:border-gray-600 pr-10 font-mono text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowGrokKey(!showGrokKey)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      {showGrokKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-gray-700 dark:text-gray-300 mb-2 block">Model</label>
+                  <Input 
+                    value={grokConfig.model}
+                    onChange={(e) => setGrokConfig({ ...grokConfig, model: e.target.value as any })}
+                    placeholder="grok-beta"
+                    className="dark:bg-gray-700 dark:text-white dark:border-gray-600 font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-700 dark:text-gray-300 mb-2 block">Max Tokens</label>
+                  <Input 
+                    type="number"
+                    value={grokConfig.maxTokens}
+                    onChange={(e) => setGrokConfig({ ...grokConfig, maxTokens: parseInt(e.target.value) })}
+                    placeholder="4000"
+                    className="dark:bg-gray-700 dark:text-white dark:border-gray-600 font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-700 dark:text-gray-300 mb-2 block">Temperature</label>
+                  <Input 
+                    type="number"
+                    step="0.1"
+                    value={grokConfig.temperature}
+                    onChange={(e) => setGrokConfig({ ...grokConfig, temperature: parseFloat(e.target.value) })}
+                    placeholder="0.7"
+                    className="dark:bg-gray-700 dark:text-white dark:border-gray-600 font-mono text-sm"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleSaveAIIntegration} disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="size-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="size-4 mr-2" />
+                        Save Grok Config
+                      </>
+                    )}
+                  </Button>
+                  <Button onClick={handleTestGrokConnection} variant="outline" disabled={testing}>
+                    {testing ? (
+                      <>
+                        <Loader2 className="size-4 mr-2 animate-spin" />
+                        Testing...
+                      </>
+                    ) : (
+                      'Test Connection'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
           </Tabs>
           <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-lg">
             <h4 className="font-semibold text-gray-900 dark:text-white">AI Integration Instructions:</h4>
             <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
-              <li>Sign up for an account at <a href="https://openai.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">OpenAI</a> or <a href="https://deepseek.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">DeepSeek</a></li>
+              <li>Sign up for an account at <a href="https://openai.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">OpenAI</a>, <a href="https://deepseek.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">DeepSeek</a>, or <a href="https://x.ai" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">xAI (Grok)</a></li>
               <li>Navigate to API keys section</li>
               <li>Copy your API key</li>
               <li>Configure the model, max tokens, and temperature as needed</li>
@@ -837,7 +960,7 @@ export function AdminSettings() {
               Always validate your API keys before saving. Use test keys during development.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border dark:border-gray-700 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border dark:border-gray-700 rounded-lg">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">OpenAI Status</p>
               <Badge className={openAIConfig.apiKey ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mt-1" : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 mt-1"}>
@@ -848,6 +971,12 @@ export function AdminSettings() {
               <p className="text-sm text-gray-600 dark:text-gray-400">DeepSeek Status</p>
               <Badge className={deepSeekConfig.apiKey ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mt-1" : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 mt-1"}>
                 {deepSeekConfig.apiKey ? 'Configured' : 'Not Configured'}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Grok Status</p>
+              <Badge className={grokConfig.apiKey ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 mt-1" : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 mt-1"}>
+                {grokConfig.apiKey ? 'Configured' : 'Not Configured'}
               </Badge>
             </div>
             <div>
