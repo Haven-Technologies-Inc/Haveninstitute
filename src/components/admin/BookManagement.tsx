@@ -861,7 +861,7 @@ export function BookManagement() {
                     Saving...
                   </>
                 ) : (
-                  isAdding ? 'Add Book' : 'Save Changes'
+                  isAdding ? 'Submit Book' : 'Save Changes'
                 )}
               </button>
             </div>
