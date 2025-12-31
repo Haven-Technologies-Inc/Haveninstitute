@@ -43,8 +43,10 @@ import {
   ChevronRight,
   BarChart3,
   Tags,
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react';
+import { AIQuestionGenerator } from './AIQuestionGenerator';
 import {
   getAllQuestions,
   getAllFlashcards,
@@ -106,6 +108,7 @@ export function ContentManagement() {
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const [importDialog, setImportDialog] = useState(false);
+  const [aiGeneratorDialog, setAiGeneratorDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
   // Form data
@@ -520,6 +523,12 @@ export function ContentManagement() {
             <Download className="size-4 mr-2" />
             Export
           </Button>
+          {activeTab === 'questions' && (
+            <Button onClick={() => setAiGeneratorDialog(true)} variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-950">
+              <Sparkles className="size-4 mr-2" />
+              AI Generate
+            </Button>
+          )}
           <Button onClick={handleCreate} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
             <Plus className="size-4 mr-2" />
             Create New
@@ -1047,6 +1056,16 @@ export function ContentManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Question Generator Dialog */}
+      <AIQuestionGenerator
+        open={aiGeneratorDialog}
+        onOpenChange={setAiGeneratorDialog}
+        onComplete={() => {
+          loadData();
+          loadStats();
+        }}
+      />
     </div>
   );
 }

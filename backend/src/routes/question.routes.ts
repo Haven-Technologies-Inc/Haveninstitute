@@ -51,4 +51,10 @@ router.post('/import/csv', authenticate, authorizeRole(['admin', 'instructor']),
 router.post('/import/file', authenticate, authorizeRole(['admin', 'instructor']), upload.single('file'), questionController.importFromFile.bind(questionController));
 router.post('/import/preview', authenticate, authorizeRole(['admin', 'instructor']), upload.single('file'), questionController.parseFilePreview.bind(questionController));
 
+// AI Question Generation routes (admin only)
+router.post('/generate', authenticate, authorizeRole(['admin', 'instructor']), questionController.startGeneration.bind(questionController));
+router.get('/generate/jobs', authenticate, authorizeRole(['admin', 'instructor']), questionController.getUserJobs.bind(questionController));
+router.get('/generate/:jobId', authenticate, authorizeRole(['admin', 'instructor']), questionController.getGenerationStatus.bind(questionController));
+router.delete('/generate/:jobId', authenticate, authorizeRole(['admin', 'instructor']), questionController.cancelGeneration.bind(questionController));
+
 export default router;

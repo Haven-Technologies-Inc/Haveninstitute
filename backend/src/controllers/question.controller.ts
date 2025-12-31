@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { questionService, QuestionFilters, PaginationOptions } from '../services/question.service';
 import { ResponseHandler, errorCodes } from '../utils/response';
 import { documentParserService } from '../services/documentParser.service';
+import { questionGeneratorService, generationEvents, BatchGenerationRequest } from '../services/questionGenerator.service';
 import { logger } from '../utils/logger';
 
 export class QuestionController {
@@ -259,6 +260,147 @@ export class QuestionController {
         res, 
         errorCodes.SYS_INTERNAL_ERROR, 
         error instanceof Error ? error.message : 'Failed to parse file', 
+        500
+      );
+    }
+  }
+
+  /**
+   * Start AI batch question generation
+   * POST /api/v1/questions/generate
+   */
+  async startGeneration(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id || 'admin';
+      
+      const request: BatchGenerationRequest = {
+        questionTypes: req.body.questionTypes || ['multiple_choice'],
+        categories: req.body.categories || ['management_of_care'],
+        difficulties: req.body.difficulties || ['easy', 'medium', 'hard'],
+        difficultyDistribution: req.body.difficultyDistribution,
+        totalQuestions: Math.min(Math.max(req.body.totalQuestions || 10, 1), 200),
+        topics: req.body.topics,
+        bloomLevels: req.body.bloomLevels,
+        userId
+      };
+
+      logger.info(`Starting AI question generation: ${request.totalQuestions} questions for user ${userId}`);
+
+      const jobId = await questionGeneratorService.startBatchGeneration(request);
+
+      return ResponseHandler.success(res, {
+        jobId,
+        message: `Generation job started. Generating ${request.totalQuestions} questions.`,
+        estimatedBatches: Math.ceil(request.totalQuestions / 10)
+      }, 202);
+
+    } catch (error) {
+      logger.error('Failed to start generation:', error);
+      return ResponseHandler.error(
+        res,
+        errorCodes.VAL_INVALID_INPUT,
+        error instanceof Error ? error.message : 'Failed to start question generation',
+        400
+      );
+    }
+  }
+
+  /**
+   * Get generation job status
+   * GET /api/v1/questions/generate/:jobId
+   */
+  async getGenerationStatus(req: Request, res: Response) {
+    try {
+      const { jobId } = req.params;
+      const job = questionGeneratorService.getJob(jobId);
+
+      if (!job) {
+        return ResponseHandler.error(res, errorCodes.RES_NOT_FOUND, 'Generation job not found', 404);
+      }
+
+      return ResponseHandler.success(res, {
+        id: job.id,
+        status: job.status,
+        progress: job.progress,
+        totalBatches: job.totalBatches,
+        completedBatches: job.completedBatches,
+        generatedCount: job.generatedQuestions.length,
+        savedCount: job.savedQuestionIds.length,
+        errors: job.errors.slice(0, 10),
+        startedAt: job.startedAt,
+        completedAt: job.completedAt,
+        estimatedTimeRemaining: job.estimatedTimeRemaining,
+        // Include questions only if completed and requested
+        questions: job.status === 'completed' && req.query.includeQuestions === 'true' 
+          ? job.generatedQuestions 
+          : undefined
+      });
+
+    } catch (error) {
+      return ResponseHandler.error(
+        res,
+        errorCodes.SYS_INTERNAL_ERROR,
+        error instanceof Error ? error.message : 'Failed to get job status',
+        500
+      );
+    }
+  }
+
+  /**
+   * Cancel a generation job
+   * DELETE /api/v1/questions/generate/:jobId
+   */
+  async cancelGeneration(req: Request, res: Response) {
+    try {
+      const { jobId } = req.params;
+      const cancelled = questionGeneratorService.cancelJob(jobId);
+
+      if (!cancelled) {
+        return ResponseHandler.error(
+          res,
+          errorCodes.RES_NOT_FOUND,
+          'Job not found or cannot be cancelled',
+          404
+        );
+      }
+
+      return ResponseHandler.success(res, { message: 'Generation job cancelled' });
+
+    } catch (error) {
+      return ResponseHandler.error(
+        res,
+        errorCodes.SYS_INTERNAL_ERROR,
+        error instanceof Error ? error.message : 'Failed to cancel job',
+        500
+      );
+    }
+  }
+
+  /**
+   * Get user's generation jobs
+   * GET /api/v1/questions/generate/jobs
+   */
+  async getUserJobs(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id || 'admin';
+      const jobs = questionGeneratorService.getUserJobs(userId);
+
+      return ResponseHandler.success(res, jobs.map(job => ({
+        id: job.id,
+        status: job.status,
+        progress: job.progress,
+        totalQuestions: job.request.totalQuestions,
+        generatedCount: job.generatedQuestions.length,
+        savedCount: job.savedQuestionIds.length,
+        startedAt: job.startedAt,
+        completedAt: job.completedAt
+      })));
+
+    } catch (error) {
+      return ResponseHandler.error(
+        res,
+        errorCodes.SYS_INTERNAL_ERROR,
+        error instanceof Error ? error.message : 'Failed to get jobs',
         500
       );
     }
