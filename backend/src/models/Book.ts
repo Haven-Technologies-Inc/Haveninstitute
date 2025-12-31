@@ -90,18 +90,21 @@ export class Book extends Model {
   @Column({
     type: DataType.STRING(500),
     allowNull: true,
+    field: 'cover_url',
   })
   coverImageUrl?: string;
 
   @Column({
     type: DataType.STRING(500),
     allowNull: true,
+    field: 'file_url',
   })
   fileUrl?: string;
 
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
+    field: 'page_count',
   })
   totalPages?: number;
 
@@ -142,7 +145,8 @@ export class Book extends Model {
   @Column({
     type: DataType.BOOLEAN,
     allowNull: false,
-    defaultValue: true,
+    defaultValue: false,
+    field: 'is_published',
   })
   isActive!: boolean;
 
