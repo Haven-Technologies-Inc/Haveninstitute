@@ -245,11 +245,9 @@ export function BookManagement() {
     if (!formData.totalPages || parseInt(formData.totalPages) < 1) errors.totalPages = 'Valid page count required';
     
     if (!formData.isFree) {
-      if (formData.format !== 'print' && (!formData.ebookPrice || parseFloat(formData.ebookPrice) < 0)) {
-        errors.ebookPrice = 'Valid ebook price required';
-      }
-      if (formData.format !== 'ebook' && (!formData.price || parseFloat(formData.price) < 0)) {
-        errors.price = 'Valid print price required';
+      // For digital formats, need at least ebook price
+      if (!formData.ebookPrice || parseFloat(formData.ebookPrice) < 0) {
+        errors.ebookPrice = 'Valid price required';
       }
     }
     
