@@ -159,7 +159,9 @@ class QuestionGeneratorService {
 
     try {
       for (let batchIndex = 0; batchIndex < job.totalBatches; batchIndex++) {
-        if (job.status === 'cancelled') break;
+        // Re-check job status from map (may have been cancelled externally)
+        const currentJob = generationJobs.get(jobId);
+        if (!currentJob || currentJob.status === 'cancelled') break;
 
         const batchSize = Math.min(questionsPerBatch, remainingQuestions);
         const batchDistribution = this.getBatchDistribution(distribution, batchIndex, job.totalBatches, batchSize);
