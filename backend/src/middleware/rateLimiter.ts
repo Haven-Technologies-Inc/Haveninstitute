@@ -7,6 +7,10 @@ dotenv.config();
 const windowMs = Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000; // 15 minutes
 const max = Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 100;
 
+// Auth rate limiting (more lenient for development)
+const authWindowMs = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000; // 15 minutes
+const authMax = Number(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS) || 20; // Increased default from 5 to 20
+
 // Skip rate limiting for admin users and admin routes
 const skipAdmin = (req: Request): boolean => {
   // Skip admin routes entirely
@@ -53,8 +57,8 @@ export const aiTutorLimiter = rateLimit({
 });
 
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per windowMs
+  windowMs: authWindowMs,
+  max: authMax,
   skipSuccessfulRequests: true,
   message: {
     success: false,
