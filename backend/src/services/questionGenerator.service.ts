@@ -79,7 +79,7 @@ const generationJobs: Map<string, GenerationJob> = new Map();
 export const generationEvents = new EventEmitter();
 
 // Constants
-const BATCH_SIZE = 10; // Questions per API call
+const BATCH_SIZE = 5; // Questions per API call (reduced to fit token limits)
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 
@@ -244,7 +244,7 @@ class QuestionGeneratorService {
       { role: 'user', content: prompt }
     ], {
       temperature: 0.8,
-      maxTokens: 8192
+      maxTokens: 4000
     });
 
     // Parse response
