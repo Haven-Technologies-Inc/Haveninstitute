@@ -1,12 +1,10 @@
 import { Request, Response } from 'express';
-import { FlashcardService } from '../services/flashcard.service';
-import { ResponseHandler } from '../utils/response';
-
-const flashcardService = new FlashcardService();
+import { flashcardService } from '../services/flashcard.service';
+import { AuthRequest } from '../middleware/authenticate';
 
 export class FlashcardController {
   // Get all decks for user
-  static async getDecks(req: Request, res: Response) {
+  static async getDecks(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { category, isPublic } = req.query;
@@ -23,7 +21,7 @@ export class FlashcardController {
   }
 
   // Get single deck with cards
-  static async getDeck(req: Request, res: Response) {
+  static async getDeck(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
       const deck = await flashcardService.getDeckWithCards(id);
@@ -39,7 +37,7 @@ export class FlashcardController {
   }
 
   // Create new deck
-  static async createDeck(req: Request, res: Response) {
+  static async createDeck(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { title, description, categoryId, isPublic, tags } = req.body;
@@ -60,7 +58,7 @@ export class FlashcardController {
   }
 
   // Update deck
-  static async updateDeck(req: Request, res: Response) {
+  static async updateDeck(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { id } = req.params;
@@ -79,7 +77,7 @@ export class FlashcardController {
   }
 
   // Delete deck
-  static async deleteDeck(req: Request, res: Response) {
+  static async deleteDeck(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { id } = req.params;
@@ -97,7 +95,7 @@ export class FlashcardController {
   }
 
   // Add card to deck
-  static async addCard(req: Request, res: Response) {
+  static async addCard(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { deckId } = req.params;
@@ -122,7 +120,7 @@ export class FlashcardController {
   }
 
   // Update card
-  static async updateCard(req: Request, res: Response) {
+  static async updateCard(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { cardId } = req.params;
@@ -141,7 +139,7 @@ export class FlashcardController {
   }
 
   // Delete card
-  static async deleteCard(req: Request, res: Response) {
+  static async deleteCard(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { cardId } = req.params;
@@ -159,7 +157,7 @@ export class FlashcardController {
   }
 
   // Get cards due for review (SRS)
-  static async getDueCards(req: Request, res: Response) {
+  static async getDueCards(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { deckId, limit = '20' } = req.query;
@@ -177,7 +175,7 @@ export class FlashcardController {
   }
 
   // Submit card review (SRS update)
-  static async submitReview(req: Request, res: Response) {
+  static async submitReview(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { cardId } = req.params;
@@ -195,7 +193,7 @@ export class FlashcardController {
   }
 
   // Get user's flashcard progress
-  static async getProgress(req: Request, res: Response) {
+  static async getProgress(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { deckId } = req.query;
@@ -212,7 +210,7 @@ export class FlashcardController {
   }
 
   // Get public decks
-  static async getPublicDecks(req: Request, res: Response) {
+  static async getPublicDecks(req: AuthRequest, res: Response) {
     try {
       const { category, search, page = '1', limit = '20' } = req.query;
 
@@ -230,7 +228,7 @@ export class FlashcardController {
   }
 
   // Clone public deck
-  static async cloneDeck(req: Request, res: Response) {
+  static async cloneDeck(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { id } = req.params;

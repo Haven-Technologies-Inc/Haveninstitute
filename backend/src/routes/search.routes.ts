@@ -38,7 +38,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
     // Search Users (admin only)
     if (isAdmin && (!allowedTypes || allowedTypes.includes('user'))) {
-      const userResults = await pool.query(
+      const userResults = await sequelize.query(
         `SELECT id, name, email, role, subscription 
          FROM users 
          WHERE LOWER(name) LIKE $1 OR LOWER(email) LIKE $1

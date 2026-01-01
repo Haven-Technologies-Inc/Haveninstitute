@@ -1,0 +1,10 @@
+Excellent! All containers are now starting up. Let's test if the backend is responding.
+
+Test the backend health:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && curl http://localhost:3001/api/v1/health"
+
+If that works, also test the external access:
+ssh root@5.78.147.82 "curl http://localhost:80"
+
+And check the final container status:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose ps"

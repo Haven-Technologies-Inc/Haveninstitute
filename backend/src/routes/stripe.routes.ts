@@ -9,7 +9,7 @@ import { Router, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/authenticate';
 import { stripe } from '../config/stripe';
 import { ResponseHandler } from '../utils/response';
-import pool from '../database/pool';
+import { sequelize } from '../config/database';
 
 const router = Router();
 
@@ -100,7 +100,7 @@ router.get('/subscription', authenticate, async (req: AuthRequest, res: Response
   try {
     const userId = req.userId!;
 
-    const result = await pool.query(
+    const result = await sequelize.query(
       `SELECT s.*, u.stripe_customer_id
        FROM subscriptions s
        JOIN users u ON u.id = s.user_id
@@ -130,7 +130,7 @@ router.get('/subscriptions', authenticate, async (req: AuthRequest, res: Respons
   try {
     const userId = req.userId!;
 
-    const result = await pool.query(
+    const result = await sequelize.query(
       `SELECT * FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC`,
       [userId]
     );
@@ -178,7 +178,7 @@ router.post('/subscription', authenticate, async (req: AuthRequest, res: Respons
     });
 
     // Save to database
-    await pool.query(
+    await sequelize.query(
       `INSERT INTO subscriptions (user_id, stripe_subscription_id, plan_type, status, current_period_start, current_period_end)
        VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (user_id) DO UPDATE SET
@@ -265,7 +265,7 @@ router.post('/subscription/:subscriptionId/cancel', authenticate, async (req: Au
     }
 
     // Update database
-    await pool.query(
+    await sequelize.query(
       `UPDATE subscriptions SET status = $1, cancel_at_period_end = $2, updated_at = NOW()
        WHERE stripe_subscription_id = $3`,
       [updated.status, cancelAtPeriodEnd, subscriptionId]
@@ -294,7 +294,7 @@ router.post('/subscription/:subscriptionId/reactivate', authenticate, async (req
       cancel_at_period_end: false
     });
 
-    await pool.query(
+    await sequelize.query(
       `UPDATE subscriptions SET status = 'active', cancel_at_period_end = false, updated_at = NOW()
        WHERE stripe_subscription_id = $1`,
       [subscriptionId]
@@ -691,7 +691,7 @@ function getPriceIdForPlan(planId: string): string | null {
 }
 
 async function getStripeCustomerId(userId: string): Promise<string | null> {
-  const result = await pool.query(
+  const result = await sequelize.query(
     'SELECT stripe_customer_id FROM users WHERE id = $1',
     [userId]
   );
@@ -700,7 +700,7 @@ async function getStripeCustomerId(userId: string): Promise<string | null> {
 
 async function getOrCreateStripeCustomer(userId: string): Promise<string> {
   // Check if customer exists
-  const result = await pool.query(
+  const result = await sequelize.query(
     'SELECT stripe_customer_id, email, full_name FROM users WHERE id = $1',
     [userId]
   );
@@ -718,7 +718,7 @@ async function getOrCreateStripeCustomer(userId: string): Promise<string> {
   });
 
   // Save customer ID
-  await pool.query(
+  await sequelize.query(
     'UPDATE users SET stripe_customer_id = $1 WHERE id = $2',
     [customer.id, userId]
   );

@@ -1,0 +1,16 @@
+The backend is still not responding. Let's debug this step by step.
+
+Step 1: Check all container status
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose ps"
+
+Step 2: Check backend logs for errors
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose logs backend"
+
+Step 3: If backend is failing, try restarting just the backend
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose restart backend"
+
+Step 4: Wait 30 seconds and test again
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && sleep 30 && curl http://localhost:3001/api/v1/health"
+
+Step 5: If still failing, check all logs
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose logs"

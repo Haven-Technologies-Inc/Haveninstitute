@@ -1,0 +1,8 @@
+First, let's find where your project is located on the server.
+
+Run this command to find the project:
+
+ssh root@5.78.147.82 "find / -name 'docker-compose.yml' 2>/dev/null | head -5"
+
+This will show you where your Docker Compose file is located.
+Then we'll use that correct path for the fix.

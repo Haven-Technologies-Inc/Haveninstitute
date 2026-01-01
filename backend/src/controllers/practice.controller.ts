@@ -11,7 +11,7 @@ export class PracticeController {
   // ==================== NCLEX SIMULATOR ====================
   
   // Start NCLEX simulator exam
-  static async startNCLEXExam(req: Request, res: Response) {
+  static async startNCLEXExam(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const session = await nclexService.startExam(userId);
@@ -22,7 +22,7 @@ export class PracticeController {
   }
 
   // Get current question in NCLEX exam
-  static async getNCLEXQuestion(req: Request, res: Response) {
+  static async getNCLEXQuestion(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -39,7 +39,7 @@ export class PracticeController {
   }
 
   // Submit answer in NCLEX exam
-  static async submitNCLEXAnswer(req: Request, res: Response) {
+  static async submitNCLEXAnswer(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -53,7 +53,7 @@ export class PracticeController {
   }
 
   // Take break in NCLEX exam
-  static async takeNCLEXBreak(req: Request, res: Response) {
+  static async takeNCLEXBreak(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -66,7 +66,7 @@ export class PracticeController {
   }
 
   // End break in NCLEX exam
-  static async endNCLEXBreak(req: Request, res: Response) {
+  static async endNCLEXBreak(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -79,7 +79,7 @@ export class PracticeController {
   }
 
   // End NCLEX exam
-  static async endNCLEXExam(req: Request, res: Response) {
+  static async endNCLEXExam(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -92,7 +92,7 @@ export class PracticeController {
   }
 
   // Get NCLEX exam results
-  static async getNCLEXResults(req: Request, res: Response) {
+  static async getNCLEXResults(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -109,7 +109,7 @@ export class PracticeController {
   }
 
   // Get NCLEX exam history
-  static async getNCLEXHistory(req: Request, res: Response) {
+  static async getNCLEXHistory(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { page = '1', limit = '10' } = req.query;
@@ -128,7 +128,7 @@ export class PracticeController {
   // ==================== QUICK PRACTICE ====================
 
   // Start quick practice session
-  static async startQuickPractice(req: Request, res: Response) {
+  static async startQuickPractice(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { categoryId, difficulty, questionCount = 10 } = req.body;
@@ -145,7 +145,7 @@ export class PracticeController {
   }
 
   // Get current question in quick practice
-  static async getQuickPracticeQuestion(req: Request, res: Response) {
+  static async getQuickPracticeQuestion(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -162,7 +162,7 @@ export class PracticeController {
   }
 
   // Submit answer in quick practice
-  static async submitQuickPracticeAnswer(req: Request, res: Response) {
+  static async submitQuickPracticeAnswer(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -176,7 +176,7 @@ export class PracticeController {
   }
 
   // End quick practice session
-  static async endQuickPractice(req: Request, res: Response) {
+  static async endQuickPractice(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -189,7 +189,7 @@ export class PracticeController {
   }
 
   // Get quick practice results
-  static async getQuickPracticeResults(req: Request, res: Response) {
+  static async getQuickPracticeResults(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { sessionId } = req.params;
@@ -206,7 +206,7 @@ export class PracticeController {
   }
 
   // Get quick practice history
-  static async getQuickPracticeHistory(req: Request, res: Response) {
+  static async getQuickPracticeHistory(req: AuthRequest, res: Response) {
     try {
       const userId = req.userId!;
       const { page = '1', limit = '10' } = req.query;
@@ -225,7 +225,7 @@ export class PracticeController {
   // ==================== COMMON ====================
 
   // Get available categories
-  static async getCategories(req: Request, res: Response) {
+  static async getCategories(req: AuthRequest, res: Response) {
     try {
       const categories = await quickPracticeService.getCategories();
       return ResponseHandler.success(res, categories);
@@ -235,7 +235,7 @@ export class PracticeController {
   }
 
   // Get question counts by category
-  static async getQuestionCounts(req: Request, res: Response) {
+  static async getQuestionCounts(req: AuthRequest, res: Response) {
     try {
       const counts = await quickPracticeService.getQuestionCounts();
       return ResponseHandler.success(res, counts);

@@ -98,6 +98,60 @@ export async function authenticate(
   }
 }
 
+export async function optionalAuth(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    // Get token from header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // No token provided, but that's okay for optional auth
+      next();
+      return;
+    }
+
+    // Verify token
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, jwtConfig.secret) as JWTPayload;
+
+    // Get user from session
+    const session = await Session.findOne({
+      where: { 
+        token: token,
+        isActive: true,
+        expiresAt: { 
+          [require('sequelize').Op.gt]: new Date() 
+        }
+      }
+    });
+
+    if (!session) {
+      next();
+      return;
+    }
+
+    // Get user
+    const user = await User.findByPk(session.userId);
+    if (!user || !user.isActive) {
+      next();
+      return;
+    }
+
+    // Attach user to request
+    req.user = user;
+    req.userId = user.id;
+    req.userRole = user.role;
+    req.userSubscription = user.subscriptionType;
+
+    next();
+  } catch (error) {
+    // For optional auth, we just continue even if token is invalid
+    next();
+  }
+}
+
 export function authorizeRole(roles: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.userRole || !roles.includes(req.userRole)) {

@@ -1,0 +1,7 @@
+Run this ONE command in PowerShell:
+
+ssh root@5.78.147.82 "cd /opt/haveninstitute && docker compose down && docker compose up -d --build && sleep 30 && curl http://localhost:3001/api/v1/health"
+
+If that doesn't work, try this simpler restart:
+
+ssh root@5.78.147.82 "cd /opt/haveninstitute && docker compose restart && curl http://localhost:3001/api/v1/health"

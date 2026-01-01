@@ -1,0 +1,13 @@
+Great! The Docker rebuild was successful. Now let's check if the services are running properly.
+
+Run this command to check the current status:
+
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose ps"
+
+Then test the backend health again:
+
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && curl http://localhost:3001/api/v1/health"
+
+If the health check still fails, check the backend logs:
+
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose logs backend"

@@ -1,0 +1,16 @@
+The backend container is running but not responding on port 3001. Let's debug deeper.
+
+Step 1: Check if backend process is actually running inside the container
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose exec backend ps aux"
+
+Step 2: Check what's listening on ports inside the backend container
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose exec backend netstat -tuln"
+
+Step 3: Check backend logs for startup errors
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose logs backend --tail=50"
+
+Step 4: Try to manually start the backend inside the container
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose exec backend node dist/server.js"
+
+Step 5: Check if the application is actually built correctly
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose exec backend ls -la dist/"
