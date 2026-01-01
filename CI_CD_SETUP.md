@@ -1,6 +1,7 @@
 # Haven Institute CI/CD Setup Guide
 
 ## Overview
+
 This guide covers setting up automated CI/CD for Haven Institute using GitHub Actions and Docker containers.
 
 ## 🚀 Features
