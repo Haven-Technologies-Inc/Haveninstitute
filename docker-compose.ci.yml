@@ -1,0 +1,137 @@
+# Haven Institute - CI/CD Docker Compose
+# Optimized for GitHub Actions deployment
+
+version: '3.8'
+
+services:
+  # Frontend Application
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/haven-technologies-inc/haveninstitute-frontend:latest}
+    container_name: haven-frontend-ci
+    restart: unless-stopped
+    networks:
+      - haven-network-ci
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-https://api.havenstudy.com/api/v1}
+      - VITE_WS_URL=${VITE_WS_URL:-wss://api.havenstudy.com}
+      - VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - VITE_APP_ENV=production
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend-ci.rule=Host(`${DOMAIN:-havenstudy.com}`)"
+      - "traefik.http.routers.frontend-ci.tls=true"
+      - "traefik.http.routers.frontend-ci.tls.certresolver=letsencrypt"
+
+  # Backend API
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/haven-technologies-inc/haveninstitute-backend:latest}
+    container_name: haven-backend-ci
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.production
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME:-haven_institute}
+      - DB_USER=${DB_USER:-haven_user}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      # Rate limiting for production
+      - AUTH_RATE_LIMIT_MAX_REQUESTS=${AUTH_RATE_LIMIT_MAX_REQUESTS:-50}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-200}
+    networks:
+      - haven-network-ci
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend-ci.rule=Host(`api.${DOMAIN:-havenstudy.com}`)"
+      - "traefik.http.routers.backend-ci.tls=true"
+      - "traefik.http.routers.backend-ci.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend-ci.loadbalancer.server.port=3001"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MariaDB Database
+  mariadb:
+    image: mariadb:10.11
+    container_name: haven-mariadb-ci
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME:-haven_institute}
+      - MYSQL_USER=${DB_USER:-haven_user}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - mariadb_data_ci:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - haven-network-ci
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: haven-redis-ci
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data_ci:/data
+    networks:
+      - haven-network-ci
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Caddy Reverse Proxy
+  caddy:
+    image: caddy:2-alpine
+    container_name: haven-caddy-ci
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data_ci:/data
+      - caddy_config_ci:/config
+    networks:
+      - haven-network-ci
+    depends_on:
+      - frontend
+      - backend
+
+networks:
+  haven-network-ci:
+    driver: bridge
+
+volumes:
+  mariadb_data_ci:
+  redis_data_ci:
+  caddy_data_ci:
+  caddy_config_ci:

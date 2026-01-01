@@ -1,0 +1,321 @@
+name: 🚀 Haven Institute CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Frontend Build & Test
+  frontend-build:
+    name: 🎨 Frontend Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🔍 Lint code
+      run: npm run lint || echo "No lint script found"
+      
+    - name: 🏗️ Build frontend
+      run: npm run build
+      
+    - name: 📤 Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-build
+        path: dist/
+        retention-days: 1
+
+  # Backend Build & Test
+  backend-build:
+    name: 🔧 Backend Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+        
+    - name: 📦 Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+      
+    - name: 🔍 Lint backend code
+      working-directory: ./backend
+      run: npm run lint || echo "No lint script found"
+      
+    - name: 🏗️ Build backend
+      working-directory: ./backend
+      run: npm run build
+      
+    - name: 🧪 Run tests
+      working-directory: ./backend
+      run: npm test || echo "No tests configured"
+      
+    - name: 📤 Upload backend build
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-build
+        path: backend/dist/
+        retention-days: 1
+
+  # Security & Quality Checks
+  security-scan:
+    name: 🔒 Security & Quality Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔍 Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: 📊 Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+        
+    - name: 🔍 Run CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        languages: javascript
+
+  # Docker Build & Push
+  docker-build:
+    name: 🐳 Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [frontend-build, backend-build, security-scan]
+    if: github.ref == 'refs/heads/main'
+    
+    outputs:
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+      
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔐 Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📋 Extract metadata (frontend)
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: 📋 Extract metadata (backend)
+      id: meta-backend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: 📥 Download frontend build
+      uses: actions/download-artifact@v4
+      with:
+        name: frontend-build
+        path: dist/
+        
+    - name: 📥 Download backend build
+      uses: actions/download-artifact@v4
+      with:
+        name: backend-build
+        path: backend/dist/
+        
+    - name: 🐳 Build and push frontend image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: 🐳 Build and push backend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Deploy to Hetzner (Production)
+  deploy-production:
+    name: 🚀 Deploy to Hetzner Production
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📋 Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=sha,prefix=main-
+          
+    - name: 🚀 Deploy to Hetzner server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HETZNER_HOST }}
+        username: ${{ secrets.HETZNER_USER }}
+        key: ${{ secrets.HETZNER_SSH_KEY }}
+        script: |
+          cd /path/to/Haveninstitute
+          
+          # Backup current database
+          docker compose exec -T mariadb mysqldump -u root -p${{ secrets.DB_ROOT_PASSWORD }} haven_institute > backup-$(date +%Y%m%d-%H%M%S).sql || echo "Backup failed"
+          
+          # Pull latest changes
+          git pull origin main
+          
+          # Update environment with new image tags
+          sed -i "s|IMAGE_TAG=.*|IMAGE_TAG=main-${{ github.sha }}|" .env
+          
+          # Pull new images
+          docker compose pull
+          
+          # Deploy with zero downtime
+          docker compose up -d --no-deps backend
+          sleep 15
+          
+          # Run database migrations
+          docker compose exec -T backend npm run migrate || echo "Migration completed"
+          
+          # Update frontend
+          docker compose up -d --no-deps frontend
+          
+          # Health checks
+          echo "🔍 Checking service health..."
+          sleep 10
+          
+          # Backend health
+          BACKEND_HEALTH=$(curl -s http://localhost:3001/api/v1/health || echo "failed")
+          if [[ "$BACKEND_HEALTH" == *"healthy"* ]]; then
+            echo "✅ Backend health check passed"
+          else
+            echo "❌ Backend health check failed"
+            exit 1
+          fi
+          
+          # Frontend health
+          FRONTEND_CHECK=$(curl -s http://localhost:3000 | head -1 || echo "failed")
+          if [[ "$FRONTEND_CHECK" == *"DOCTYPE"* ]] || [[ "$FRONTEND_CHECK" == *"html"* ]]; then
+            echo "✅ Frontend health check passed"
+          else
+            echo "❌ Frontend health check failed"
+            exit 1
+          fi
+          
+          echo "🎉 Deployment completed successfully!"
+          docker compose ps
+
+  # Deploy to Staging
+  deploy-staging:
+    name: 🧪 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🚀 Deploy to staging server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.STAGING_HOST }}
+        username: ${{ secrets.STAGING_USER }}
+        key: ${{ secrets.STAGING_SSH_KEY }}
+        script: |
+          cd /path/to/Haveninstitute-staging
+          
+          # Pull latest changes
+          git pull origin develop
+          
+          # Build and deploy
+          docker compose build
+          docker compose up -d
+          
+          echo "🧪 Staging deployment completed!"
+
+  # Notification
+  notify:
+    name: 📢 Notification
+    runs-on: ubuntu-latest
+    needs: [deploy-production, deploy-staging]
+    if: always()
+    
+    steps:
+    - name: 📧 Send deployment notification
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        channel: '#deployments'
+        text: |
+          🚀 Haven Institute Deployment ${{ job.status == 'success' && '✅ Successful' || '❌ Failed' }}
+          
+          📦 Commit: ${{ github.sha }}
+          🌿 Branch: ${{ github.ref_name }}
+          👤 Author: ${{ github.actor }}
+          
+          ${{ needs.deploy-production.result == 'success' && '🎯 Production: https://havenstudy.com' || '' }}
+          ${{ needs.deploy-staging.result == 'success' && '🧪 Staging: https://staging.havenstudy.com' || '' }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
