@@ -23,9 +23,10 @@ import oauthRoutes from './oauth.routes';
 import mfaRoutes from './mfa.routes';
 import securityRoutes from './security.routes';
 import systemSettingsRoutes from './systemSettings.routes';
-// import searchRoutes from './search.routes'; // Temporarily disabled - needs fixing
-// import stripeRoutes from './stripe.routes'; // Temporarily disabled - needs fixing
-// import discussionsRoutes from './discussions.routes'; // Temporarily disabled - needs fixing
+import backupRoutes from './backup.routes';
+import searchRoutes from './search.routes';
+import stripeRoutes from './stripe.routes';
+import discussionsRoutes from './discussions.routes';
 
 const router = Router();
 
@@ -50,7 +51,7 @@ router.use('/quiz', quizRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/ai', aiRoutes);
 router.use('/study-groups', studyGroupRoutes);
-// router.use('/discussions', discussionsRoutes); // Temporarily disabled
+router.use('/discussions', discussionsRoutes);
 router.use('/planner', studyPlannerRoutes);
 router.use('/questions', questionRoutes);
 router.use('/materials', studyMaterialRoutes);
@@ -67,7 +68,8 @@ router.use('/oauth', oauthRoutes);
 router.use('/mfa', mfaRoutes);
 router.use('/security', securityRoutes);
 router.use('/admin/settings', systemSettingsRoutes);
-// router.use('/search', searchRoutes); // Temporarily disabled
-// router.use('/stripe', stripeRoutes); // Temporarily disabled
+router.use('/admin/backup', backupRoutes);
+router.use('/search', searchRoutes);
+router.use('/stripe', stripeRoutes);
 
 export default router;

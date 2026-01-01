@@ -27,24 +27,58 @@ app.use(helmet({
 }));
 
 // CORS configuration
-const corsOrigins = process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'];
-// Add production domains
+const corsOrigins = process.env.CORS_ORIGIN?.split(',') || [];
+const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Production domains only
 const productionDomains = [
   'https://havenstudy.com',
   'https://www.havenstudy.com',
   'https://api.havenstudy.com'
 ];
-const allAllowedOrigins = [...new Set([...corsOrigins, ...productionDomains])];
+
+// Development domains
+const developmentDomains = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
+];
+
+let allowedOrigins: string[];
+
+if (isProduction) {
+  // In production, only allow production domains
+  allowedOrigins = [...new Set([...corsOrigins, ...productionDomains])];
+  
+  // Filter out any development domains in production
+  allowedOrigins = allowedOrigins.filter(origin => 
+    !developmentDomains.includes(origin) &&
+    !origin.includes('localhost') &&
+    !origin.includes('127.0.0.1')
+  );
+} else {
+  // In development, allow all domains
+  allowedOrigins = [...new Set([...corsOrigins, ...productionDomains, ...developmentDomains])];
+}
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
 
-    if (allAllowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+    // In development, be more permissive
+    if (isDevelopment) {
+      return callback(null, true);
+    }
+
+    // In production, strictly validate origins
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      logger.warn(`CORS blocked origin: ${origin}`);
+      logger.warn(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
       callback(new Error('CORS not allowed for this origin'), false);
     }
   },
@@ -52,7 +86,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400 // 24 hours
+  maxAge: isProduction ? 86400 : 3600, // Longer cache in production
+  optionsSuccessStatus: 204 // Some legacy browsers choke on 204
 }));
 
 // Body parsing middleware

@@ -108,7 +108,7 @@ jobs:
     - name: 🔍 Run CodeQL Analysis
       uses: github/codeql-action/analyze@v3
       with:
-        languages: javascript
+        languages: javascript, typescript
 
   # Docker Build & Push
   docker-build:

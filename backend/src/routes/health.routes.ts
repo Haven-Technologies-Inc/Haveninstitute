@@ -1,63 +1,44 @@
 /**
- * Enhanced Health Check Routes
- * Provides detailed system health information for monitoring
+ * Health Routes
+ * Health check endpoints for monitoring and load balancers
  */
 
 import { Router, Request, Response } from 'express';
-import { sequelize } from '../config/database';
-import os from 'os';
+import { MonitoringService } from '../services/monitoring.service';
+import { ResponseHandler } from '../utils/response';
 
 const router = Router();
-
-interface HealthStatus {
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  timestamp: string;
-  uptime: number;
-  version: string;
-  environment: string;
-  checks: {
-    database: ServiceCheck;
-    memory: ServiceCheck;
-    disk?: ServiceCheck;
-  };
-  system?: SystemInfo;
-}
-
-interface ServiceCheck {
-  status: 'up' | 'down' | 'degraded';
-  latency?: number;
-  message?: string;
-}
-
-interface SystemInfo {
-  platform: string;
-  nodeVersion: string;
-  cpuUsage: number;
-  memoryUsage: {
-    used: number;
-    total: number;
-    percentage: number;
-  };
-  loadAverage: number[];
-}
 
 /**
  * Basic health check - lightweight for load balancers
  * GET /api/v1/health
  */
 router.get('/', async (req: Request, res: Response) => {
-  const dbHealthy = await checkDatabase();
-  
-  if (dbHealthy.status === 'up') {
-    res.status(200).json({
-      status: 'healthy',
-      timestamp: new Date().toISOString()
-    });
-  } else {
+  try {
+    const healthCheck = await MonitoringService.performHealthCheck();
+    
+    if (healthCheck.status === 'healthy') {
+      res.status(200).json({
+        status: 'healthy',
+        timestamp: healthCheck.timestamp,
+        uptime: healthCheck.uptime
+      });
+    } else {
+      res.status(503).json({
+        status: 'unhealthy',
+        timestamp: healthCheck.timestamp,
+        uptime: healthCheck.uptime,
+        checks: healthCheck.checks.filter(c => c.status === 'unhealthy').map(c => ({
+          name: c.name,
+          message: c.message
+        }))
+      });
+    }
+  } catch (error: any) {
     res.status(503).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      error: 'Database connection failed'
+      error: error.message
     });
   }
 });
@@ -67,46 +48,26 @@ router.get('/', async (req: Request, res: Response) => {
  * GET /api/v1/health/detailed
  */
 router.get('/detailed', async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  
-  // Run all checks in parallel
-  const [dbCheck, memoryCheck] = await Promise.all([
-    checkDatabase(),
-    checkMemory()
-  ]);
-  
-  const checks = {
-    database: dbCheck,
-    memory: memoryCheck
-  };
-  
-  // Determine overall status
-  const allUp = Object.values(checks).every(c => c.status === 'up');
-  const anyDown = Object.values(checks).some(c => c.status === 'down');
-  
-  let overallStatus: 'healthy' | 'degraded' | 'unhealthy';
-  if (allUp) {
-    overallStatus = 'healthy';
-  } else if (anyDown) {
-    overallStatus = 'unhealthy';
-  } else {
-    overallStatus = 'degraded';
+  try {
+    const healthCheck = await MonitoringService.performHealthCheck();
+    const metrics = await MonitoringService.getSystemMetrics();
+    
+    const detailedHealth = {
+      ...healthCheck,
+      metrics,
+      environment: process.env.NODE_ENV || 'development',
+      version: process.env.npm_package_version || '1.0.0'
+    };
+    
+    const statusCode = healthCheck.status === 'healthy' ? 200 : 503;
+    res.status(statusCode).json(detailedHealth);
+  } catch (error: any) {
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
   }
-  
-  const healthStatus: HealthStatus = {
-    status: overallStatus,
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    checks,
-    system: getSystemInfo()
-  };
-  
-  const statusCode = overallStatus === 'healthy' ? 200 : 
-                     overallStatus === 'degraded' ? 200 : 503;
-  
-  res.status(statusCode).json(healthStatus);
 });
 
 /**
@@ -114,12 +75,38 @@ router.get('/detailed', async (req: Request, res: Response) => {
  * GET /api/v1/health/ready
  */
 router.get('/ready', async (req: Request, res: Response) => {
-  const dbCheck = await checkDatabase();
-  
-  if (dbCheck.status === 'up') {
-    res.status(200).json({ ready: true });
-  } else {
-    res.status(503).json({ ready: false, reason: 'Database not ready' });
+  try {
+    const healthCheck = await MonitoringService.performHealthCheck();
+    const dbCheck = healthCheck.checks.find(c => c.name === 'database');
+    const redisCheck = healthCheck.checks.find(c => c.name === 'redis');
+    
+    const isReady = dbCheck?.status === 'healthy' && 
+                   (!redisCheck || redisCheck.status === 'healthy');
+    
+    if (isReady) {
+      res.status(200).json({ 
+        ready: true,
+        checks: healthCheck.checks.map(c => ({
+          name: c.name,
+          status: c.status
+        }))
+      });
+    } else {
+      res.status(503).json({ 
+        ready: false,
+        reason: 'Dependencies not ready',
+        checks: healthCheck.checks.map(c => ({
+          name: c.name,
+          status: c.status,
+          message: c.message
+        }))
+      });
+    }
+  } catch (error: any) {
+    res.status(503).json({ 
+      ready: false, 
+      reason: error.message 
+    });
   }
 });
 
@@ -128,75 +115,54 @@ router.get('/ready', async (req: Request, res: Response) => {
  * GET /api/v1/health/live
  */
 router.get('/live', (req: Request, res: Response) => {
-  res.status(200).json({ alive: true });
+  res.status(200).json({ 
+    alive: true,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
 });
 
-// Helper functions
-
-async function checkDatabase(): Promise<ServiceCheck> {
-  const startTime = Date.now();
+/**
+ * System metrics endpoint
+ * GET /api/v1/health/metrics
+ */
+router.get('/metrics', async (req: Request, res: Response) => {
   try {
-    await sequelize.authenticate();
-    const latency = Date.now() - startTime;
+    const metrics = await MonitoringService.getSystemMetrics();
+    const status = await MonitoringService.getStatusSummary();
     
-    return {
-      status: latency > 1000 ? 'degraded' : 'up',
-      latency,
-      message: latency > 1000 ? 'High latency detected' : 'Connected'
-    };
-  } catch (error) {
-    return {
-      status: 'down',
-      latency: Date.now() - startTime,
-      message: error instanceof Error ? error.message : 'Connection failed'
-    };
+    res.status(200).json({
+      ...metrics,
+      status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
-}
+});
 
-function checkMemory(): Promise<ServiceCheck> {
-  const used = process.memoryUsage();
-  const heapUsedMB = Math.round(used.heapUsed / 1024 / 1024);
-  const heapTotalMB = Math.round(used.heapTotal / 1024 / 1024);
-  const percentage = Math.round((used.heapUsed / used.heapTotal) * 100);
-  
-  let status: 'up' | 'degraded' | 'down' = 'up';
-  let message = `${heapUsedMB}MB / ${heapTotalMB}MB (${percentage}%)`;
-  
-  if (percentage > 90) {
-    status = 'down';
-    message = 'Critical: Memory usage above 90%';
-  } else if (percentage > 75) {
-    status = 'degraded';
-    message = 'Warning: Memory usage above 75%';
+/**
+ * Component health check
+ * GET /api/v1/health/components
+ */
+router.get('/components', async (req: Request, res: Response) => {
+  try {
+    const healthCheck = await MonitoringService.performHealthCheck();
+    
+    res.status(200).json({
+      components: healthCheck.checks,
+      overall: healthCheck.status,
+      timestamp: healthCheck.timestamp
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
-  
-  return Promise.resolve({ status, message });
-}
-
-function getSystemInfo(): SystemInfo {
-  const cpus = os.cpus();
-  const totalMemory = os.totalmem();
-  const freeMemory = os.freemem();
-  const usedMemory = totalMemory - freeMemory;
-  
-  // Calculate CPU usage (simplified)
-  const cpuUsage = cpus.reduce((acc, cpu) => {
-    const total = Object.values(cpu.times).reduce((a, b) => a + b, 0);
-    const idle = cpu.times.idle;
-    return acc + ((total - idle) / total) * 100;
-  }, 0) / cpus.length;
-  
-  return {
-    platform: os.platform(),
-    nodeVersion: process.version,
-    cpuUsage: Math.round(cpuUsage * 100) / 100,
-    memoryUsage: {
-      used: Math.round(usedMemory / 1024 / 1024),
-      total: Math.round(totalMemory / 1024 / 1024),
-      percentage: Math.round((usedMemory / totalMemory) * 100)
-    },
-    loadAverage: os.loadavg().map(l => Math.round(l * 100) / 100)
-  };
-}
+});
 
 export default router;

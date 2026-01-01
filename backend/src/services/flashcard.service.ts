@@ -29,8 +29,40 @@ export interface ReviewResult {
 class FlashcardService {
   // ==================== DECK OPERATIONS ====================
 
+  async getUserDecks(userId: string, options?: { page?: number; limit?: number }) {
+    const { page = 1, limit = 20 } = options || {};
+    const offset = (page - 1) * limit;
+
+    const result = await FlashcardDeck.findAndCountAll({
+      where: { userId },
+      include: [
+        {
+          model: Flashcard,
+          as: 'cards',
+          attributes: ['id']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset
+    });
+
+    return {
+      data: result.rows.map(deck => ({
+        ...deck.toJSON(),
+        cardCount: deck.cards?.length || 0
+      })),
+      pagination: {
+        page,
+        limit,
+        total: result.count,
+        totalPages: Math.ceil(result.count / limit)
+      }
+    };
+  }
+
   async getDecks(userId: string, options?: { includePublic?: boolean; category?: string }) {
-    const where: any = { isActive: true };
+    const where: Record<string, unknown> = { isActive: true };
     
     if (options?.includePublic) {
       where[Op.or] = [{ createdBy: userId }, { isPublic: true }];
@@ -181,6 +213,107 @@ class FlashcardService {
     }
 
     return { message: 'Card deleted' };
+  }
+
+  async addCard(deckId: string, userId: string, input: CreateCardInput) {
+    // Verify user owns the deck
+    const deck = await FlashcardDeck.findOne({
+      where: { id: deckId, userId }
+    });
+
+    if (!deck) {
+      throw new Error('Deck not found or access denied');
+    }
+
+    return Flashcard.create({
+      deckId,
+      front: input.front,
+      back: input.back,
+      notes: input.notes,
+      imageUrl: input.imageUrl,
+      tags: input.tags || [],
+      isActive: true
+    });
+  }
+
+  async createStudySession(deckId: string, userId: string, options?: { cardCount?: number }) {
+    const { cardCount = 10 } = options || {};
+
+    // Verify user owns the deck
+    const deck = await FlashcardDeck.findOne({
+      where: { id: deckId, userId }
+    });
+
+    if (!deck) {
+      throw new Error('Deck not found or access denied');
+    }
+
+    // Get cards that are due for review or new cards
+    const cards = await Flashcard.findAll({
+      where: { 
+        deckId,
+        isActive: true
+      },
+      limit: cardCount,
+      order: [['createdAt', 'ASC']]
+    });
+
+    return {
+      sessionId: `session_${Date.now()}`,
+      deckId,
+      cards: cards.map(card => ({
+        id: card.id,
+        front: card.front,
+        back: card.back,
+        notes: card.notes
+      })),
+      totalCards: cards.length,
+      startTime: new Date()
+    };
+  }
+
+  async submitStudyResult(deckId: string, userId: string, result: {
+    cardId: string;
+    result: 'correct' | 'incorrect';
+    timeSpent?: number;
+  }) {
+    // Verify user owns the deck
+    const deck = await FlashcardDeck.findOne({
+      where: { id: deckId, userId }
+    });
+
+    if (!deck) {
+      throw new Error('Deck not found or access denied');
+    }
+
+    // Update card progress
+    await UserFlashcardProgress.upsert({
+      userId,
+      flashcardId: result.cardId,
+      lastReviewed: new Date(),
+      reviewCount: require('sequelize').literal('review_count + 1'),
+      correctCount: result.result === 'correct' ? 
+        require('sequelize').literal('correct_count + 1') : 
+        require('sequelize').literal('correct_count')
+    });
+
+    // Log study activity
+    await StudyActivity.create({
+      userId,
+      type: 'flashcard_review',
+      metadata: {
+        deckId,
+        cardId: result.cardId,
+        result: result.result,
+        timeSpent: result.timeSpent
+      }
+    });
+
+    return {
+      success: true,
+      cardId: result.cardId,
+      result: result.result
+    };
   }
 
   async bulkCreateCards(deckId: string, userId: string, cards: CreateCardInput[]) {

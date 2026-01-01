@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/authenticate';
 import authService from '../services/auth.service';
+import { AccountLockoutService } from '../services/accountLockout.service';
 import { ResponseHandler } from '../utils/response';
 
 // Helper functions
@@ -26,9 +27,64 @@ export class AuthController {
 
   login = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+      const { email } = req.body;
       const deviceInfo = getDeviceInfo(req);
-      const result = await authService.login(req.body, deviceInfo);
-      ResponseHandler.success(res, result);
+
+      // Check if account is locked before attempting login
+      const lockoutStatus = await AccountLockoutService.isAccountLocked(email);
+      
+      if (lockoutStatus.isLocked) {
+        return ResponseHandler.error(
+          res,
+          'ACCOUNT_LOCKED',
+          `Account is temporarily locked due to multiple failed login attempts. Please try again in ${lockoutStatus.remainingTime} minutes.`,
+          429,
+          {
+            lockoutUntil: lockoutStatus.lockoutUntil,
+            remainingMinutes: lockoutStatus.remainingTime
+          }
+        );
+      }
+
+      try {
+        const result = await authService.login(req.body, deviceInfo);
+        
+        // Record successful login
+        await AccountLockoutService.recordSuccessfulAttempt(
+          email, 
+          result.user.id, 
+          deviceInfo.ipAddress, 
+          deviceInfo.userAgent
+        );
+        
+        ResponseHandler.success(res, result);
+      } catch (loginError: any) {
+        // Record failed attempt
+        await AccountLockoutService.recordFailedAttempt(
+          email, 
+          deviceInfo.ipAddress, 
+          deviceInfo.userAgent
+        );
+        
+        // Check if this failed attempt triggered a lockout
+        const newLockoutStatus = await AccountLockoutService.isAccountLocked(email);
+        
+        if (newLockoutStatus.isLocked) {
+          return ResponseHandler.error(
+            res,
+            'ACCOUNT_LOCKED',
+            `Too many failed login attempts. Account locked for ${newLockoutStatus.remainingTime} minutes.`,
+            429,
+            {
+              lockoutUntil: newLockoutStatus.lockoutUntil,
+              remainingMinutes: newLockoutStatus.remainingTime,
+              attempts: AccountLockoutService.getConfig().maxAttempts
+            }
+          );
+        }
+        
+        throw loginError;
+      }
     } catch (error) {
       next(error);
     }
