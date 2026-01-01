@@ -108,7 +108,7 @@ jobs:
     - name: 🔍 Run CodeQL Analysis
       uses: github/codeql-action/analyze@v3
       with:
-        languages: javascript-typescript
+        languages: javascript
 
   # Docker Build & Push
   docker-build:
@@ -211,8 +211,8 @@ jobs:
     - name: 🚀 Deploy to Hetzner server
       uses: appleboy/ssh-action@v1.0.0
       with:
-        host: ${{ secrets.HETZNER_HOST }}
-        username: ${{ secrets.HETZNER_USER }}
+        host: ${{ secrets.HETZNER_HOST || '5.78.147.82' }}
+        username: ${{ secrets.HETZNER_USER || 'root' }}
         key: ${{ secrets.HETZNER_SSH_KEY }}
         script: |
           cd /path/to/Haveninstitute
@@ -279,8 +279,8 @@ jobs:
     - name: 🚀 Deploy to staging server
       uses: appleboy/ssh-action@v1.0.0
       with:
-        host: ${{ secrets.STAGING_HOST }}
-        username: ${{ secrets.STAGING_USER }}
+        host: ${{ secrets.STAGING_HOST || 'localhost' }}
+        username: ${{ secrets.STAGING_USER || 'root' }}
         key: ${{ secrets.STAGING_SSH_KEY }}
         script: |
           cd /path/to/Haveninstitute-staging
@@ -318,4 +318,4 @@ jobs:
           ${{ needs.deploy-production.result == 'success' && '🎯 Production: https://havenstudy.com' || '' }}
           ${{ needs.deploy-staging.result == 'success' && '🧪 Staging: https://staging.havenstudy.com' || '' }}
       env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL || '' }}
