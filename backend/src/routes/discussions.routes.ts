@@ -4,8 +4,8 @@
  */
 
 import { Router } from 'express';
-import { authenticate, optionalAuth } from '../middleware/authenticate';
-import { rateLimiter } from '../middleware/rateLimiter';
+// import { authenticate, optionalAuth } from '../middleware/authenticate';
+// import { rateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 

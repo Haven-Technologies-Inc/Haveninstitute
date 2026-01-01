@@ -5,6 +5,7 @@ import { User } from '../models/User';
 import { Session } from '../models/Session';
 import { jwtConfig, JWTPayload } from '../config/jwt';
 import { ResponseHandler, errorCodes } from '../utils/response';
+import { Op } from 'sequelize';
 
 export interface AuthRequest extends Request {
   user?: User;
@@ -122,7 +123,7 @@ export async function optionalAuth(
         token: token,
         isActive: true,
         expiresAt: { 
-          [require('sequelize').Op.gt]: new Date() 
+          [Op.gt]: new Date() 
         }
       }
     });
@@ -143,7 +144,7 @@ export async function optionalAuth(
     req.user = user;
     req.userId = user.id;
     req.userRole = user.role;
-    req.userSubscription = user.subscriptionType;
+    req.userSubscription = user.subscriptionTier;
 
     next();
   } catch (error) {

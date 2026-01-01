@@ -60,7 +60,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
 
     // Search Questions
     if (!allowedTypes || allowedTypes.includes('question')) {
-      const questionResults = await pool.query(
+      const questionResults = await sequelize.query(
         `SELECT id, question_text, category, difficulty 
          FROM questions 
          WHERE LOWER(question_text) LIKE $1 OR LOWER(category) LIKE $1
