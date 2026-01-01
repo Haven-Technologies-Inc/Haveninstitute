@@ -5,7 +5,8 @@
 
 import { Router, Request, Response } from 'express';
 import { authenticate } from '../middleware/authenticate';
-import { sequelize, QueryTypes } from '../config/database';
+import { sequelize } from '../config/database';
+import { QueryTypes } from 'sequelize';
 
 const router = Router();
 
@@ -25,7 +26,6 @@ interface SearchResult {
 router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
     const { q: query, types, limit = '10' } = req.query;
-    const user = (req as any).user;
 
     if (!query || typeof query !== 'string') {
       return res.status(400).json({
@@ -34,7 +34,6 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
       });
     }
 
-    const searchTerm = `%${query.trim().toLowerCase()}%`;
     const allowedTypes = types ? (types as string).split(',') : null;
 
     const results: SearchResult[] = [];
