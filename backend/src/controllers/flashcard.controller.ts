@@ -6,8 +6,6 @@ export class FlashcardController {
   // Get all decks for user
   static async getDecks(req: AuthRequest, res: Response) {
     try {
-      const userId = req.userId!;
-      
       // TODO: Implement proper flashcard service integration
       // Temporarily returning mock data to get backend running
       const mockDecks = [

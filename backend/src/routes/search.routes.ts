@@ -41,12 +41,18 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
       const userResults = await sequelize.query(
         `SELECT id, name, email, role, subscription 
          FROM users 
-         WHERE LOWER(name) LIKE $1 OR LOWER(email) LIKE $1
-         LIMIT $2`,
-        [searchTerm, Math.ceil(searchLimit / 4)]
+         WHERE LOWER(name) LIKE :searchTerm OR LOWER(email) LIKE :searchTerm
+         LIMIT :limit`,
+        {
+          replacements: { 
+            searchTerm: `%${searchTerm.trim().toLowerCase()}%`, 
+            limit: Math.ceil(searchLimit / 4) 
+          },
+          type: require('sequelize').QueryTypes.SELECT
+        }
       );
 
-      userResults.rows.forEach((row: any) => {
+      userResults.forEach((row: any) => {
         results.push({
           id: row.id,
           type: 'user',
@@ -63,12 +69,18 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
       const questionResults = await sequelize.query(
         `SELECT id, question_text, category, difficulty 
          FROM questions 
-         WHERE LOWER(question_text) LIKE $1 OR LOWER(category) LIKE $1
-         LIMIT $2`,
-        [searchTerm, Math.ceil(searchLimit / 4)]
+         WHERE LOWER(question_text) LIKE :searchTerm OR LOWER(category) LIKE :searchTerm
+         LIMIT :limit`,
+        {
+          replacements: { 
+            searchTerm: `%${searchTerm.trim().toLowerCase()}%`, 
+            limit: Math.ceil(searchLimit / 4) 
+          },
+          type: require('sequelize').QueryTypes.SELECT
+        }
       );
 
-      questionResults.rows.forEach((row: any) => {
+      questionResults.forEach((row: any) => {
         results.push({
           id: row.id,
           type: 'question',
