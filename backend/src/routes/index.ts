@@ -23,6 +23,7 @@ import backupRoutes from './backup.routes';
 import searchRoutes from './search.routes';
 import stripeRoutes from './stripe.routes';
 import discussionsRoutes from './discussions.routes';
+import aiRoutes from './ai.routes';
 
 const router = Router();
 
@@ -63,5 +64,6 @@ router.use('/admin/backup', backupRoutes);
 router.use('/search', searchRoutes);
 router.use('/stripe', stripeRoutes);
 router.use('/discussions', discussionsRoutes);
+router.use('/ai', aiRoutes);
 
 export default router;
