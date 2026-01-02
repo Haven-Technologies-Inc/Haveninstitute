@@ -528,10 +528,9 @@ export class AuthService {
 
   private async generateTokens(user: User, expiryMs?: number) {
     const payload: JWTPayload = {
-      userId: user.id,
+      id: user.id,
       email: user.email,
-      role: user.role as any,
-      subscription: user.subscriptionTier as any
+      role: user.role as any
     };
 
     const expiresIn = expiryMs ? `${Math.floor(expiryMs / 1000)}s` : jwtConfig.expiresIn;

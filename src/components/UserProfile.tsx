@@ -40,7 +40,7 @@ import {
   type UserProfile as UserProfileType
 } from '../services/profileApi';
 import { useAuth } from './auth/AuthContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from "sonner";
 
 export function UserProfile() {
   const { user } = useAuth();
@@ -144,6 +144,8 @@ export function UserProfile() {
                 accept="image/*"
                 className="hidden"
                 onChange={handleAvatarUpload}
+                aria-label="Upload avatar image"
+                title="Upload avatar image"
               />
             </div>
 
@@ -451,11 +453,14 @@ function EducationTab({ profile, onSave }: { profile: UserProfileType; onSave: (
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-gray-700 dark:text-gray-300 mb-2 block">Education Level</label>
+            <label htmlFor="education-level" className="text-gray-700 dark:text-gray-300 mb-2 block">Education Level</label>
             <select
+              id="education-level"
               value={formData.educationLevel}
               onChange={(e) => setFormData({ ...formData, educationLevel: e.target.value as any })}
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              aria-label="Select your education level"
+              title="Education level"
             >
               <option value="associate">Associate Degree</option>
               <option value="bachelor">Bachelor's Degree</option>
@@ -496,11 +501,14 @@ function EducationTab({ profile, onSave }: { profile: UserProfileType; onSave: (
         </div>
 
         <div>
-          <label className="text-gray-700 dark:text-gray-300 mb-2 block">Preferred Study Time</label>
+          <label htmlFor="preferred-study-time" className="text-gray-700 dark:text-gray-300 mb-2 block">Preferred Study Time</label>
           <select
+            id="preferred-study-time"
             value={formData.preferredStudyTime}
             onChange={(e) => setFormData({ ...formData, preferredStudyTime: e.target.value as any })}
             className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+            aria-label="Select your preferred study time"
+            title="Preferred study time"
           >
             <option value="morning">Morning (6AM - 12PM)</option>
             <option value="afternoon">Afternoon (12PM - 6PM)</option>
@@ -528,6 +536,8 @@ function EducationTab({ profile, onSave }: { profile: UserProfileType; onSave: (
                 <button
                   onClick={() => removeGoal(index)}
                   className="text-red-600 hover:text-red-800"
+                  aria-label={`Remove study goal: ${goal}`}
+                  title={`Remove goal: ${goal}`}
                 >
                   <X className="size-4" />
                 </button>
@@ -587,9 +597,12 @@ function NotificationsTab({ profile, onSave }: { profile: UserProfileType; onSav
             </div>
             <input
               type="checkbox"
+              id={`notification-${item.key}`}
               checked={settings[item.key as keyof typeof settings]}
               onChange={(e) => setSettings({ ...settings, [item.key]: e.target.checked })}
               className="size-5"
+              aria-label={item.label}
+              title={item.description}
             />
           </div>
         ))}

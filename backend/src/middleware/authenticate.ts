@@ -54,7 +54,7 @@ export async function authenticate(
     }
 
     // Get user
-    const user = await User.findByPk(decoded.userId);
+    const user = await User.findByPk(decoded.id);
     if (!user || !user.isActive) {
       ResponseHandler.error(
         res,
