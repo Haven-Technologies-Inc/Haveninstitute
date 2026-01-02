@@ -1,0 +1,19 @@
+The backend is restarting too fast to check env. Let's fix this step by step:
+
+1. First check if the database user exists:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose exec mariadb mysql -u root -p\$MYSQL_ROOT_PASSWORD -e \"SELECT user, host FROM mysql.user WHERE user='haven_user';\""
+
+2. Create/update the database user with a known password:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose exec mariadb mysql -u root -p\$MYSQL_ROOT_PASSWORD -e \"CREATE USER IF NOT EXISTS 'haven_user'@'%' IDENTIFIED BY 'haven_password_123'; GRANT ALL PRIVILEGES ON haven_institute.* TO 'haven_user'@'%'; FLUSH PRIVILEGES;\""
+
+3. Check the current .env file:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && cat .env | grep DB_"
+
+4. Update the password in .env:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=haven_password_123/' .env"
+
+5. Stop and restart the backend:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose stop backend && docker compose up -d backend"
+
+6. Check if backend starts properly:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && sleep 15 && docker compose ps"

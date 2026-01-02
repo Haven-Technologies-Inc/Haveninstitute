@@ -123,3 +123,4 @@ Error: Access denied for user 'root'@'localhost'
 ---
 
 **📝 After configuring these secrets, the CI/CD pipeline should work correctly for both staging and production deployments.**
+1

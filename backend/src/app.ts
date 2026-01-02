@@ -38,13 +38,9 @@ const productionDomains = [
   'https://api.havenstudy.com'
 ];
 
-// Development domains
+// Development domains - REMOVED FOR PRODUCTION SECURITY
 const developmentDomains = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:3000'
+  // Development domains removed for security
 ];
 
 let allowedOrigins: string[];

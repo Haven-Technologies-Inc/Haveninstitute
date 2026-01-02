@@ -1,14 +1,10 @@
 import { Router } from 'express';
 import authRoutes from './auth.routes';
-import adminRoutes from './admin.routes';
 import catRoutes from './cat.routes';
-import quizRoutes from './quiz.routes';
-import analyticsRoutes from './analytics.routes';
-import aiRoutes from './ai.routes';
-import studyGroupRoutes from './studyGroup.routes';
-import studyPlannerRoutes from './studyPlanner.routes';
 import questionRoutes from './question.routes';
-import studyMaterialRoutes from './studyMaterial.routes';
+import analyticsRoutes from './analytics.routes';
+import adminRoutes from './admin.routes';
+import docsRoutes from './docs.routes.simple';
 import flashcardRoutes from './flashcard.routes';
 import practiceRoutes from './practice.routes';
 import settingsRoutes from './settings.routes';
@@ -45,16 +41,11 @@ router.get('/health', (req, res) => {
 
 // API routes
 router.use('/auth', authRoutes);
+router.use('/docs', docsRoutes);
 router.use('/admin', adminRoutes);
 router.use('/cat', catRoutes);
-router.use('/quiz', quizRoutes);
 router.use('/analytics', analyticsRoutes);
-router.use('/ai', aiRoutes);
-router.use('/study-groups', studyGroupRoutes);
-router.use('/discussions', discussionsRoutes);
-router.use('/planner', studyPlannerRoutes);
 router.use('/questions', questionRoutes);
-router.use('/materials', studyMaterialRoutes);
 router.use('/flashcards', flashcardRoutes);
 router.use('/practice', practiceRoutes);
 router.use('/settings', settingsRoutes);
@@ -71,5 +62,6 @@ router.use('/admin/settings', systemSettingsRoutes);
 router.use('/admin/backup', backupRoutes);
 router.use('/search', searchRoutes);
 router.use('/stripe', stripeRoutes);
+router.use('/discussions', discussionsRoutes);
 
 export default router;

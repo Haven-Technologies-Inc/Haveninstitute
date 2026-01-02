@@ -1,0 +1,18 @@
+Let's completely clean the server and redeploy fresh. This will remove everything and start from scratch:
+
+1. Stop and remove all containers:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose down -v"
+
+2. Remove all Docker images and volumes:
+ssh root@5.78.147.82 "docker system prune -af --volumes"
+
+3. Remove the entire project directory:
+ssh root@5.78.147.82 "rm -rf /var/www/Haveninstitute"
+
+4. Clone fresh repository:
+ssh root@5.78.147.82 "cd /var/www && git clone https://github.com/Haven-Technologies-Inc/Haveninstitute.git"
+
+5. Go to project directory and start fresh:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose up -d --build"
+
+This will give us a completely fresh start!

@@ -1,0 +1,19 @@
+Found it! The backend is crashing because of database authentication error:
+
+"Access denied for user 'haven_user'@'172.18.0.4' (using password: YES)"
+
+This means the database user/password in the backend .env file doesn't match what's actually in MariaDB.
+
+Let's fix this by checking the database credentials and recreating the user:
+
+1. Check current database environment:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose exec backend env | grep DB_"
+
+2. Connect to MariaDB and check/create user:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose exec mariadb mysql -u root -p\$MYSQL_ROOT_PASSWORD -e \"SELECT user, host FROM mysql.user WHERE user='haven_user';\""
+
+3. If user doesn't exist or wrong password, recreate it:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose exec mariadb mysql -u root -p\$MYSQL_ROOT_PASSWORD -e \"CREATE USER IF NOT EXISTS 'haven_user'@'%' IDENTIFIED BY 'your_password_here'; GRANT ALL PRIVILEGES ON haven_institute.* TO 'haven_user'@'%'; FLUSH PRIVILEGES;\""
+
+4. Update backend .env with correct password and restart:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose restart backend"

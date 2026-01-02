@@ -1,0 +1,18 @@
+Perfect! Server is cleaned. Now let's deploy fresh:
+
+1. Clone fresh repository:
+ssh root@5.78.147.82 "cd /var/www && git clone https://github.com/Haven-Technologies-Inc/Haveninstitute.git"
+
+2. Go to project directory:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute"
+
+3. Deploy fresh with all fixes:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose up -d --build"
+
+4. Wait for services to start (about 2 minutes):
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && sleep 120 && docker compose ps"
+
+5. Test backend health:
+ssh root@5.78.147.82 "cd /var/www/Haveninstitute && curl http://localhost:3001/api/v1/health"
+
+This should give us a completely fresh deployment with all our fixes!
