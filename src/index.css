@@ -1,4 +1,20 @@
 /*! tailwindcss v4.1.3 | MIT License | https://tailwindcss.com */
+
+/* Prevent layout shift during initial load */
+#root {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+#root.loaded {
+  opacity: 1;
+}
+
+/* Prevent flash of unstyled content */
+.no-js #root {
+  opacity: 1;
+}
+
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
     *, :before, :after, ::backdrop {
