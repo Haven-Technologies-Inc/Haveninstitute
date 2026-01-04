@@ -42,7 +42,7 @@ const CATResultPage = lazy(() => import('../pages/practice/CATResultPage').then(
 const CATTestPage = lazy(() => import('../pages/practice/CATTestPage').then(m => ({ default: m.CATTestPage })));
 const FlashcardsPage = lazy(() => import('../pages/study/FlashcardsPage').then(m => ({ default: m.FlashcardsPage })));
 const BooksPage = lazy(() => import('../pages/study/BooksPage').then(m => ({ default: m.BooksPage })));
-const AIChatPage = lazy(() => import('../pages/study/AIChatPage').then(m => ({ default: m.AIChatPage })));
+const AIChatPage = lazy(() => import('../pages/study/AIChatPage'));
 const ProgressPage = lazy(() => import('../pages/progress/ProgressPage').then(m => ({ default: m.ProgressPage })));
 const AnalyticsPage = lazy(() => import('../pages/progress/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
 const PlannerPage = lazy(() => import('../pages/progress/PlannerPage').then(m => ({ default: m.PlannerPage })));
