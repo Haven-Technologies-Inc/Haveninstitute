@@ -62,10 +62,13 @@ class FlashcardService {
   }
 
   async getDecks(userId: string, options?: { includePublic?: boolean; category?: string }) {
-    const where: Record<string, unknown> = { isActive: true };
+    let where: Record<string, unknown> = { isActive: true };
     
     if (options?.includePublic) {
-      where[Op.or] = [{ createdBy: userId }, { isPublic: true }];
+      where = {
+        ...where,
+        [Op.or]: [{ createdBy: userId }, { isPublic: true }]
+      };
     } else {
       where.createdBy = userId;
     }

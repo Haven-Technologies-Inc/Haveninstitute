@@ -10,6 +10,7 @@ import { authenticate, AuthRequest } from '../middleware/authenticate';
 import { stripe } from '../config/stripe';
 import { ResponseHandler } from '../utils/response';
 import { sequelize } from '../config/database';
+import { QueryTypes } from 'sequelize';
 
 const router = Router();
 
@@ -100,21 +101,24 @@ router.get('/subscription', authenticate, async (req: AuthRequest, res: Response
   try {
     const userId = req.userId!;
 
-    const result = await sequelize.query(
+    const rows = await sequelize.query<any>(
       `SELECT s.*, u.stripe_customer_id
        FROM subscriptions s
        JOIN users u ON u.id = s.user_id
-       WHERE s.user_id = $1 AND s.status = 'active'
+       WHERE s.user_id = ? AND s.status = 'active'
        ORDER BY s.created_at DESC
        LIMIT 1`,
-      [userId]
+      {
+        replacements: [userId],
+        type: QueryTypes.SELECT
+      }
     );
 
-    if (result.rows.length === 0) {
+    if (rows.length === 0) {
       return ResponseHandler.error(res, 'NO_SUBSCRIPTION', 'No active subscription', 404);
     }
 
-    const sub = result.rows[0];
+    const sub = rows[0];
     ResponseHandler.success(res, formatSubscription(sub));
   } catch (error) {
     next(error);
@@ -130,12 +134,15 @@ router.get('/subscriptions', authenticate, async (req: AuthRequest, res: Respons
   try {
     const userId = req.userId!;
 
-    const result = await sequelize.query(
-      `SELECT * FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC`,
-      [userId]
+    const rows = await sequelize.query<any>(
+      `SELECT * FROM subscriptions WHERE user_id = ? ORDER BY created_at DESC`,
+      {
+        replacements: [userId],
+        type: QueryTypes.SELECT
+      }
     );
 
-    ResponseHandler.success(res, result.rows.map(formatSubscription));
+    ResponseHandler.success(res, rows.map(formatSubscription));
   } catch (error) {
     next(error);
   }
@@ -180,18 +187,21 @@ router.post('/subscription', authenticate, async (req: AuthRequest, res: Respons
     // Save to database
     await sequelize.query(
       `INSERT INTO subscriptions (user_id, stripe_subscription_id, plan_type, status, current_period_start, current_period_end)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (user_id) DO UPDATE SET
-         stripe_subscription_id = $2, plan_type = $3, status = $4, 
-         current_period_start = $5, current_period_end = $6, updated_at = NOW()`,
-      [
-        userId,
-        subscription.id,
-        planId,
-        subscription.status,
-        new Date(subscription.current_period_start * 1000),
-        new Date(subscription.current_period_end * 1000)
-      ]
+       VALUES (:userId, :subId, :planId, :status, :startDate, :endDate)
+       ON DUPLICATE KEY UPDATE
+         stripe_subscription_id = :subId, plan_type = :planId, status = :status, 
+         current_period_start = :startDate, current_period_end = :endDate, updated_at = NOW()`,
+      {
+        replacements: {
+          userId,
+          subId: subscription.id,
+          planId,
+          status: subscription.status,
+          startDate: new Date(subscription.current_period_start * 1000),
+          endDate: new Date(subscription.current_period_end * 1000)
+        },
+        type: QueryTypes.INSERT
+      }
     );
 
     ResponseHandler.success(res, {
@@ -266,9 +276,16 @@ router.post('/subscription/:subscriptionId/cancel', authenticate, async (req: Au
 
     // Update database
     await sequelize.query(
-      `UPDATE subscriptions SET status = $1, cancel_at_period_end = $2, updated_at = NOW()
-       WHERE stripe_subscription_id = $3`,
-      [updated.status, cancelAtPeriodEnd, subscriptionId]
+      `UPDATE subscriptions SET status = :status, cancel_at_period_end = :cancelAtPeriodEnd, updated_at = NOW()
+       WHERE stripe_subscription_id = :subId`,
+      {
+        replacements: {
+          status: updated.status,
+          cancelAtPeriodEnd,
+          subId: subscriptionId
+        },
+        type: QueryTypes.UPDATE
+      }
     );
 
     ResponseHandler.success(res, {
@@ -296,8 +313,11 @@ router.post('/subscription/:subscriptionId/reactivate', authenticate, async (req
 
     await sequelize.query(
       `UPDATE subscriptions SET status = 'active', cancel_at_period_end = false, updated_at = NOW()
-       WHERE stripe_subscription_id = $1`,
-      [subscriptionId]
+       WHERE stripe_subscription_id = ?`,
+      {
+        replacements: [subscriptionId],
+        type: QueryTypes.UPDATE
+      }
     );
 
     ResponseHandler.success(res, {
@@ -691,26 +711,32 @@ function getPriceIdForPlan(planId: string): string | null {
 }
 
 async function getStripeCustomerId(userId: string): Promise<string | null> {
-  const result = await sequelize.query(
-    'SELECT stripe_customer_id FROM users WHERE id = $1',
-    [userId]
+  const rows = await sequelize.query<any>(
+    'SELECT stripe_customer_id FROM users WHERE id = ?',
+    {
+      replacements: [userId],
+      type: QueryTypes.SELECT
+    }
   );
-  return result.rows[0]?.stripe_customer_id || null;
+  return rows[0]?.stripe_customer_id || null;
 }
 
 async function getOrCreateStripeCustomer(userId: string): Promise<string> {
   // Check if customer exists
-  const result = await sequelize.query(
-    'SELECT stripe_customer_id, email, full_name FROM users WHERE id = $1',
-    [userId]
+  const rows = await sequelize.query<any>(
+    'SELECT stripe_customer_id, email, full_name FROM users WHERE id = ?',
+    {
+      replacements: [userId],
+      type: QueryTypes.SELECT
+    }
   );
 
-  if (result.rows[0]?.stripe_customer_id) {
-    return result.rows[0].stripe_customer_id;
+  if (rows[0]?.stripe_customer_id) {
+    return rows[0].stripe_customer_id;
   }
 
   // Create new customer
-  const user = result.rows[0];
+  const user = rows[0];
   const customer = await stripe.customers.create({
     email: user.email,
     name: user.full_name,
@@ -719,8 +745,11 @@ async function getOrCreateStripeCustomer(userId: string): Promise<string> {
 
   // Save customer ID
   await sequelize.query(
-    'UPDATE users SET stripe_customer_id = $1 WHERE id = $2',
-    [customer.id, userId]
+    'UPDATE users SET stripe_customer_id = ? WHERE id = ?',
+    {
+      replacements: [customer.id, userId],
+      type: QueryTypes.UPDATE
+    }
   );
 
   return customer.id;

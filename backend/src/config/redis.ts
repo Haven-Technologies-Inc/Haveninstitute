@@ -9,8 +9,7 @@ export const redisClient = createClient({
   url: redisUrl,
   password: redisPassword,
   socket: {
-    connectTimeout: 5000,
-    lazyConnect: true
+    connectTimeout: 5000
   }
 });
 

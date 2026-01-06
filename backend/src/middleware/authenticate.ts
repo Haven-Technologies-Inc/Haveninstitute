@@ -117,10 +117,11 @@ export async function optionalAuth(
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, jwtConfig.secret) as JWTPayload;
 
-    // Get user from session
+    // Verify session is still valid (not revoked)
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const session = await Session.findOne({
       where: { 
-        token: token,
+        tokenHash: tokenHash,
         isActive: true,
         expiresAt: { 
           [Op.gt]: new Date() 

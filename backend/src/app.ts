@@ -108,6 +108,11 @@ app.use((req: Request, res: Response, next) => {
 // Rate limiting
 app.use('/api', apiLimiter);
 
+// Health check endpoint
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ success: true, status: 'ok' });
+});
+
 // API routes
 const apiVersion = process.env.API_VERSION || 'v1';
 app.use(`/api/${apiVersion}`, routes);

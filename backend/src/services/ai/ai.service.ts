@@ -5,6 +5,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getProvider, chatWithFallback } from './providers';
 import { SYSTEM_PROMPTS, NCLEX_CATEGORIES } from './prompts';
+import { redisUtils } from '../../config/redis';
 import {
   AIProvider,
   AIMessage,
@@ -17,14 +18,42 @@ import {
   TutoringSession
 } from './types';
 
-// In-memory session store (replace with Redis in production)
-const tutoringSessions: Map<string, TutoringSession> = new Map();
+// Redis key prefix for tutoring sessions
+const SESSION_PREFIX = 'ai:session:';
+const SESSION_TTL = 86400; // 24 hours
 
 export class AIService {
   private defaultProvider: AIProvider;
 
   constructor() {
     this.defaultProvider = (process.env.AI_PROVIDER as AIProvider) || 'openai';
+  }
+
+  /**
+   * Helper to get session from Redis
+   */
+  public async getSession(sessionId: string): Promise<TutoringSession | null> {
+    const data = await redisUtils.get(`${SESSION_PREFIX}${sessionId}`);
+    if (!data) return null;
+    return JSON.parse(data);
+  }
+
+  /**
+   * Helper to save session to Redis
+   */
+  private async saveSession(session: TutoringSession): Promise<void> {
+    await redisUtils.setWithExpire(
+      `${SESSION_PREFIX}${session.sessionId}`,
+      JSON.stringify(session),
+      SESSION_TTL
+    );
+  }
+
+  /**
+   * Helper to clear session from Redis
+   */
+  public async clearSession(sessionId: string): Promise<void> {
+    await redisUtils.del(`${SESSION_PREFIX}${sessionId}`);
   }
 
   /**
@@ -40,8 +69,19 @@ export class AIService {
     
     // Get or create session
     let session: TutoringSession;
-    if (sessionId && tutoringSessions.has(sessionId)) {
-      session = tutoringSessions.get(sessionId)!;
+    if (sessionId) {
+      const existingSession = await this.getSession(sessionId);
+      if (existingSession) {
+        session = existingSession;
+      } else {
+        // If session ID provided but not found, create new one with that ID
+        session = {
+          sessionId,
+          userId,
+          messages: [],
+          createdAt: new Date()
+        };
+      }
     } else {
       session = {
         sessionId: uuidv4(),
@@ -49,7 +89,6 @@ export class AIService {
         messages: [],
         createdAt: new Date()
       };
-      tutoringSessions.set(session.sessionId, session);
     }
 
     // Add user message
@@ -81,6 +120,9 @@ export class AIService {
       timestamp: new Date()
     });
 
+    // Save session to Redis
+    await this.saveSession(session);
+
     return {
       sessionId: session.sessionId,
       response: result.content,
@@ -101,8 +143,18 @@ export class AIService {
     
     // Get or create session
     let session: TutoringSession;
-    if (sessionId && tutoringSessions.has(sessionId)) {
-      session = tutoringSessions.get(sessionId)!;
+    if (sessionId) {
+      const existingSession = await this.getSession(sessionId);
+      if (existingSession) {
+        session = existingSession;
+      } else {
+        session = {
+          sessionId,
+          userId,
+          messages: [],
+          createdAt: new Date()
+        };
+      }
     } else {
       session = {
         sessionId: uuidv4(),
@@ -110,7 +162,6 @@ export class AIService {
         messages: [],
         createdAt: new Date()
       };
-      tutoringSessions.set(session.sessionId, session);
     }
 
     // Add user message
@@ -142,6 +193,9 @@ export class AIService {
       content: fullResponse,
       timestamp: new Date()
     });
+
+    // Save session to Redis
+    await this.saveSession(session);
   }
 
   /**
@@ -418,19 +472,7 @@ Return as JSON array of strings.`;
     return result.content.split('\n').filter(line => line.trim().length > 0);
   }
 
-  /**
-   * Get tutoring session
-   */
-  getSession(sessionId: string): TutoringSession | null {
-    return tutoringSessions.get(sessionId) || null;
-  }
 
-  /**
-   * Clear tutoring session
-   */
-  clearSession(sessionId: string): boolean {
-    return tutoringSessions.delete(sessionId);
-  }
 }
 
 export const aiService = new AIService();

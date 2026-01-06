@@ -342,7 +342,7 @@ export class AIController {
         return res.status(401).json({ message: 'Unauthorized' });
       }
 
-      const session = aiService.getSession(sessionId);
+      const session = await aiService.getSession(sessionId);
 
       if (!session) {
         return res.status(404).json({ message: 'Session not found' });
@@ -372,12 +372,12 @@ export class AIController {
         return res.status(401).json({ message: 'Unauthorized' });
       }
 
-      const session = aiService.getSession(sessionId);
+      const session = await aiService.getSession(sessionId);
       if (session && session.userId !== userId) {
         return res.status(403).json({ message: 'Forbidden' });
       }
 
-      aiService.clearSession(sessionId);
+      await aiService.clearSession(sessionId);
       res.status(204).send();
     } catch (error: any) {
       console.error('Clear session error:', error);

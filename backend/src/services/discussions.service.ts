@@ -67,7 +67,7 @@ export const discussionsService = {
     const { page, limit, categoryId, type, status, sort, search, tags, authorId } = params;
     const offset = (page - 1) * limit;
     
-    const where: Record<string, unknown> = { isActive: true };
+    let where: Record<string, unknown> = { isActive: true };
     
     if (categoryId) where.categoryId = categoryId;
     if (type) where.type = type;
@@ -75,11 +75,14 @@ export const discussionsService = {
     if (authorId) where.authorId = authorId;
     
     if (search) {
-      where[Op.or] = [
-        { title: { [Op.like]: `%${search}%` } },
-        { content: { [Op.like]: `%${search}%` } },
-        { excerpt: { [Op.like]: `%${search}%` } }
-      ];
+      where = {
+        ...where,
+        [Op.or]: [
+          { title: { [Op.like]: `%${search}%` } },
+          { content: { [Op.like]: `%${search}%` } },
+          { excerpt: { [Op.like]: `%${search}%` } }
+        ]
+      };
     }
 
     if (tags?.length) {
