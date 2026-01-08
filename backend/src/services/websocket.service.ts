@@ -7,6 +7,7 @@ import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { GroupMember as StudyGroupMember, GroupMessage as StudyGroupMessage } from '../models/StudyGroup';
+import { logger } from '../utils/logger';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -68,7 +69,7 @@ class WebSocketService {
     this.setupEventHandlers();
     this.startHeartbeat();
 
-    console.log('🔌 WebSocket server initialized');
+    logger.info('WebSocket server initialized');
     return this.io;
   }
 
@@ -106,7 +107,7 @@ class WebSocketService {
 
         next();
       } catch (error) {
-        console.error('WebSocket auth error:', error);
+        logger.error('WebSocket auth error:', error);
         next(new Error('Authentication failed'));
       }
     });
@@ -119,7 +120,7 @@ class WebSocketService {
     if (!this.io) return;
 
     this.io.on('connection', (socket: AuthenticatedSocket) => {
-      console.log(`User connected: ${socket.user?.firstName} (${socket.userId})`);
+      logger.info(`User connected: ${socket.user?.firstName} (${socket.userId})`);
       
       // Track online user
       if (socket.userId && socket.user) {
@@ -173,7 +174,7 @@ class WebSocketService {
 
       // Error handling
       socket.on('error', (error) => {
-        console.error('Socket error:', error);
+        logger.error('Socket error:', error);
       });
     });
   }
@@ -218,9 +219,9 @@ class WebSocketService {
       const onlineUsers = this.getOnlineUsersInGroup(groupId);
       socket.emit('online_users', { groupId, users: onlineUsers });
 
-      console.log(`User ${socket.user?.firstName} joined group ${groupId}`);
+      logger.info(`User ${socket.user?.firstName} joined group ${groupId}`);
     } catch (error) {
-      console.error('Join group error:', error);
+      logger.error('Join group error:', error);
       socket.emit('error', { message: 'Failed to join group' });
     }
   }
@@ -302,7 +303,7 @@ class WebSocketService {
       this.handleTypingStop(socket, data.groupId);
 
     } catch (error) {
-      console.error('Send message error:', error);
+      logger.error('Send message error:', error);
       socket.emit('error', { message: 'Failed to send message' });
     }
   }
@@ -356,7 +357,7 @@ class WebSocketService {
    * Handle disconnect
    */
   private handleDisconnect(socket: AuthenticatedSocket): void {
-    console.log(`User disconnected: ${socket.user?.firstName} (${socket.userId})`);
+    logger.info(`User disconnected: ${socket.user?.firstName} (${socket.userId})`);
 
     if (socket.userId) {
       this.onlineUsers.delete(socket.userId);

@@ -7,11 +7,12 @@ import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
+import { logger } from '../../utils/logger';
 
 dotenv.config();
 
 async function runMigrations() {
-  console.log('🚀 Starting database migrations...\n');
+  logger.info('Starting database migrations...');
 
   const sequelize = new Sequelize({
     database: process.env.DB_NAME || 'haven_institute',
@@ -25,7 +26,7 @@ async function runMigrations() {
 
   try {
     await sequelize.authenticate();
-    console.log('✅ Database connection established\n');
+    logger.info('Database connection established');
 
     // Get migration files
     const migrationsDir = __dirname;
@@ -33,10 +34,10 @@ async function runMigrations() {
       .filter(f => f.endsWith('.sql'))
       .sort();
 
-    console.log(`Found ${files.length} migration files:\n`);
+    logger.info(`Found ${files.length} migration files`);
 
     for (const file of files) {
-      console.log(`📄 Running: ${file}`);
+      logger.info(`Running: ${file}`);
       
       const filePath = join(migrationsDir, file);
       const sql = readFileSync(filePath, 'utf8');
@@ -53,20 +54,20 @@ async function runMigrations() {
         } catch (error: any) {
           // Ignore "table already exists" errors
           if (error.original?.errno === 1050) {
-            console.log(`   ⏭️  Table already exists, skipping...`);
+            logger.info(`Table already exists, skipping...`);
           } else {
             throw error;
           }
         }
       }
 
-      console.log(`   ✅ Completed\n`);
+      logger.info(`Completed: ${file}`);
     }
 
-    console.log('🎉 All migrations completed successfully!');
+    logger.info('All migrations completed successfully!');
 
   } catch (error) {
-    console.error('❌ Migration failed:', error);
+    logger.error('Migration failed:', error);
     process.exit(1);
   } finally {
     await sequelize.close();

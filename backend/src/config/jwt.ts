@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import { logger } from '../utils/logger';
 
 dotenv.config();
 
@@ -107,6 +108,6 @@ export const jwtUtils = {
 
 // Security warnings for development
 if (isDevelopment) {
-  console.log('🔧 Development mode: Using auto-generated JWT secrets');
-  console.log('⚠️  WARNING: Do NOT use these secrets in production!');
+  logger.warn('Development mode: Using auto-generated JWT secrets');
+  logger.warn('Do NOT use these secrets in production!');
 }

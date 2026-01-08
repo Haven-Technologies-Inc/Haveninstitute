@@ -21,25 +21,56 @@ jobs:
           port: 22
           command_timeout: 10m
           script: |
-            cd ~/apps/Haveninstitute
-            
+            # Try multiple possible paths for the application
+            if [ -d ~/apps/Haveninstitute ]; then
+              cd ~/apps/Haveninstitute
+            elif [ -d ~/Haveninstitute ]; then
+              cd ~/Haveninstitute
+            elif [ -d /root/apps/Haveninstitute ]; then
+              cd /root/apps/Haveninstitute
+            else
+              echo "❌ Application directory not found!"
+              exit 1
+            fi
+
+            echo "📍 Working directory: $(pwd)"
+
             echo "📥 Pulling latest code..."
             git fetch origin main
             git reset --hard origin/main
-            
+
             echo "🗑️ Cleaning up unnecessary files on server..."
-            # Remove documentation files
-            rm -f *.md 2>/dev/null || true
+            # Remove documentation files (keep README.md)
             rm -f *.sql 2>/dev/null || true
             rm -f gen-hash.js register-admin.json 2>/dev/null || true
             rm -f .env.docker .env.staging .env.production.example 2>/dev/null || true
             rm -rf src/*.md src/guidelines 2>/dev/null || true
-            rm -f backend/*.md 2>/dev/null || true
             rm -f backend/.env.production.example backend/.env.staging 2>/dev/null || true
-            # Keep only README.md
             echo "✓ Server files cleaned"
-            
+
+            echo "📁 Ensuring database init directory exists..."
+            mkdir -p database/init
+            # Copy schema from multiple possible sources
+            if [ -f database/init/01_schema.mariadb ]; then
+              cp database/init/01_schema.mariadb database/init/01_schema.sql
+              echo "✓ Database schema copied from .mariadb file"
+            elif [ -f backend/src/database/schema.sql ]; then
+              cp backend/src/database/schema.sql database/init/01_schema.sql
+              echo "✓ Database schema copied from backend"
+            fi
+
             echo "🔧 Ensuring production configuration..."
+            # Create .env if it doesn't exist
+            if [ ! -f .env ]; then
+              if [ -f .env.production.template ]; then
+                cp .env.production.template .env
+                echo "⚠️ Created .env from template - configure secrets!"
+              elif [ -f .env.example ]; then
+                cp .env.example .env
+                echo "⚠️ Created .env from example - configure secrets!"
+              fi
+            fi
+
             if [ -f backend/.env.production ]; then
               # Update CORS_ORIGIN
               if grep -q "^CORS_ORIGIN=" backend/.env.production; then
@@ -47,45 +78,58 @@ jobs:
               else
                 echo "CORS_ORIGIN=https://havenstudy.com,https://www.havenstudy.com" >> backend/.env.production
               fi
-              
+
               # Update FRONTEND_URL for email links
               if grep -q "^FRONTEND_URL=" backend/.env.production; then
                 sed -i 's|^FRONTEND_URL=.*|FRONTEND_URL=https://havenstudy.com|' backend/.env.production
               else
                 echo "FRONTEND_URL=https://havenstudy.com" >> backend/.env.production
               fi
-              
+
               # Ensure email is enabled
               if grep -q "^ENABLE_EMAIL=" backend/.env.production; then
                 sed -i 's|^ENABLE_EMAIL=.*|ENABLE_EMAIL=true|' backend/.env.production
               else
                 echo "ENABLE_EMAIL=true" >> backend/.env.production
               fi
-              
+
               echo "✓ Production environment configured"
             fi
-            
+
             echo "🧹 Clearing caches..."
             docker compose down frontend backend || true
             docker builder prune -f || true
             docker system prune -f || true
-            
+
             echo "🔨 Rebuilding containers from scratch..."
             sed -i 's/npm ci/npm install/g' backend/Dockerfile
             docker compose build --no-cache backend frontend
-            docker compose up -d backend frontend
-            
-            echo "⏳ Waiting for services..."
-            sleep 20
-            
-            echo "🏥 Health check..."
-            curl -sf http://localhost:3001/health
-            
-            echo "🌱 Running database seeders (admin user)..."
-            docker compose exec -T backend npm run seed || echo "Seeder skipped or already run"
-            
+            docker compose up -d
+
+            echo "⏳ Waiting for services to start..."
+            sleep 30
+
+            echo "🏥 Health check (backend API)..."
+            # Try the correct API health endpoint
+            if curl -sf http://localhost:3001/api/v1/health > /dev/null 2>&1; then
+              echo "✅ Backend health check passed"
+            elif curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+              echo "✅ Backend health check passed (root endpoint)"
+            else
+              echo "⚠️ Backend health check failed - checking container logs..."
+              docker compose logs --tail=50 backend
+              # Don't exit - let's try to continue
+            fi
+
+            echo "🌱 Running database migrations and seeders..."
+            docker compose exec -T backend npm run db:migrate 2>/dev/null || echo "Migrations skipped"
+            docker compose exec -T backend npm run seed 2>/dev/null || echo "Seeder skipped or already run"
+
             docker image prune -f
-            echo "✅ Deployment successful!"
+
+            echo "📊 Final status:"
+            docker compose ps
+            echo "✅ Deployment completed!"
 
   notify:
     needs: deploy

@@ -24,6 +24,12 @@ import searchRoutes from './search.routes';
 import stripeRoutes from './stripe.routes';
 import discussionsRoutes from './discussions.routes';
 import aiRoutes from './ai.routes';
+// Previously missing routes
+import quizRoutes from './quiz.routes';
+import studyGroupRoutes from './studyGroup.routes';
+import studyPlannerRoutes from './studyPlanner.routes';
+import studyMaterialRoutes from './studyMaterial.routes';
+import healthRoutes from './health.routes';
 
 const router = Router();
 
@@ -65,5 +71,11 @@ router.use('/search', searchRoutes);
 router.use('/stripe', stripeRoutes);
 router.use('/discussions', discussionsRoutes);
 router.use('/ai', aiRoutes);
+// Previously missing route registrations
+router.use('/quiz', quizRoutes);
+router.use('/study-groups', studyGroupRoutes);
+router.use('/study-planner', studyPlannerRoutes);
+router.use('/study-materials', studyMaterialRoutes);
+router.use('/health', healthRoutes);
 
 export default router;

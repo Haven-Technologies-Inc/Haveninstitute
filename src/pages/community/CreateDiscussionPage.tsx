@@ -5,9 +5,9 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, HelpCircle, MessageCircle, Lightbulb, FileText, 
-  ClipboardList, Sparkles, X, Plus, Send
+import {
+  ArrowLeft, HelpCircle, MessageCircle, Lightbulb, FileText,
+  ClipboardList, Sparkles, X, Plus, Send, AlertCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -16,6 +16,7 @@ import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Label } from '../../components/ui/label';
 import { cn } from '../../components/ui/utils';
+import { discussionPostsApi } from '../../services/api/discussions.api';
 import type { PostType } from '../../types/discussions';
 
 // Post types
@@ -56,6 +57,7 @@ export function CreateDiscussionPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleAddTag = (tag: string) => {
     const normalizedTag = tag.toLowerCase().trim().replace(/\s+/g, '-');
@@ -71,15 +73,24 @@ export function CreateDiscussionPage() {
 
   const handleSubmit = async () => {
     if (!title.trim() || !content.trim() || !categoryId) return;
-    
+
     setIsSubmitting(true);
+    setError(null);
+
     try {
-      // TODO: API call to create post
-      console.log('Creating post:', { postType, title, content, categoryId, tags });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      navigate('/app/discussions');
-    } catch (error) {
-      console.error('Failed to create post:', error);
+      const post = await discussionPostsApi.create({
+        title: title.trim(),
+        content: content.trim(),
+        type: postType,
+        categoryId,
+        tags: tags.length > 0 ? tags : undefined
+      });
+
+      // Navigate to the newly created post
+      navigate(`/app/discussions/${post.slug || post.id}`);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create post. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -111,6 +122,19 @@ export function CreateDiscussionPage() {
 
       {/* Content */}
       <div className="max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {/* Error Display */}
+        {error && (
+          <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+            <CardContent className="p-4 flex items-center gap-3">
+              <AlertCircle className="size-5 text-red-600 shrink-0" />
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+              <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
+                <X className="size-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Post Type Selection */}
         <Card>
           <CardHeader className="pb-3">
