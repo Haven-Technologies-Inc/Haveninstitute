@@ -2,14 +2,28 @@ import { createClient } from 'redis';
 import { logger } from '../utils/logger';
 
 // Redis client configuration
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+// Support both REDIS_URL and REDIS_HOST/REDIS_PORT/REDIS_PASSWORD formats
+const redisHost = process.env.REDIS_HOST || 'localhost';
+const redisPort = process.env.REDIS_PORT || '6379';
 const redisPassword = process.env.REDIS_PASSWORD;
+
+// Construct Redis URL from individual components if REDIS_URL not provided
+const redisUrl = process.env.REDIS_URL ||
+  (redisPassword
+    ? `redis://:${redisPassword}@${redisHost}:${redisPort}`
+    : `redis://${redisHost}:${redisPort}`);
 
 export const redisClient = createClient({
   url: redisUrl,
-  password: redisPassword,
   socket: {
-    connectTimeout: 5000
+    connectTimeout: 5000,
+    reconnectStrategy: (retries) => {
+      if (retries > 10) {
+        logger.error('Redis max reconnection attempts reached');
+        return new Error('Max reconnection attempts reached');
+      }
+      return Math.min(retries * 100, 3000);
+    }
   }
 });
 

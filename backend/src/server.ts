@@ -1,6 +1,7 @@
 import { createServer } from 'http';
 import app from './app';
 import { connectDatabase, disconnectDatabase } from './config/database';
+import { connectRedis, disconnectRedis } from './config/redis';
 import { websocketService } from './services/websocket.service';
 import { logger } from './utils/logger';
 import 'dotenv/config';
@@ -13,6 +14,15 @@ async function startServer() {
     // Connect to database
     await connectDatabase();
     logger.info('✅ Database connected successfully');
+
+    // Connect to Redis (optional - continue if Redis fails)
+    try {
+      await connectRedis();
+      logger.info('✅ Redis connected successfully');
+    } catch (redisError) {
+      logger.warn('⚠️ Redis connection failed - some features may be limited:', redisError);
+      // Don't throw - Redis is optional for basic functionality
+    }
 
     // Create HTTP server from Express app
     const httpServer = createServer(app);
@@ -41,6 +51,10 @@ async function startServer() {
           // Shutdown WebSocket server
           websocketService.shutdown();
           logger.info('WebSocket server closed');
+
+          // Disconnect Redis
+          await disconnectRedis();
+          logger.info('Redis connection closed');
 
           await disconnectDatabase();
           logger.info('Database connection closed');

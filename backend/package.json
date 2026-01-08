@@ -12,8 +12,8 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "migrate": "ts-node src/database/migrate.ts",
-    "db:migrate": "ts-node src/database/migrate.ts",
+    "migrate": "ts-node src/database/migrations/run-migrations.ts",
+    "db:migrate": "ts-node src/database/migrations/run-migrations.ts",
     "db:flush-redis": "ts-node src/scripts/flush-cache.ts",
     "seed": "ts-node src/database/seed.ts",
     "db:seed": "ts-node src/database/seed.ts"
