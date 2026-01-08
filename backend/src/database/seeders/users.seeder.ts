@@ -1,8 +1,9 @@
 import { User } from '../../models/User';
 import bcrypt from 'bcryptjs';
+import { logger } from '../../utils/logger';
 
 export async function seedUsers() {
-  console.log('🌱 Seeding users...');
+  logger.info('Seeding users...');
 
   // Pre-hash the password
   const salt = await bcrypt.genSalt(12);
@@ -36,7 +37,7 @@ export async function seedUsers() {
       const existingUser = await User.findOne({ where: { email: userData.email } });
       
       if (existingUser) {
-        console.log(`  ⏭️  User ${userData.email} already exists, resetting password...`);
+        logger.info(`User ${userData.email} already exists, resetting password...`);
         // Use raw query to bypass hooks and set the pre-hashed password
         await User.sequelize?.query(
           `UPDATE users SET password_hash = ?, full_name = ?, role = ?, subscription_tier = ?, 
@@ -56,7 +57,7 @@ export async function seedUsers() {
           }
         );
       } else {
-        console.log(`  ✅ Creating user ${userData.email}...`);
+        logger.info(`Creating user ${userData.email}...`);
         // Use raw query to bypass hooks
         await User.sequelize?.query(
           `INSERT INTO users (id, email, password_hash, full_name, role, subscription_tier, 
@@ -76,27 +77,27 @@ export async function seedUsers() {
           }
         );
       }
-      console.log(`  ✅ User ${userData.email} ready!`);
+      logger.info(`User ${userData.email} ready!`);
     } catch (error) {
-      console.error(`  ❌ Error seeding user ${userData.email}:`, error);
+      logger.error(`Error seeding user ${userData.email}:`, error);
     }
   }
 
-  console.log('✅ Users seeded successfully!');
+  logger.info('Users seeded successfully!');
 }
 
 // Run directly if called as script
 if (require.main === module) {
   const { sequelize } = require('../../config/database');
-  
+
   sequelize.authenticate()
     .then(() => seedUsers())
     .then(() => {
-      console.log('Done!');
+      logger.info('Done!');
       process.exit(0);
     })
     .catch((err: Error) => {
-      console.error('Seeding failed:', err);
+      logger.error('Seeding failed:', err);
       process.exit(1);
     });
 }

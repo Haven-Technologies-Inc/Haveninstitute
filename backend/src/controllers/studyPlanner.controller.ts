@@ -4,6 +4,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { studyPlannerService } from '../services/studyPlanner.service';
+import { logger } from '../utils/logger';
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -19,7 +20,7 @@ export class StudyPlannerController {
       const userId = req.userId;
       if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-      console.log('Creating study plan with data:', JSON.stringify(req.body, null, 2));
+      logger.debug('Creating study plan with data:', JSON.stringify(req.body, null, 2));
 
       // Convert targetDate string to Date object
       const planData = {
@@ -30,7 +31,7 @@ export class StudyPlannerController {
       const plan = await studyPlannerService.createPlan(userId, planData);
       res.status(201).json(plan);
     } catch (error: any) {
-      console.error('Failed to create study plan:', error);
+      logger.error('Failed to create study plan:', error);
       res.status(400).json({ message: error.message || 'Failed to create study plan' });
     }
   }

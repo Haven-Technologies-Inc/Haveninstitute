@@ -1,6 +1,7 @@
 import { Sequelize } from 'sequelize-typescript';
 import dotenv from 'dotenv';
 import { models } from '../models';
+import { logger } from '../utils/logger';
 
 dotenv.config();
 
@@ -35,13 +36,13 @@ export const sequelize = new Sequelize({
 export async function connectDatabase(): Promise<void> {
   try {
     await sequelize.authenticate();
-    console.log('✅ Database connection established successfully');
+    logger.info('Database connection established successfully');
 
     // Skip sync - tables already exist in production
     // Use migrations for schema changes
-    console.log('✅ Database ready (sync disabled)');
+    logger.info('Database ready (sync disabled)');
   } catch (error) {
-    console.error('❌ Unable to connect to the database:', error);
+    logger.error('Unable to connect to the database:', error);
     throw error;
   }
 }
@@ -49,9 +50,9 @@ export async function connectDatabase(): Promise<void> {
 export async function disconnectDatabase(): Promise<void> {
   try {
     await sequelize.close();
-    console.log('✅ Database connection closed');
+    logger.info('Database connection closed');
   } catch (error) {
-    console.error('❌ Error closing database connection:', error);
+    logger.error('Error closing database connection:', error);
     throw error;
   }
 }
