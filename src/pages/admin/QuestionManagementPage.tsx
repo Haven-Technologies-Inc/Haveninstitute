@@ -248,7 +248,7 @@ export default function QuestionManagementPage() {
                 >
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl">
+                      <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl">
                         {qType.icon}
                       </div>
                       <div className="flex-1">

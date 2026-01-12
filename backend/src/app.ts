@@ -13,6 +13,10 @@ dotenv.config();
 
 const app: Express = express();
 
+// Trust proxy for proper IP detection behind reverse proxy (nginx)
+// Required for express-rate-limit to work correctly with X-Forwarded-For header
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
