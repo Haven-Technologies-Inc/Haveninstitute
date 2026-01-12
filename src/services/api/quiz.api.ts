@@ -105,6 +105,17 @@ export const quizApi = {
     const response = await apiClient.get(`/quiz/${sessionId}/result`);
     return response.data;
   },
+
+  // Get current session state (question)
+  getSession: async (sessionId: string): Promise<{
+    questionNumber: number;
+    totalQuestions: number;
+    question: Question;
+    status?: string;
+  }> => {
+    const response = await apiClient.get(`/quiz/${sessionId}/question`);
+    return response.data;
+  },
 };
 
 export default quizApi;

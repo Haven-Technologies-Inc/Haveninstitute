@@ -50,7 +50,7 @@ export function useStartQuiz() {
   });
 }
 
-// Mutation to submit an answer
+// Mutation to submit an answer (takes sessionId as parameter)
 export function useSubmitAnswer(sessionId: string) {
   return useMutation({
     mutationFn: ({ questionId, answer, timeSpent }: { questionId: string; answer: string | string[]; timeSpent: number }) =>
@@ -58,8 +58,17 @@ export function useSubmitAnswer(sessionId: string) {
   });
 }
 
-// Alias for useSubmitAnswer
-export const useSubmitQuizAnswer = useSubmitAnswer;
+// Mutation to submit an answer (sessionId passed in mutation call)
+export function useSubmitQuizAnswer() {
+  return useMutation({
+    mutationFn: ({ sessionId, questionId, answer, timeSpent }: { 
+      sessionId: string; 
+      questionId: string; 
+      answer: string | string[]; 
+      timeSpent: number 
+    }) => quizApi.submitAnswer(sessionId, questionId, answer, timeSpent),
+  });
+}
 
 // Hook for fetching quiz session
 export function useQuizSession(sessionId: string) {
