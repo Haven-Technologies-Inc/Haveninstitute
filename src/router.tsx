@@ -13,6 +13,10 @@ const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage'));
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 const OnboardingPage = lazy(() => import('./pages/auth/OnboardingPage'));
 
+// SEO Landing Pages
+const NCLEXRNPrepPage = lazy(() => import('./pages/landing/NCLEXRNPrepPage'));
+const NCLEXPNPrepPage = lazy(() => import('./pages/landing/NCLEXPNPrepPage'));
+
 // Dashboard
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 
@@ -200,6 +204,23 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<PageLoader />}>
         <OnboardingPage />
+      </Suspense>
+    ),
+  },
+  // SEO Landing Pages (public, crawlable)
+  {
+    path: '/nclex-rn',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <NCLEXRNPrepPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/nclex-pn',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <NCLEXPNPrepPage />
       </Suspense>
     ),
   },

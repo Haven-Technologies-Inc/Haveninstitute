@@ -1,0 +1,59 @@
+{
+  "name": "Haven Institute - NCLEX Prep",
+  "short_name": "Haven Institute",
+  "description": "AI-Powered NCLEX Preparation Platform - Pass your nursing exam on the first attempt",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en-US",
+  "categories": ["education", "medical", "productivity"],
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Haven Institute Dashboard"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Practice Questions",
+      "short_name": "Practice",
+      "description": "Start practicing NCLEX questions",
+      "url": "/practice",
+      "icons": [{ "src": "/icons/practice.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "CAT Exam",
+      "short_name": "CAT",
+      "description": "Take a CAT simulation exam",
+      "url": "/cat",
+      "icons": [{ "src": "/icons/cat.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "AI Tutor",
+      "short_name": "Tutor",
+      "description": "Chat with AI tutor",
+      "url": "/ai-chat",
+      "icons": [{ "src": "/icons/tutor.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
