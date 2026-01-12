@@ -371,7 +371,7 @@ export function RoleBasedUserManagement() {
                       <Badge className={`bg-${getRoleColor(user.role)}-100 text-${getRoleColor(user.role)}-800`}>
                         <span className="flex items-center gap-1">
                           {getRoleIcon(user.role)}
-                          {ROLE_CONFIGS[user.role].label}
+                          {ROLE_CONFIGS[user.role]?.label || user.role}
                         </span>
                       </Badge>
                     </td>

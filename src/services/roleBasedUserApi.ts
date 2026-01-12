@@ -179,6 +179,24 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     color: 'gray',
     icon: 'User',
     level: 1
+  },
+  student: {
+    role: 'student',
+    label: 'Student',
+    description: 'Student user with learning access',
+    permissions: ['content.view'],
+    color: 'blue',
+    icon: 'GraduationCap',
+    level: 1
+  },
+  editor: {
+    role: 'editor',
+    label: 'Editor',
+    description: 'Content editor with editing permissions',
+    permissions: ['content.view', 'content.create', 'content.edit'],
+    color: 'orange',
+    icon: 'Edit',
+    level: 2
   }
 };
 
@@ -683,7 +701,9 @@ export async function getUserStatistics(): Promise<{
         admin: stats.byRole?.admin || 0,
         moderator: stats.byRole?.moderator || 0,
         instructor: stats.byRole?.instructor || 0,
-        user: stats.byRole?.student || stats.byRole?.user || 0
+        user: stats.byRole?.user || 0,
+        student: stats.byRole?.student || 0,
+        editor: stats.byRole?.editor || 0
       },
       byStatus: {
         active: stats.byStatus?.active || stats.active || 0,
@@ -694,7 +714,10 @@ export async function getUserStatistics(): Promise<{
       byPlan: {
         free: stats.byPlan?.free || stats.byPlan?.Free || 0,
         pro: stats.byPlan?.pro || stats.byPlan?.Pro || 0,
-        premium: stats.byPlan?.premium || stats.byPlan?.Premium || 0
+        premium: stats.byPlan?.premium || stats.byPlan?.Premium || 0,
+        Free: stats.byPlan?.Free || stats.byPlan?.free || 0,
+        Pro: stats.byPlan?.Pro || stats.byPlan?.pro || 0,
+        Premium: stats.byPlan?.Premium || stats.byPlan?.premium || 0
       },
       activeToday: stats.activeToday || 0,
       newThisWeek: stats.newThisWeek || 0,
@@ -716,7 +739,9 @@ export async function getUserStatistics(): Promise<{
         admin: users.filter(u => u.role === 'admin').length,
         moderator: users.filter(u => u.role === 'moderator').length,
         instructor: users.filter(u => u.role === 'instructor').length,
-        user: users.filter(u => u.role === 'user').length
+        user: users.filter(u => u.role === 'user').length,
+        student: users.filter(u => u.role === 'student').length,
+        editor: users.filter(u => u.role === 'editor').length
       },
       byStatus: {
         active: users.filter(u => u.status === 'active').length,
@@ -727,7 +752,10 @@ export async function getUserStatistics(): Promise<{
       byPlan: {
         free: users.filter(u => u.subscriptionPlan === 'free').length,
         pro: users.filter(u => u.subscriptionPlan === 'pro').length,
-        premium: users.filter(u => u.subscriptionPlan === 'premium').length
+        premium: users.filter(u => u.subscriptionPlan === 'premium').length,
+        Free: users.filter(u => u.subscriptionPlan === 'Free').length,
+        Pro: users.filter(u => u.subscriptionPlan === 'Pro').length,
+        Premium: users.filter(u => u.subscriptionPlan === 'Premium').length
       },
       activeToday: users.filter(u => u.lastLogin && new Date(u.lastLogin) > todayStart).length,
       newThisWeek: users.filter(u => new Date(u.createdAt) > weekAgo).length,

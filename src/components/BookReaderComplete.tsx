@@ -1012,18 +1012,26 @@ Questions often present ethical dilemmas. Always choose the answer that respects
                     <button 
                       onClick={() => addHighlight('#fef08a')}
                       className="size-8 rounded-full bg-yellow-200 border-2 border-yellow-400 hover:scale-110 transition-transform"
+                      title="Yellow highlight"
+                      aria-label="Yellow highlight"
                     />
                     <button 
                       onClick={() => addHighlight('#bbf7d0')}
                       className="size-8 rounded-full bg-green-200 border-2 border-green-400 hover:scale-110 transition-transform"
+                      title="Green highlight"
+                      aria-label="Green highlight"
                     />
                     <button 
                       onClick={() => addHighlight('#bfdbfe')}
                       className="size-8 rounded-full bg-blue-200 border-2 border-blue-400 hover:scale-110 transition-transform"
+                      title="Blue highlight"
+                      aria-label="Blue highlight"
                     />
                     <button 
                       onClick={() => addHighlight('#fecaca')}
                       className="size-8 rounded-full bg-red-200 border-2 border-red-400 hover:scale-110 transition-transform"
+                      title="Red highlight"
+                      aria-label="Red highlight"
                     />
                     <Button 
                       variant="ghost" 
