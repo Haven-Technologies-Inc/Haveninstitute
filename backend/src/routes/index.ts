@@ -74,7 +74,7 @@ router.use('/ai', aiRoutes);
 // Previously missing route registrations
 router.use('/quiz', quizRoutes);
 router.use('/study-groups', studyGroupRoutes);
-router.use('/study-planner', studyPlannerRoutes);
+router.use('/planner', studyPlannerRoutes);
 router.use('/study-materials', studyMaterialRoutes);
 router.use('/health', healthRoutes);
 

@@ -192,7 +192,7 @@ export function AITutor() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-xl overflow-hidden shadow-xl">
+    <div className="flex flex-col h-[calc(100vh-120px)] bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-xl">
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between gap-2">
@@ -363,13 +363,15 @@ export function AITutor() {
             />
           </div>
           
-          <Button
+          <button
             type="submit"
             disabled={!inputValue.trim() || isLoading}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Send message"
+            aria-label="Send message"
+            className="flex items-center justify-center bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
-          </Button>
+          </button>
         </form>
         
         <p className="text-xs text-center text-gray-400 dark:text-gray-500 mt-3">

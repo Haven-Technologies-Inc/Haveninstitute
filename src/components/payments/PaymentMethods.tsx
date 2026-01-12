@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -10,39 +10,34 @@ import {
   Check,
   Lock,
   Calendar,
-  User
+  User,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { useAuth } from '../auth/AuthContext';
+import * as stripeApi from '../../services/stripeApi';
 
 interface PaymentMethod {
   id: string;
-  type: 'card';
-  brand: string;
+  type: 'card' | 'bank_account';
+  brand?: string;
   last4: string;
-  expiryMonth: number;
-  expiryYear: number;
+  expiryMonth?: number;
+  expiryYear?: number;
   isDefault: boolean;
 }
 
 interface PaymentMethodsProps {
-  onAddPaymentMethod?: (method: any) => void;
+  onAddPaymentMethod?: (method: PaymentMethod) => void;
 }
 
-const mockPaymentMethods: PaymentMethod[] = [
-  {
-    id: 'pm_1',
-    type: 'card',
-    brand: 'visa',
-    last4: '4242',
-    expiryMonth: 12,
-    expiryYear: 2025,
-    isDefault: true
-  }
-];
-
 export function PaymentMethods({ onAddPaymentMethod }: PaymentMethodsProps) {
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(mockPaymentMethods);
+  const { user } = useAuth();
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [showAddCard, setShowAddCard] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Form state
   const [cardNumber, setCardNumber] = useState('');
@@ -50,49 +45,77 @@ export function PaymentMethods({ onAddPaymentMethod }: PaymentMethodsProps) {
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
 
-  const handleAddCard = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
+  // Fetch payment methods on mount
+  useEffect(() => {
+    fetchPaymentMethods();
+  }, []);
 
-    // Simulate API call
-    setTimeout(() => {
-      const newCard: PaymentMethod = {
-        id: `pm_${Date.now()}`,
-        type: 'card',
-        brand: 'visa', // Would be determined from card number
-        last4: cardNumber.slice(-4),
-        expiryMonth: parseInt(expiryDate.split('/')[0]),
-        expiryYear: parseInt('20' + expiryDate.split('/')[1]),
-        isDefault: paymentMethods.length === 0
-      };
-
-      setPaymentMethods([...paymentMethods, newCard]);
-      setShowAddCard(false);
-      setIsProcessing(false);
-      
-      // Reset form
-      setCardNumber('');
-      setCardName('');
-      setExpiryDate('');
-      setCvv('');
-
-      if (onAddPaymentMethod) {
-        onAddPaymentMethod(newCard);
-      }
-    }, 1500);
-  };
-
-  const handleDeleteCard = (id: string) => {
-    if (confirm('Are you sure you want to remove this payment method?')) {
-      setPaymentMethods(paymentMethods.filter(pm => pm.id !== id));
+  const fetchPaymentMethods = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const methods = await stripeApi.getPaymentMethods(user?.id || '');
+      setPaymentMethods(methods);
+    } catch (err: any) {
+      console.error('Failed to fetch payment methods:', err);
+      setError('Failed to load payment methods');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSetDefault = (id: string) => {
-    setPaymentMethods(paymentMethods.map(pm => ({
-      ...pm,
-      isDefault: pm.id === id
-    })));
+  const handleAddCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      // Note: In production, you would use Stripe Elements to securely collect card details
+      // This is a simplified version - card details should NEVER be sent to your server
+      // Instead, use Stripe.js to create a PaymentMethod token client-side
+      
+      // For now, we'll show an info message and direct to Stripe billing portal
+      alert('For security, please use the "Manage Billing" button on the subscription page to add cards through Stripe\'s secure portal.');
+      setShowAddCard(false);
+    } catch (err: any) {
+      console.error('Failed to add card:', err);
+      setError(err.message || 'Failed to add payment method');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteCard = async (id: string) => {
+    if (!confirm('Are you sure you want to remove this payment method?')) {
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      await stripeApi.deletePaymentMethod(id);
+      setPaymentMethods(paymentMethods.filter(pm => pm.id !== id));
+    } catch (err: any) {
+      console.error('Failed to delete payment method:', err);
+      setError(err.message || 'Failed to remove payment method');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSetDefault = async (id: string) => {
+    setIsProcessing(true);
+    try {
+      await stripeApi.setDefaultPaymentMethod(user?.id || '', id);
+      setPaymentMethods(paymentMethods.map(pm => ({
+        ...pm,
+        isDefault: pm.id === id
+      })));
+    } catch (err: any) {
+      console.error('Failed to set default payment method:', err);
+      setError(err.message || 'Failed to set default payment method');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const getCardIcon = (brand: string) => {
@@ -130,8 +153,29 @@ export function PaymentMethods({ onAddPaymentMethod }: PaymentMethodsProps) {
     return v;
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="size-8 animate-spin text-blue-500" />
+        <span className="ml-2 text-gray-600">Loading payment methods...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Error display */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+          <AlertCircle className="size-5 text-red-600" />
+          <span className="text-red-800">{error}</span>
+          <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">
+            Dismiss
+          </Button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -139,7 +183,7 @@ export function PaymentMethods({ onAddPaymentMethod }: PaymentMethodsProps) {
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Manage your payment methods and billing information</p>
         </div>
         {!showAddCard && (
-          <Button onClick={() => setShowAddCard(true)} className="w-full sm:w-auto">
+          <Button onClick={() => setShowAddCard(true)} className="w-full sm:w-auto" disabled={isProcessing}>
             <Plus className="size-4 mr-2" />
             Add Payment Method
           </Button>
@@ -261,14 +305,14 @@ export function PaymentMethods({ onAddPaymentMethod }: PaymentMethodsProps) {
                 <div className="flex items-center gap-3 sm:gap-4">
                   {/* Card Icon */}
                   <div className="text-3xl sm:text-4xl">
-                    {getCardIcon(method.brand)}
+                    {getCardIcon(method.brand || 'card')}
                   </div>
                   
                   {/* Card Details */}
                   <div>
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <p className="text-gray-900 dark:text-white capitalize text-sm sm:text-base">
-                        {method.brand} •••• {method.last4}
+                        {method.brand || 'Card'} •••• {method.last4}
                       </p>
                       {method.isDefault && (
                         <Badge className="bg-blue-100 text-blue-800 text-xs">
@@ -277,9 +321,11 @@ export function PaymentMethods({ onAddPaymentMethod }: PaymentMethodsProps) {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
-                      Expires {method.expiryMonth.toString().padStart(2, '0')}/{method.expiryYear}
-                    </p>
+                    {method.expiryMonth && method.expiryYear && (
+                      <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
+                        Expires {method.expiryMonth.toString().padStart(2, '0')}/{method.expiryYear}
+                      </p>
+                    )}
                   </div>
                 </div>
 
