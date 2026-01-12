@@ -68,10 +68,34 @@ export function RoleBasedUserManagement() {
   });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [isLiveUpdating, setIsLiveUpdating] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
+  // Initial load and filter-based reload
   useEffect(() => {
     loadData();
   }, [filters]);
+
+  // Real-time polling for live user updates (every 30 seconds)
+  useEffect(() => {
+    if (!isLiveUpdating) return;
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const [usersData, statsData] = await Promise.all([
+          getAllUsers(filters.role || filters.status || filters.subscriptionPlan || filters.search ? filters : undefined),
+          getUserStatistics()
+        ]);
+        setUsers(usersData);
+        setStats(statsData);
+        setLastUpdated(new Date());
+      } catch (error) {
+        console.error('Live update failed:', error);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isLiveUpdating, filters]);
 
   const loadData = async () => {
     setLoading(true);
@@ -161,12 +185,35 @@ export function RoleBasedUserManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl text-gray-900 dark:text-white mb-2">User Management</h2>
-          <p className="text-gray-600 dark:text-gray-400">Manage users with role-based access control</p>
+          <div className="flex items-center gap-3">
+            <p className="text-gray-600 dark:text-gray-400">Manage users with role-based access control</p>
+            {isLiveUpdating && (
+              <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Live
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setIsLiveUpdating(!isLiveUpdating)}
+            className={isLiveUpdating ? 'border-green-500 text-green-600' : ''}
+          >
+            <Activity className="size-4 mr-2" />
+            {isLiveUpdating ? 'Live' : 'Paused'}
+          </Button>
+          <Button variant="outline" onClick={loadData}>
             <Download className="size-4 mr-2" />
-            Export
+            Refresh
           </Button>
           <Button onClick={() => setShowCreateModal(true)}>
             <UserPlus className="size-4 mr-2" />

@@ -56,10 +56,79 @@ export function AdminOverview({ onTabChange }: AdminOverviewProps) {
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [contentStats, setContentStats] = useState<ContentStats | null>(null);
   const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null);
+  const [isLiveUpdating, setIsLiveUpdating] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   useEffect(() => {
     loadDashboardData();
   }, [user]);
+
+  // Real-time polling for live stats updates (every 30 seconds)
+  useEffect(() => {
+    if (!isLiveUpdating || !user) return;
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const [overviewData, contentData, revenueData, activityData] = await Promise.all([
+          adminStatsApi.getOverview(),
+          adminStatsApi.getContentStats(),
+          adminStatsApi.getRevenueStats(),
+          adminStatsApi.getRecentActivity(10)
+        ]);
+        
+        setOverview(overviewData);
+        setContentStats(contentData);
+        setRevenueStats(revenueData);
+        setRecentActivity(activityData);
+        setLastUpdated(new Date());
+        
+        // Update stats array
+        updateStatsFromOverview(overviewData, revenueData);
+      } catch (error) {
+        console.error('Live update failed:', error);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isLiveUpdating, user]);
+
+  const updateStatsFromOverview = (overviewData: DashboardOverview, revenueData: RevenueStats) => {
+    const statsData: Stat[] = [
+      {
+        label: 'Total Users',
+        value: overviewData.totalUsers.toLocaleString(),
+        change: `+${overviewData.newUsersThisMonth} this month`,
+        changeType: overviewData.newUsersThisMonth > 0 ? 'positive' : 'neutral',
+        icon: Users,
+        color: 'blue'
+      },
+      {
+        label: 'Active Users',
+        value: overviewData.activeUsers.toLocaleString(),
+        change: `${Math.round((overviewData.activeUsers / Math.max(overviewData.totalUsers, 1)) * 100)}% of total`,
+        changeType: 'positive',
+        icon: Activity,
+        color: 'green'
+      },
+      {
+        label: 'Total Questions',
+        value: overviewData.totalQuestions.toLocaleString(),
+        change: 'In question bank',
+        changeType: 'neutral',
+        icon: FileText,
+        color: 'purple'
+      },
+      {
+        label: 'Monthly Revenue',
+        value: `$${(revenueData?.monthlyRevenue || 0).toLocaleString()}`,
+        change: `${revenueData?.activeSubscriptions || 0} active subscriptions`,
+        changeType: 'positive',
+        icon: DollarSign,
+        color: 'emerald'
+      }
+    ];
+    setStats(statsData);
+  };
 
   const loadDashboardData = async () => {
     if (!user) return;
