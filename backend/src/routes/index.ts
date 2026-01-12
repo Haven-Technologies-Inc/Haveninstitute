@@ -30,6 +30,7 @@ import studyGroupRoutes from './studyGroup.routes';
 import studyPlannerRoutes from './studyPlanner.routes';
 import studyMaterialRoutes from './studyMaterial.routes';
 import healthRoutes from './health.routes';
+import userRoutes from './user.routes';
 
 const router = Router();
 
@@ -77,5 +78,6 @@ router.use('/study-groups', studyGroupRoutes);
 router.use('/planner', studyPlannerRoutes);
 router.use('/study-materials', studyMaterialRoutes);
 router.use('/health', healthRoutes);
+router.use('/users', userRoutes);
 
 export default router;
