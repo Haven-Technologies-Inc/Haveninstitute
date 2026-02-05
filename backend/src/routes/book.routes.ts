@@ -7,6 +7,7 @@
 import { Router, Response, NextFunction } from 'express';
 import { authenticate, authorizeRole, AuthRequest } from '../middleware/authenticate';
 import { bookService } from '../services/book.service';
+import { bookPurchaseService } from '../services/bookPurchase.service';
 import { ResponseHandler } from '../utils/response';
 import { BookCategory, BookFormat } from '../models/Book';
 
@@ -276,6 +277,110 @@ router.post('/:id/rate', async (req: AuthRequest, res: Response, next: NextFunct
     }
 
     ResponseHandler.success(res, { message: 'Rating submitted' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ==================== PURCHASE ROUTES ====================
+
+/**
+ * @route   POST /api/v1/books/:id/purchase
+ * @desc    Create checkout session for book purchase
+ * @access  Private
+ */
+router.post('/:id/purchase', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId!;
+    const bookId = req.params.id;
+    const { successUrl, cancelUrl } = req.body;
+
+    if (!successUrl || !cancelUrl) {
+      return ResponseHandler.error(res, 'VALIDATION_ERROR', 'successUrl and cancelUrl are required', 400);
+    }
+
+    const result = await bookPurchaseService.createCheckoutSession(
+      userId,
+      bookId,
+      successUrl,
+      cancelUrl
+    );
+
+    if (!result.success) {
+      return ResponseHandler.error(res, 'PAYMENT_ERROR', result.error || 'Failed to create checkout', 400);
+    }
+
+    ResponseHandler.success(res, {
+      sessionId: result.sessionId,
+      url: result.url
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   POST /api/v1/books/purchase/complete
+ * @desc    Complete book purchase after checkout
+ * @access  Private
+ */
+router.post('/purchase/complete', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return ResponseHandler.error(res, 'VALIDATION_ERROR', 'sessionId is required', 400);
+    }
+
+    const result = await bookPurchaseService.handlePurchaseComplete(sessionId);
+
+    if (!result.success) {
+      return ResponseHandler.error(res, 'PAYMENT_ERROR', result.error || 'Failed to complete purchase', 400);
+    }
+
+    ResponseHandler.success(res, { bookId: result.bookId, message: 'Purchase completed successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   GET /api/v1/books/:id/access
+ * @desc    Check if user has access to a book
+ * @access  Private
+ */
+router.get('/:id/access', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const hasAccess = await bookPurchaseService.hasAccess(req.userId!, req.params.id);
+    ResponseHandler.success(res, { hasAccess });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   GET /api/v1/books/user/purchases
+ * @desc    Get user's purchased books
+ * @access  Private
+ */
+router.get('/user/purchases', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const purchases = await bookPurchaseService.getUserPurchases(req.userId!);
+    ResponseHandler.success(res, purchases);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   GET /api/v1/books/user/purchase-history
+ * @desc    Get user's book purchase history with receipts
+ * @access  Private
+ */
+router.get('/user/purchase-history', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const history = await bookPurchaseService.getPurchaseHistory(req.userId!);
+    ResponseHandler.success(res, history);
   } catch (error) {
     next(error);
   }

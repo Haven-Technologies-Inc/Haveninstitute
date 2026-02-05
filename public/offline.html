@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - Haven Institute</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .icon {
+      width: 80px;
+      height: 80px;
+      background: #f3f4f6;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .icon svg {
+      width: 40px;
+      height: 40px;
+      color: #6366f1;
+    }
+    h1 {
+      color: #1f2937;
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    p {
+      color: #6b7280;
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #4f46e5;
+    }
+    .secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+    .secondary:hover {
+      background: #e5e7eb;
+    }
+    .tip {
+      margin-top: 24px;
+      padding: 16px;
+      background: #fef3c7;
+      border-radius: 10px;
+      font-size: 14px;
+      color: #92400e;
+    }
+    .tip strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+      </svg>
+    </div>
+    <h1>You're Offline</h1>
+    <p>It looks like you've lost your internet connection. Don't worry - some features are still available offline!</p>
+
+    <div class="actions">
+      <button onclick="window.location.reload()">Try Again</button>
+      <button class="secondary" onclick="goToFlashcards()">Review Offline Flashcards</button>
+    </div>
+
+    <div class="tip">
+      <strong>💡 Study Tip</strong>
+      Use this time to review your saved flashcards or mental notes. Sometimes a break from screens helps reinforce learning!
+    </div>
+  </div>
+
+  <script>
+    function goToFlashcards() {
+      // Try to navigate to cached flashcards
+      window.location.href = '/flashcards?offline=true';
+    }
+
+    // Auto-retry when connection is restored
+    window.addEventListener('online', () => {
+      window.location.reload();
+    });
+  </script>
+</body>
+</html>

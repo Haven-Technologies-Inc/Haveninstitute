@@ -263,5 +263,1230 @@ CREATE TABLE IF NOT EXISTS quiz_sessions (
     INDEX idx_started_at (started_at)
 ) ENGINE=InnoDB;
 
--- Continue with remaining tables...
--- (Due to length, I'll create separate migration files for the remaining 17 tables)
+-- ============================================================================
+-- 8. QUIZ RESPONSES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS quiz_responses (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    session_id CHAR(36) NOT NULL,
+    question_id CHAR(36) NOT NULL,
+    user_id CHAR(36) NOT NULL,
+
+    -- Answer Data
+    user_answer JSON,
+    is_correct BOOLEAN,
+    time_spent_seconds INT,
+
+    -- Sequence
+    question_index INT NOT NULL,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (session_id) REFERENCES quiz_sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_session_id (session_id),
+    INDEX idx_question_id (question_id),
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 9. CAT SESSIONS TABLE (Computer Adaptive Testing)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS cat_sessions (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+
+    -- Session Status
+    status ENUM('in_progress', 'completed', 'abandoned', 'timed_out') DEFAULT 'in_progress',
+    result ENUM('pass', 'fail', 'undetermined') DEFAULT 'undetermined',
+    stop_reason VARCHAR(50),
+
+    -- Ability Estimation (IRT)
+    current_ability DECIMAL(6, 4) DEFAULT 0.0000,
+    standard_error DECIMAL(6, 4) DEFAULT 1.0000,
+    confidence_interval_lower DECIMAL(6, 4),
+    confidence_interval_upper DECIMAL(6, 4),
+    passing_probability DECIMAL(5, 4),
+
+    -- Progress Tracking
+    questions_answered INT DEFAULT 0,
+    questions_correct INT DEFAULT 0,
+    min_questions INT DEFAULT 60,
+    max_questions INT DEFAULT 145,
+
+    -- Time Tracking
+    time_limit_seconds INT DEFAULT 18000,
+    time_spent_seconds INT DEFAULT 0,
+    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+
+    -- Performance Analysis
+    category_performance JSON,
+    difficulty_distribution JSON,
+
+    -- Metadata
+    nclex_type ENUM('RN', 'PN') DEFAULT 'RN',
+    metadata JSON,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status),
+    INDEX idx_result (result),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 10. CAT RESPONSES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS cat_responses (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    session_id CHAR(36) NOT NULL,
+    question_id CHAR(36) NOT NULL,
+
+    -- Answer Data
+    user_answer JSON,
+    is_correct BOOLEAN,
+    time_spent_seconds INT,
+
+    -- IRT Tracking (after answer)
+    ability_before DECIMAL(6, 4),
+    ability_after DECIMAL(6, 4),
+    se_before DECIMAL(6, 4),
+    se_after DECIMAL(6, 4),
+
+    -- Question IRT Parameters
+    irt_discrimination DECIMAL(5, 3),
+    irt_difficulty DECIMAL(5, 3),
+    irt_guessing DECIMAL(5, 3),
+
+    -- Sequence
+    question_number INT NOT NULL,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (session_id) REFERENCES cat_sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+    INDEX idx_session_id (session_id),
+    INDEX idx_question_id (question_id),
+    INDEX idx_question_number (question_number)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 11. STUDY PLANS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS study_plans (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+
+    -- Plan Details
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    status ENUM('draft', 'active', 'completed', 'paused', 'abandoned') DEFAULT 'active',
+
+    -- Dates
+    start_date DATE NOT NULL,
+    target_date DATE,
+    completed_at DATETIME,
+
+    -- Focus Areas
+    focus_areas JSON,
+    weak_areas JSON,
+
+    -- Schedule Preferences
+    daily_study_hours DECIMAL(3, 1) DEFAULT 2.0,
+    preferred_times JSON,
+    study_days JSON,
+    break_duration_minutes INT DEFAULT 10,
+    session_duration_minutes INT DEFAULT 45,
+
+    -- Progress
+    total_tasks INT DEFAULT 0,
+    completed_tasks INT DEFAULT 0,
+    current_streak INT DEFAULT 0,
+    longest_streak INT DEFAULT 0,
+
+    -- AI Generation
+    is_ai_generated BOOLEAN DEFAULT FALSE,
+    ai_insights JSON,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status),
+    INDEX idx_start_date (start_date)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 12. STUDY PLAN TASKS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS study_plan_tasks (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    plan_id CHAR(36) NOT NULL,
+
+    -- Task Details
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    task_type ENUM('quiz', 'cat', 'flashcard', 'reading', 'video', 'review', 'practice', 'custom') DEFAULT 'practice',
+
+    -- NCLEX Category
+    category VARCHAR(100),
+    topic VARCHAR(255),
+
+    -- Scheduling
+    scheduled_date DATE,
+    scheduled_time TIME,
+    estimated_minutes INT DEFAULT 30,
+    actual_minutes INT,
+
+    -- Status
+    status ENUM('pending', 'in_progress', 'completed', 'skipped') DEFAULT 'pending',
+    completed_at DATETIME,
+
+    -- Resource Link
+    resource_id CHAR(36),
+    resource_type VARCHAR(50),
+
+    -- Results
+    question_count INT,
+    score DECIMAL(5, 2),
+    notes TEXT,
+
+    -- Order
+    sequence_order INT DEFAULT 0,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (plan_id) REFERENCES study_plans(id) ON DELETE CASCADE,
+    INDEX idx_plan_id (plan_id),
+    INDEX idx_scheduled_date (scheduled_date),
+    INDEX idx_status (status)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 13. STUDY PLAN MILESTONES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS study_plan_milestones (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    plan_id CHAR(36) NOT NULL,
+
+    -- Milestone Details
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    milestone_type ENUM('score', 'tasks', 'time', 'custom') DEFAULT 'custom',
+
+    -- Target & Progress
+    target_value INT,
+    current_value INT DEFAULT 0,
+    target_date DATE,
+
+    -- Status
+    status ENUM('pending', 'achieved', 'missed') DEFAULT 'pending',
+    achieved_at DATETIME,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (plan_id) REFERENCES study_plans(id) ON DELETE CASCADE,
+    INDEX idx_plan_id (plan_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 14. STUDY GOALS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS study_goals (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+
+    -- Goal Details
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    goal_type ENUM('daily', 'weekly', 'monthly', 'custom') DEFAULT 'daily',
+
+    -- Target
+    target_value INT NOT NULL,
+    current_value INT DEFAULT 0,
+    unit VARCHAR(50),
+
+    -- Dates
+    start_date DATE,
+    end_date DATE,
+
+    -- Status
+    status ENUM('active', 'completed', 'failed', 'paused') DEFAULT 'active',
+    completed_at DATETIME,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 15. STUDY ACTIVITIES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS study_activities (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+
+    -- Activity Details
+    activity_type ENUM('quiz', 'cat', 'flashcard', 'reading', 'video', 'practice', 'other') NOT NULL,
+    title VARCHAR(255),
+    description TEXT,
+
+    -- Session Info
+    session_id CHAR(36),
+    resource_id CHAR(36),
+    resource_type VARCHAR(50),
+
+    -- Duration & Performance
+    duration_minutes INT,
+    questions_attempted INT,
+    questions_correct INT,
+    score DECIMAL(5, 2),
+
+    -- Category
+    category VARCHAR(100),
+    topic VARCHAR(255),
+
+    -- Date
+    activity_date DATE DEFAULT (CURRENT_DATE),
+    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_activity_type (activity_type),
+    INDEX idx_activity_date (activity_date)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 16. FLASHCARD DECKS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS flashcard_decks (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+
+    -- Deck Details
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+
+    -- Stats
+    card_count INT DEFAULT 0,
+    mastered_count INT DEFAULT 0,
+
+    -- Visibility
+    is_public BOOLEAN DEFAULT FALSE,
+    is_ai_generated BOOLEAN DEFAULT FALSE,
+
+    -- Status
+    is_active BOOLEAN DEFAULT TRUE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_category (category),
+    INDEX idx_is_public (is_public)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 17. FLASHCARDS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS flashcards (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    deck_id CHAR(36) NOT NULL,
+
+    -- Card Content
+    front TEXT NOT NULL,
+    back TEXT NOT NULL,
+    hint TEXT,
+
+    -- Metadata
+    tags JSON,
+    difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
+
+    -- Spaced Repetition (SM-2)
+    ease_factor DECIMAL(4, 2) DEFAULT 2.50,
+    interval_days INT DEFAULT 1,
+    repetitions INT DEFAULT 0,
+
+    -- Status
+    is_active BOOLEAN DEFAULT TRUE,
+    sequence_order INT DEFAULT 0,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (deck_id) REFERENCES flashcard_decks(id) ON DELETE CASCADE,
+    INDEX idx_deck_id (deck_id),
+    INDEX idx_difficulty (difficulty)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 18. USER FLASHCARD PROGRESS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS user_flashcard_progress (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+    flashcard_id CHAR(36) NOT NULL,
+
+    -- SM-2 Algorithm Data
+    ease_factor DECIMAL(4, 2) DEFAULT 2.50,
+    interval_days INT DEFAULT 1,
+    repetitions INT DEFAULT 0,
+
+    -- Schedule
+    next_review_date DATE,
+    last_review_date DATE,
+
+    -- Stats
+    total_reviews INT DEFAULT 0,
+    correct_reviews INT DEFAULT 0,
+
+    -- Mastery
+    mastery_level ENUM('new', 'learning', 'review', 'mastered') DEFAULT 'new',
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (flashcard_id) REFERENCES flashcards(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_flashcard (user_id, flashcard_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_next_review (next_review_date)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 19. STUDY GROUPS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS study_groups (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+
+    -- Group Details
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    avatar_url VARCHAR(500),
+
+    -- Settings
+    is_public BOOLEAN DEFAULT TRUE,
+    max_members INT DEFAULT 50,
+    join_code VARCHAR(20) UNIQUE,
+
+    -- Owner
+    owner_id CHAR(36) NOT NULL,
+
+    -- Stats
+    member_count INT DEFAULT 1,
+
+    -- Status
+    is_active BOOLEAN DEFAULT TRUE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_owner_id (owner_id),
+    INDEX idx_is_public (is_public),
+    INDEX idx_join_code (join_code)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 20. GROUP MEMBERS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS group_members (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    group_id CHAR(36) NOT NULL,
+    user_id CHAR(36) NOT NULL,
+
+    -- Role
+    role ENUM('member', 'moderator', 'admin', 'owner') DEFAULT 'member',
+
+    -- Status
+    status ENUM('active', 'muted', 'banned') DEFAULT 'active',
+
+    -- Tracking
+    joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_active_at DATETIME,
+
+    FOREIGN KEY (group_id) REFERENCES study_groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_group_member (group_id, user_id),
+    INDEX idx_group_id (group_id),
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 21. GROUP MESSAGES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS group_messages (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    group_id CHAR(36) NOT NULL,
+    user_id CHAR(36) NOT NULL,
+
+    -- Message Content
+    content TEXT NOT NULL,
+    message_type ENUM('text', 'image', 'file', 'system') DEFAULT 'text',
+
+    -- Reply To
+    reply_to_id CHAR(36),
+
+    -- Status
+    is_edited BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (group_id) REFERENCES study_groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reply_to_id) REFERENCES group_messages(id) ON DELETE SET NULL,
+    INDEX idx_group_id (group_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 22. GROUP INVITATIONS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS group_invitations (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    group_id CHAR(36) NOT NULL,
+    invited_by CHAR(36) NOT NULL,
+    invited_user_id CHAR(36),
+    invited_email VARCHAR(255),
+
+    -- Status
+    status ENUM('pending', 'accepted', 'declined', 'expired') DEFAULT 'pending',
+
+    -- Token for email invites
+    invite_token VARCHAR(100) UNIQUE,
+    expires_at DATETIME,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    responded_at DATETIME,
+
+    FOREIGN KEY (group_id) REFERENCES study_groups(id) ON DELETE CASCADE,
+    FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (invited_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_group_id (group_id),
+    INDEX idx_invited_user (invited_user_id),
+    INDEX idx_invite_token (invite_token)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 23. DISCUSSION CATEGORIES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS discussion_categories (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+
+    -- Category Details
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    icon VARCHAR(50),
+    color VARCHAR(7),
+
+    -- Hierarchy
+    parent_id CHAR(36),
+    display_order INT DEFAULT 0,
+
+    -- Stats
+    post_count INT DEFAULT 0,
+
+    -- Status
+    is_active BOOLEAN DEFAULT TRUE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (parent_id) REFERENCES discussion_categories(id) ON DELETE SET NULL,
+    INDEX idx_slug (slug),
+    INDEX idx_parent_id (parent_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 24. DISCUSSION POSTS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS discussion_posts (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    author_id CHAR(36) NOT NULL,
+    category_id CHAR(36) NOT NULL,
+
+    -- Post Content
+    title VARCHAR(500) NOT NULL,
+    content TEXT NOT NULL,
+    slug VARCHAR(600),
+
+    -- Type
+    post_type ENUM('discussion', 'question', 'announcement', 'poll') DEFAULT 'discussion',
+
+    -- Stats
+    view_count INT DEFAULT 0,
+    like_count INT DEFAULT 0,
+    comment_count INT DEFAULT 0,
+
+    -- Status
+    status ENUM('draft', 'published', 'archived', 'deleted') DEFAULT 'published',
+    is_pinned BOOLEAN DEFAULT FALSE,
+    is_locked BOOLEAN DEFAULT FALSE,
+
+    -- Moderation
+    is_flagged BOOLEAN DEFAULT FALSE,
+    flag_count INT DEFAULT 0,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES discussion_categories(id) ON DELETE CASCADE,
+    INDEX idx_author_id (author_id),
+    INDEX idx_category_id (category_id),
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at),
+    FULLTEXT idx_title_content (title, content)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 25. DISCUSSION COMMENTS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS discussion_comments (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    post_id CHAR(36) NOT NULL,
+    author_id CHAR(36) NOT NULL,
+
+    -- Comment Content
+    content TEXT NOT NULL,
+
+    -- Threading
+    parent_id CHAR(36),
+    depth INT DEFAULT 0,
+
+    -- Stats
+    like_count INT DEFAULT 0,
+
+    -- Status
+    is_edited BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    is_accepted BOOLEAN DEFAULT FALSE,
+
+    -- Moderation
+    is_flagged BOOLEAN DEFAULT FALSE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (post_id) REFERENCES discussion_posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES discussion_comments(id) ON DELETE CASCADE,
+    INDEX idx_post_id (post_id),
+    INDEX idx_author_id (author_id),
+    INDEX idx_parent_id (parent_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 26. DISCUSSION REACTIONS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS discussion_reactions (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+
+    -- Target (either post or comment)
+    post_id CHAR(36),
+    comment_id CHAR(36),
+
+    -- Reaction Type
+    reaction_type ENUM('like', 'love', 'helpful', 'insightful') DEFAULT 'like',
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES discussion_posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (comment_id) REFERENCES discussion_comments(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_post_reaction (user_id, post_id, reaction_type),
+    UNIQUE KEY unique_comment_reaction (user_id, comment_id, reaction_type),
+    INDEX idx_user_id (user_id),
+    INDEX idx_post_id (post_id),
+    INDEX idx_comment_id (comment_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 27. DISCUSSION BOOKMARKS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS discussion_bookmarks (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+    post_id CHAR(36) NOT NULL,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES discussion_posts(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_bookmark (user_id, post_id),
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 28. DISCUSSION TAGS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS discussion_tags (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+
+    name VARCHAR(100) NOT NULL,
+    slug VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    color VARCHAR(7),
+
+    -- Stats
+    usage_count INT DEFAULT 0,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_slug (slug)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 29. DISCUSSION POST TAGS (Junction Table)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS discussion_post_tags (
+    post_id CHAR(36) NOT NULL,
+    tag_id CHAR(36) NOT NULL,
+
+    PRIMARY KEY (post_id, tag_id),
+    FOREIGN KEY (post_id) REFERENCES discussion_posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES discussion_tags(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 30. ACHIEVEMENTS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS achievements (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+
+    -- Achievement Details
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    icon VARCHAR(100),
+    badge_url VARCHAR(500),
+
+    -- Unlock Criteria
+    achievement_type ENUM('streak', 'score', 'questions', 'time', 'milestone', 'special') NOT NULL,
+    criteria JSON,
+    threshold_value INT,
+
+    -- Rewards
+    xp_reward INT DEFAULT 0,
+
+    -- Rarity
+    rarity ENUM('common', 'uncommon', 'rare', 'epic', 'legendary') DEFAULT 'common',
+
+    -- Status
+    is_active BOOLEAN DEFAULT TRUE,
+    is_hidden BOOLEAN DEFAULT FALSE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_achievement_type (achievement_type),
+    INDEX idx_rarity (rarity)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 31. USER ACHIEVEMENTS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS user_achievements (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+    achievement_id CHAR(36) NOT NULL,
+
+    -- Progress
+    progress INT DEFAULT 0,
+    is_unlocked BOOLEAN DEFAULT FALSE,
+    unlocked_at DATETIME,
+
+    -- Notification
+    is_notified BOOLEAN DEFAULT FALSE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (achievement_id) REFERENCES achievements(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_achievement (user_id, achievement_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_is_unlocked (is_unlocked)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 32. NOTIFICATIONS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS notifications (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+
+    -- Notification Content
+    title VARCHAR(255) NOT NULL,
+    message TEXT,
+    notification_type ENUM('system', 'achievement', 'reminder', 'social', 'subscription', 'study') DEFAULT 'system',
+
+    -- Link
+    action_url VARCHAR(500),
+    action_data JSON,
+
+    -- Status
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at DATETIME,
+
+    -- Delivery
+    is_email_sent BOOLEAN DEFAULT FALSE,
+    is_push_sent BOOLEAN DEFAULT FALSE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_is_read (is_read),
+    INDEX idx_notification_type (notification_type),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 33. BOOKS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS books (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+
+    -- Book Details
+    title VARCHAR(500) NOT NULL,
+    author VARCHAR(255),
+    description TEXT,
+    isbn VARCHAR(20),
+    cover_url VARCHAR(500),
+
+    -- Content
+    file_url VARCHAR(500),
+    file_type ENUM('pdf', 'epub', 'video', 'audio') DEFAULT 'pdf',
+    page_count INT,
+    duration_minutes INT,
+
+    -- Classification
+    category ENUM('fundamentals', 'pharmacology', 'medical_surgical', 'pediatrics', 'maternity', 'mental_health', 'community_health', 'leadership', 'nclex_prep') DEFAULT 'nclex_prep',
+    tags JSON,
+
+    -- Pricing
+    price DECIMAL(10, 2) DEFAULT 0.00,
+    currency VARCHAR(3) DEFAULT 'USD',
+    is_free BOOLEAN DEFAULT TRUE,
+
+    -- Stats
+    rating_avg DECIMAL(3, 2) DEFAULT 0.00,
+    rating_count INT DEFAULT 0,
+    download_count INT DEFAULT 0,
+
+    -- Status
+    is_published BOOLEAN DEFAULT TRUE,
+    is_featured BOOLEAN DEFAULT FALSE,
+
+    -- Access Control
+    required_subscription ENUM('Free', 'Pro', 'Premium') DEFAULT 'Free',
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_category (category),
+    INDEX idx_is_published (is_published),
+    INDEX idx_required_subscription (required_subscription)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 34. USER BOOKS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS user_books (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+    book_id CHAR(36) NOT NULL,
+
+    -- Purchase Info
+    is_purchased BOOLEAN DEFAULT FALSE,
+    purchased_at DATETIME,
+    purchase_price DECIMAL(10, 2),
+    stripe_payment_id VARCHAR(255),
+
+    -- Reading Progress
+    current_page INT DEFAULT 0,
+    progress_percent DECIMAL(5, 2) DEFAULT 0.00,
+    total_reading_time_minutes INT DEFAULT 0,
+    last_read_at DATETIME,
+
+    -- User Data
+    highlights JSON,
+    bookmarks JSON,
+    notes JSON,
+
+    -- Rating
+    rating INT,
+    review TEXT,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_book (user_id, book_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_book_id (book_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 35. STUDY MATERIALS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS study_materials (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+
+    -- Material Details
+    title VARCHAR(500) NOT NULL,
+    description TEXT,
+    content TEXT,
+
+    -- Type
+    material_type ENUM('article', 'video', 'document', 'link', 'audio') DEFAULT 'article',
+
+    -- File
+    file_url VARCHAR(500),
+    thumbnail_url VARCHAR(500),
+
+    -- Classification
+    category VARCHAR(100),
+    tags JSON,
+
+    -- Stats
+    view_count INT DEFAULT 0,
+    like_count INT DEFAULT 0,
+
+    -- Access
+    is_public BOOLEAN DEFAULT TRUE,
+    required_subscription ENUM('Free', 'Pro', 'Premium') DEFAULT 'Free',
+
+    -- Author
+    created_by CHAR(36),
+
+    -- Status
+    is_published BOOLEAN DEFAULT TRUE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_material_type (material_type),
+    INDEX idx_category (category),
+    INDEX idx_is_published (is_published)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 36. USER STUDY MATERIALS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS user_study_materials (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+    material_id CHAR(36) NOT NULL,
+
+    -- Progress
+    is_completed BOOLEAN DEFAULT FALSE,
+    completed_at DATETIME,
+    progress_percent DECIMAL(5, 2) DEFAULT 0.00,
+    time_spent_minutes INT DEFAULT 0,
+
+    -- User Actions
+    is_bookmarked BOOLEAN DEFAULT FALSE,
+    is_liked BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (material_id) REFERENCES study_materials(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_material (user_id, material_id),
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 37. FILE UPLOADS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS file_uploads (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+
+    -- File Details
+    original_filename VARCHAR(500) NOT NULL,
+    stored_filename VARCHAR(500) NOT NULL,
+    file_path VARCHAR(1000) NOT NULL,
+    file_url VARCHAR(1000),
+
+    -- Metadata
+    mime_type VARCHAR(100),
+    file_size_bytes BIGINT,
+
+    -- Classification
+    upload_type ENUM('avatar', 'document', 'image', 'attachment', 'book', 'material') DEFAULT 'document',
+
+    -- Association
+    associated_type VARCHAR(50),
+    associated_id CHAR(36),
+
+    -- Status
+    is_public BOOLEAN DEFAULT FALSE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_upload_type (upload_type),
+    INDEX idx_associated (associated_type, associated_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 38. USER SETTINGS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS user_settings (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL UNIQUE,
+
+    -- Theme & Display
+    theme ENUM('light', 'dark', 'system') DEFAULT 'system',
+    language VARCHAR(10) DEFAULT 'en',
+    timezone VARCHAR(50) DEFAULT 'UTC',
+
+    -- Notifications
+    email_notifications BOOLEAN DEFAULT TRUE,
+    push_notifications BOOLEAN DEFAULT TRUE,
+    study_reminders BOOLEAN DEFAULT TRUE,
+    marketing_emails BOOLEAN DEFAULT FALSE,
+
+    -- Study Preferences
+    daily_goal_questions INT DEFAULT 20,
+    preferred_difficulty ENUM('easy', 'medium', 'hard', 'adaptive') DEFAULT 'adaptive',
+    show_explanations BOOLEAN DEFAULT TRUE,
+    enable_timer BOOLEAN DEFAULT TRUE,
+
+    -- Privacy
+    profile_visibility ENUM('public', 'friends', 'private') DEFAULT 'public',
+    show_activity BOOLEAN DEFAULT TRUE,
+    show_progress BOOLEAN DEFAULT TRUE,
+
+    -- Accessibility
+    font_size ENUM('small', 'medium', 'large') DEFAULT 'medium',
+    high_contrast BOOLEAN DEFAULT FALSE,
+    reduce_motion BOOLEAN DEFAULT FALSE,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 39. SYSTEM SETTINGS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS system_settings (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+
+    -- Setting Key-Value
+    setting_key VARCHAR(255) NOT NULL UNIQUE,
+    setting_value TEXT,
+    value_type ENUM('string', 'number', 'boolean', 'json') DEFAULT 'string',
+
+    -- Metadata
+    description TEXT,
+    category VARCHAR(100),
+
+    -- Security
+    is_secret BOOLEAN DEFAULT FALSE,
+    is_editable BOOLEAN DEFAULT TRUE,
+
+    -- Audit
+    updated_by CHAR(36),
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_setting_key (setting_key),
+    INDEX idx_category (category)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 40. LOGIN AUDITS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS login_audits (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36),
+
+    -- Event Details
+    event_type ENUM('login_success', 'login_failed', 'logout', 'password_reset', 'mfa_enabled', 'mfa_disabled', 'account_locked', 'suspicious_activity') NOT NULL,
+
+    -- Request Info
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    device_type VARCHAR(50),
+    browser VARCHAR(100),
+    os VARCHAR(100),
+
+    -- Location (optional)
+    country VARCHAR(100),
+    city VARCHAR(100),
+
+    -- Additional Data
+    metadata JSON,
+    failure_reason VARCHAR(255),
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_user_id (user_id),
+    INDEX idx_event_type (event_type),
+    INDEX idx_ip_address (ip_address),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 41. PASSWORD HISTORY TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS password_history (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+
+    password_hash VARCHAR(255) NOT NULL,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- 42. DAILY USAGE TRACKING TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS daily_usage (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) NOT NULL,
+    usage_date DATE NOT NULL,
+
+    -- Feature Usage Counters
+    questions_attempted INT DEFAULT 0,
+    ai_chat_messages INT DEFAULT 0,
+    flashcards_reviewed INT DEFAULT 0,
+    cat_sessions INT DEFAULT 0,
+    study_time_minutes INT DEFAULT 0,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_date (user_id, usage_date),
+    INDEX idx_user_id (user_id),
+    INDEX idx_usage_date (usage_date)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- ADD MISSING COLUMNS TO EXISTING TABLES
+-- ============================================================================
+
+-- Add OAuth and MFA columns to users
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS google_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS apple_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS auth_provider ENUM('local', 'google', 'apple') DEFAULT 'local',
+    ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS mfa_secret VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS mfa_backup_codes JSON,
+    ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255);
+
+-- Add missing columns to subscriptions
+ALTER TABLE subscriptions
+    ADD COLUMN IF NOT EXISTS stripe_price_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS trial_start DATETIME,
+    ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS metadata JSON;
+
+-- Add missing columns to payment_transactions
+ALTER TABLE payment_transactions
+    ADD COLUMN IF NOT EXISTS stripe_invoice_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS receipt_url VARCHAR(500),
+    ADD COLUMN IF NOT EXISTS invoice_pdf VARCHAR(500),
+    ADD COLUMN IF NOT EXISTS failure_message TEXT;
+
+-- Add missing columns to questions (NextGen types)
+ALTER TABLE questions
+    MODIFY COLUMN question_type ENUM(
+        'multiple_choice', 'multiple_response', 'fill_blank', 'ordered_response',
+        'hot_spot', 'select_all', 'cloze_dropdown', 'matrix', 'highlight',
+        'bow_tie', 'case_study'
+    ) DEFAULT 'multiple_choice',
+    ADD COLUMN IF NOT EXISTS bloom_level ENUM('remember', 'understand', 'apply', 'analyze', 'evaluate', 'create') DEFAULT 'apply',
+    ADD COLUMN IF NOT EXISTS clinical_pearl TEXT,
+    ADD COLUMN IF NOT EXISTS scenario TEXT,
+    ADD COLUMN IF NOT EXISTS source_reference VARCHAR(500);
+
+-- ============================================================================
+-- INSERT DEFAULT ACHIEVEMENTS
+-- ============================================================================
+INSERT INTO achievements (id, name, description, achievement_type, threshold_value, xp_reward, rarity, icon) VALUES
+(UUID(), 'First Steps', 'Complete your first practice question', 'questions', 1, 10, 'common', 'footprints'),
+(UUID(), 'Warming Up', 'Complete 10 practice questions', 'questions', 10, 25, 'common', 'flame'),
+(UUID(), 'Century Club', 'Complete 100 practice questions', 'questions', 100, 100, 'uncommon', 'award'),
+(UUID(), 'Question Master', 'Complete 1000 practice questions', 'questions', 1000, 500, 'rare', 'crown'),
+(UUID(), 'On Fire', 'Maintain a 3-day study streak', 'streak', 3, 50, 'common', 'fire'),
+(UUID(), 'Week Warrior', 'Maintain a 7-day study streak', 'streak', 7, 100, 'uncommon', 'calendar'),
+(UUID(), 'Month Champion', 'Maintain a 30-day study streak', 'streak', 30, 500, 'rare', 'trophy'),
+(UUID(), 'Perfect Score', 'Get 100% on a quiz with 10+ questions', 'score', 100, 150, 'uncommon', 'star'),
+(UUID(), 'CAT Conqueror', 'Complete your first CAT session', 'milestone', 1, 75, 'common', 'graduation-cap'),
+(UUID(), 'CAT Master', 'Pass a CAT session with 95%+ confidence', 'score', 95, 300, 'rare', 'medal'),
+(UUID(), 'Speed Demon', 'Complete 50 questions in under 30 minutes', 'time', 30, 100, 'uncommon', 'zap'),
+(UUID(), 'Night Owl', 'Study after midnight', 'special', 1, 50, 'uncommon', 'moon'),
+(UUID(), 'Early Bird', 'Study before 6 AM', 'special', 1, 50, 'uncommon', 'sun'),
+(UUID(), 'Social Butterfly', 'Join a study group', 'milestone', 1, 25, 'common', 'users'),
+(UUID(), 'Helper', 'Answer a question in the discussion forum', 'milestone', 1, 30, 'common', 'help-circle'),
+(UUID(), 'Flashcard Ninja', 'Review 100 flashcards', 'questions', 100, 75, 'uncommon', 'layers')
+ON DUPLICATE KEY UPDATE name=name;
+
+-- ============================================================================
+-- INSERT DEFAULT DISCUSSION CATEGORIES
+-- ============================================================================
+INSERT INTO discussion_categories (id, name, slug, description, icon, color, display_order) VALUES
+(UUID(), 'General Discussion', 'general', 'General NCLEX prep discussion', 'message-circle', '#6366f1', 1),
+(UUID(), 'Study Tips', 'study-tips', 'Share and discover effective study strategies', 'lightbulb', '#f59e0b', 2),
+(UUID(), 'Question Help', 'question-help', 'Get help understanding specific questions', 'help-circle', '#10b981', 3),
+(UUID(), 'Test Day Tips', 'test-day', 'Preparing for exam day', 'calendar', '#ef4444', 4),
+(UUID(), 'Success Stories', 'success-stories', 'Share your NCLEX success journey', 'trophy', '#8b5cf6', 5),
+(UUID(), 'Study Groups', 'study-groups', 'Find study partners and groups', 'users', '#3b82f6', 6),
+(UUID(), 'Resources', 'resources', 'Share helpful study resources', 'book-open', '#14b8a6', 7),
+(UUID(), 'Off Topic', 'off-topic', 'Non-NCLEX related discussions', 'coffee', '#64748b', 8)
+ON DUPLICATE KEY UPDATE name=name;
+
+-- ============================================================================
+-- CREATE INDEXES FOR PERFORMANCE
+-- ============================================================================
+
+-- Composite indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_cat_sessions_user_status ON cat_sessions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_study_activities_user_date ON study_activities(user_id, activity_date);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_discussion_posts_category_status ON discussion_posts(category_id, status);
+
+-- Full-text search indexes
+ALTER TABLE study_materials ADD FULLTEXT IF NOT EXISTS idx_materials_search (title, description);
+ALTER TABLE books ADD FULLTEXT IF NOT EXISTS idx_books_search (title, description);
+ALTER TABLE flashcards ADD FULLTEXT IF NOT EXISTS idx_flashcards_search (front, back);

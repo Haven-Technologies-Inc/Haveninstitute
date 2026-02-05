@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import { aiController } from '../controllers/ai.controller';
 import { authenticate } from '../middleware/authenticate';
+import { requireFeature, checkDailyLimit, requirePlan } from '../middleware/subscriptionGate';
 
 const router = Router();
 
@@ -14,16 +15,24 @@ router.use(authenticate);
 /**
  * @route   POST /api/v1/ai/chat
  * @desc    Chat with AI tutor
- * @access  Private
+ * @access  Private (Pro+ with daily limit)
  */
-router.post('/chat', (req, res, next) => aiController.chat(req, res, next));
+router.post('/chat',
+  requireFeature('aiTutorAccess'),
+  checkDailyLimit('aiTutorMessagesPerDay'),
+  (req, res, next) => aiController.chat(req, res, next)
+);
 
 /**
  * @route   POST /api/v1/ai/chat/stream
  * @desc    Stream chat response (SSE)
- * @access  Private
+ * @access  Private (Pro+ with daily limit)
  */
-router.post('/chat/stream', (req, res, next) => aiController.chatStream(req, res, next));
+router.post('/chat/stream',
+  requireFeature('aiTutorAccess'),
+  checkDailyLimit('aiTutorMessagesPerDay'),
+  (req, res, next) => aiController.chatStream(req, res, next)
+);
 
 /**
  * @route   POST /api/v1/ai/generate-questions
