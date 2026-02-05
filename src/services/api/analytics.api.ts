@@ -103,25 +103,25 @@ export const analyticsApi = {
 
   // Get study goals
   getStudyGoals: async (): Promise<StudyGoal[]> => {
-    const response = await apiClient.get('/goals');
+    const response = await apiClient.get('/analytics/goals');
     return response.data;
   },
 
   // Create a new study goal
   createGoal: async (goal: Omit<StudyGoal, 'id' | 'current'>): Promise<StudyGoal> => {
-    const response = await apiClient.post('/goals', goal);
+    const response = await apiClient.post('/analytics/goals', goal);
     return response.data;
   },
 
   // Update a study goal
   updateGoal: async (goalId: string, updates: Partial<StudyGoal>): Promise<StudyGoal> => {
-    const response = await apiClient.put(`/goals/${goalId}`, updates);
+    const response = await apiClient.put(`/analytics/goals/${goalId}`, updates);
     return response.data;
   },
 
   // Delete a study goal
   deleteGoal: async (goalId: string): Promise<void> => {
-    await apiClient.delete(`/goals/${goalId}`);
+    await apiClient.delete(`/analytics/goals/${goalId}`);
   },
 
   // Get study streak info

@@ -20,7 +20,9 @@ import {
   CheckCircle2,
   AlertCircle,
   FileSpreadsheet,
-  Book
+  Book,
+  Loader2,
+  Eye
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
@@ -34,6 +36,7 @@ import {
 } from '../../types/nextGenNCLEX';
 import { QuestionCreatorForm } from '../../components/admin/QuestionCreatorForm';
 import { generateQuestionTemplate } from '../../utils/questionTemplates';
+import { useQuestions, useDeleteQuestion } from '../../services/hooks/useQuestions';
 
 // Question type info for selection
 const QUESTION_TYPES: { 
@@ -118,6 +121,20 @@ export default function QuestionManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<NCLEXCategory | 'all'>('all');
   const [filterType, setFilterType] = useState<QuestionType | 'all'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Fetch questions from API
+  const { data: questionsData, isLoading, error, refetch } = useQuestions(
+    {
+      category: filterCategory !== 'all' ? filterCategory : undefined,
+      questionType: filterType !== 'all' ? filterType : undefined,
+      search: searchQuery || undefined,
+    },
+    { page: currentPage, limit: 20 }
+  );
+  
+  const deleteQuestion = useDeleteQuestion();
 
   const handleCreateQuestion = (type: QuestionType) => {
     setSelectedType(type);
@@ -231,7 +248,7 @@ export default function QuestionManagementPage() {
                 >
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl">
+                      <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-2xl">
                         {qType.icon}
                       </div>
                       <div className="flex-1">
@@ -305,6 +322,7 @@ export default function QuestionManagementPage() {
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value as NCLEXCategory | 'all')}
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              aria-label="Filter by category"
             >
               <option value="all">All Categories</option>
               {NCLEX_CATEGORIES.map(cat => (
@@ -315,6 +333,7 @@ export default function QuestionManagementPage() {
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as QuestionType | 'all')}
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              aria-label="Filter by question type"
             >
               <option value="all">All Types</option>
               {QUESTION_TYPES.map(qt => (
@@ -323,20 +342,171 @@ export default function QuestionManagementPage() {
             </select>
           </div>
 
-          {/* Questions Table */}
+          {/* Questions List */}
           <Card>
             <CardContent className="pt-6">
-              <div className="text-center py-12 text-gray-500">
-                <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No questions in the database yet.</p>
-                <p className="text-sm">Create questions or upload from templates to get started.</p>
-                <Button className="mt-4" onClick={() => setActiveTab('create')}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create First Question
-                </Button>
-              </div>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Loading questions...</span>
+                </div>
+              ) : error ? (
+                <div className="text-center py-12 text-red-500">
+                  <AlertCircle className="w-12 h-12 mx-auto mb-4" />
+                  <p>Error loading questions. Please try again.</p>
+                  <Button className="mt-4" variant="outline" onClick={() => refetch()}>
+                    Retry
+                  </Button>
+                </div>
+              ) : questionsData?.questions && questionsData.questions.length > 0 ? (
+                <div className="space-y-4">
+                  {/* Stats */}
+                  <div className="flex items-center justify-between mb-4 text-sm text-gray-600">
+                    <span>Showing {questionsData.questions.length} of {questionsData.total} questions</span>
+                    <span>Page {questionsData.page} of {questionsData.totalPages}</span>
+                  </div>
+                  
+                  {/* Questions Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 dark:bg-gray-800">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Question</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Difficulty</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {questionsData.questions.map((question) => (
+                          <tr key={question.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                            <td className="px-4 py-4">
+                              <div className="max-w-md truncate text-sm text-gray-900 dark:text-white">
+                                {question.text.substring(0, 100)}{question.text.length > 100 ? '...' : ''}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <Badge variant="outline" className="text-xs">
+                                {question.category}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-4">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {question.questionType}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4">
+                              <Badge className={`text-xs ${
+                                question.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                                question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {question.difficulty}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-4">
+                              <Badge className={question.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
+                                {question.isActive ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button size="sm" variant="ghost" title="View">
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" title="Edit">
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="text-red-600 hover:text-red-700"
+                                  title="Delete"
+                                  onClick={() => setDeleteConfirmId(question.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {questionsData.totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-gray-600">
+                        Page {currentPage} of {questionsData.totalPages}
+                      </span>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        disabled={currentPage === questionsData.totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(questionsData.totalPages, p + 1))}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No questions found.</p>
+                  <p className="text-sm">Create questions or upload from templates to get started.</p>
+                  <Button className="mt-4" onClick={() => setActiveTab('create')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First Question
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Question</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete this question? This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={() => {
+                    if (deleteConfirmId) {
+                      deleteQuestion.mutate({ id: deleteConfirmId }, {
+                        onSuccess: () => {
+                          setDeleteConfirmId(null);
+                          refetch();
+                        }
+                      });
+                    }
+                  }}
+                  disabled={deleteQuestion.isPending}
+                >
+                  {deleteQuestion.isPending ? 'Deleting...' : 'Delete'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 

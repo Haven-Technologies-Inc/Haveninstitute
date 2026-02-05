@@ -179,6 +179,24 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     color: 'gray',
     icon: 'User',
     level: 1
+  },
+  student: {
+    role: 'student',
+    label: 'Student',
+    description: 'Student user with learning access',
+    permissions: ['content.view'],
+    color: 'blue',
+    icon: 'GraduationCap',
+    level: 1
+  },
+  editor: {
+    role: 'editor',
+    label: 'Editor',
+    description: 'Content editor with editing permissions',
+    permissions: ['content.view', 'content.create', 'content.edit'],
+    color: 'orange',
+    icon: 'Edit',
+    level: 2
   }
 };
 
@@ -275,36 +293,107 @@ export async function getAllUsers(filters?: {
   subscriptionPlan?: SubscriptionPlan;
   search?: string;
 }): Promise<AdminUser[]> {
-  await delay(300);
-  
-  let users = getStoredUsers();
-  
-  if (filters) {
-    if (filters.role) {
-      users = users.filter(u => u.role === filters.role);
+  try {
+    const params = new URLSearchParams();
+    if (filters?.role) params.append('role', filters.role);
+    if (filters?.status) params.append('isActive', filters.status === 'active' ? 'true' : 'false');
+    if (filters?.subscriptionPlan) params.append('subscriptionTier', filters.subscriptionPlan);
+    if (filters?.search) params.append('search', filters.search);
+    
+    const response = await fetch(`${API_BASE_URL}/admin/users?${params.toString()}`, {
+      headers: getHeaders()
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch users');
     }
-    if (filters.status) {
-      users = users.filter(u => u.status === filters.status);
-    }
-    if (filters.subscriptionPlan) {
-      users = users.filter(u => u.subscriptionPlan === filters.subscriptionPlan);
-    }
-    if (filters.search) {
-      const search = filters.search.toLowerCase();
-      users = users.filter(u => 
-        u.fullName.toLowerCase().includes(search) ||
-        u.email.toLowerCase().includes(search)
-      );
-    }
+    
+    const result = await response.json();
+    const backendUsers = result.data?.users || result.data || [];
+    
+    // Transform backend users to AdminUser format
+    return backendUsers.map((u: any) => ({
+      id: u.id,
+      email: u.email || '',
+      fullName: u.fullName || u.name || '',
+      avatar: u.avatarUrl || u.profileImage,
+      role: u.role || 'student',
+      status: u.isActive === false ? 'inactive' : (u.status || 'active'),
+      subscriptionPlan: u.subscriptionTier || 'free',
+      phone: u.phone,
+      dateOfBirth: u.dateOfBirth,
+      lastLogin: u.lastLogin,
+      loginCount: u.loginCount || 0,
+      createdAt: u.createdAt,
+      updatedAt: u.updatedAt,
+      permissions: ROLE_CONFIGS[u.role as UserRole]?.permissions || [],
+      metadata: {
+        ipAddress: u.lastIp,
+        location: u.location
+      },
+      stats: {
+        questionsCompleted: u.questionsAnswered || 0,
+        studyTime: u.hoursStudied || 0,
+        loginStreak: u.studyStreak || 0,
+        averageScore: u.averageScore || 0
+      },
+      notes: u.notes,
+      tags: u.tags
+    }));
+  } catch (error) {
+    console.error('Failed to fetch users from API:', error);
+    // Fallback to stored users only if API fails
+    return getStoredUsers();
   }
-  
-  return users;
 }
 
 export async function getUserById(userId: string): Promise<AdminUser | null> {
-  await delay(200);
-  const users = getStoredUsers();
-  return users.find(u => u.id === userId) || null;
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      headers: getHeaders()
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error('Failed to fetch user');
+    }
+    
+    const result = await response.json();
+    const u = result.data;
+    
+    return {
+      id: u.id,
+      email: u.email || '',
+      fullName: u.fullName || u.name || '',
+      avatar: u.avatarUrl || u.profileImage,
+      role: u.role || 'student',
+      status: u.isActive === false ? 'inactive' : (u.status || 'active'),
+      subscriptionPlan: u.subscriptionTier || 'free',
+      phone: u.phone,
+      dateOfBirth: u.dateOfBirth,
+      lastLogin: u.lastLogin,
+      loginCount: u.loginCount || 0,
+      createdAt: u.createdAt,
+      updatedAt: u.updatedAt,
+      permissions: ROLE_CONFIGS[u.role as UserRole]?.permissions || [],
+      metadata: {
+        ipAddress: u.lastIp,
+        location: u.location
+      },
+      stats: {
+        questionsCompleted: u.questionsAnswered || 0,
+        studyTime: u.hoursStudied || 0,
+        loginStreak: u.studyStreak || 0,
+        averageScore: u.averageScore || 0
+      },
+      notes: u.notes,
+      tags: u.tags
+    };
+  } catch (error) {
+    console.error('Failed to fetch user from API:', error);
+    const users = getStoredUsers();
+    return users.find(u => u.id === userId) || null;
+  }
 }
 
 export async function createUser(data: Omit<AdminUser, 'id' | 'createdAt' | 'updatedAt' | 'permissions' | 'loginCount' | 'stats'>): Promise<AdminUser> {
@@ -593,38 +682,86 @@ export async function getUserStatistics(): Promise<{
   newThisWeek: number;
   newThisMonth: number;
 }> {
-  await delay(300);
-  
-  const users = getStoredUsers();
-  const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const todayStart = new Date(now.setHours(0, 0, 0, 0));
-  
-  return {
-    total: users.length,
-    byRole: {
-      super_admin: users.filter(u => u.role === 'super_admin').length,
-      admin: users.filter(u => u.role === 'admin').length,
-      moderator: users.filter(u => u.role === 'moderator').length,
-      instructor: users.filter(u => u.role === 'instructor').length,
-      user: users.filter(u => u.role === 'user').length
-    },
-    byStatus: {
-      active: users.filter(u => u.status === 'active').length,
-      inactive: users.filter(u => u.status === 'inactive').length,
-      suspended: users.filter(u => u.status === 'suspended').length,
-      banned: users.filter(u => u.status === 'banned').length
-    },
-    byPlan: {
-      free: users.filter(u => u.subscriptionPlan === 'free').length,
-      pro: users.filter(u => u.subscriptionPlan === 'pro').length,
-      premium: users.filter(u => u.subscriptionPlan === 'premium').length
-    },
-    activeToday: users.filter(u => u.lastLogin && new Date(u.lastLogin) > todayStart).length,
-    newThisWeek: users.filter(u => new Date(u.createdAt) > weekAgo).length,
-    newThisMonth: users.filter(u => new Date(u.createdAt) > monthAgo).length
-  };
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/users/stats`, {
+      headers: getHeaders()
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch user statistics');
+    }
+    
+    const result = await response.json();
+    const stats = result.data;
+    
+    return {
+      total: stats.total || 0,
+      byRole: {
+        super_admin: stats.byRole?.super_admin || 0,
+        admin: stats.byRole?.admin || 0,
+        moderator: stats.byRole?.moderator || 0,
+        instructor: stats.byRole?.instructor || 0,
+        user: stats.byRole?.user || 0,
+        student: stats.byRole?.student || 0,
+        editor: stats.byRole?.editor || 0
+      },
+      byStatus: {
+        active: stats.byStatus?.active || stats.active || 0,
+        inactive: stats.byStatus?.inactive || stats.inactive || 0,
+        suspended: stats.byStatus?.suspended || 0,
+        banned: stats.byStatus?.banned || 0
+      },
+      byPlan: {
+        free: stats.byPlan?.free || stats.byPlan?.Free || 0,
+        pro: stats.byPlan?.pro || stats.byPlan?.Pro || 0,
+        premium: stats.byPlan?.premium || stats.byPlan?.Premium || 0,
+        Free: stats.byPlan?.Free || stats.byPlan?.free || 0,
+        Pro: stats.byPlan?.Pro || stats.byPlan?.pro || 0,
+        Premium: stats.byPlan?.Premium || stats.byPlan?.premium || 0
+      },
+      activeToday: stats.activeToday || 0,
+      newThisWeek: stats.newThisWeek || 0,
+      newThisMonth: stats.newThisMonth || 0
+    };
+  } catch (error) {
+    console.error('Failed to fetch user statistics from API:', error);
+    // Fallback to local calculation
+    const users = getStoredUsers();
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const todayStart = new Date(now.setHours(0, 0, 0, 0));
+    
+    return {
+      total: users.length,
+      byRole: {
+        super_admin: users.filter(u => u.role === 'super_admin').length,
+        admin: users.filter(u => u.role === 'admin').length,
+        moderator: users.filter(u => u.role === 'moderator').length,
+        instructor: users.filter(u => u.role === 'instructor').length,
+        user: users.filter(u => u.role === 'user').length,
+        student: users.filter(u => u.role === 'student').length,
+        editor: users.filter(u => u.role === 'editor').length
+      },
+      byStatus: {
+        active: users.filter(u => u.status === 'active').length,
+        inactive: users.filter(u => u.status === 'inactive').length,
+        suspended: users.filter(u => u.status === 'suspended').length,
+        banned: users.filter(u => u.status === 'banned').length
+      },
+      byPlan: {
+        free: users.filter(u => u.subscriptionPlan === 'free').length,
+        pro: users.filter(u => u.subscriptionPlan === 'pro').length,
+        premium: users.filter(u => u.subscriptionPlan === 'premium').length,
+        Free: users.filter(u => u.subscriptionPlan === 'Free').length,
+        Pro: users.filter(u => u.subscriptionPlan === 'Pro').length,
+        Premium: users.filter(u => u.subscriptionPlan === 'Premium').length
+      },
+      activeToday: users.filter(u => u.lastLogin && new Date(u.lastLogin) > todayStart).length,
+      newThisWeek: users.filter(u => new Date(u.createdAt) > weekAgo).length,
+      newThisMonth: users.filter(u => new Date(u.createdAt) > monthAgo).length
+    };
+  }
 }
 
 // ============= AUTHORIZATION =============

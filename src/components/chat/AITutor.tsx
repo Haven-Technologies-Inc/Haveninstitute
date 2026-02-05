@@ -192,12 +192,12 @@ export function AITutor() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-xl overflow-hidden shadow-xl">
+    <div className="flex flex-col h-[calc(100vh-120px)] bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-xl">
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-3 sm:px-6 py-3 sm:py-4">
+      <div className="bg-linear-to-r from-indigo-600 via-purple-600 to-pink-600 px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shrink-0">
               <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
@@ -257,7 +257,7 @@ export function AITutor() {
                     onClick={() => handleQuickPrompt(item.prompt)}
                     className="group p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 hover:shadow-md transition-all text-left"
                   >
-                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                    <div className={`w-10 h-10 rounded-lg bg-linear-to-br ${item.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
                       <Icon className="w-5 h-5 text-white" />
                     </div>
                     <p className="font-medium text-gray-900 dark:text-white text-sm">{item.label}</p>
@@ -310,15 +310,15 @@ export function AITutor() {
         {isLoading && !streamingContent && (
           <div className="flex justify-start mb-4">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-linear-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-white animate-pulse" />
               </div>
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-tl-sm px-4 py-3">
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" />
+                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce delay-150" />
+                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce delay-300" />
                   </div>
                   <span className="text-sm text-gray-500 dark:text-gray-400">Thinking...</span>
                 </div>
@@ -359,17 +359,19 @@ export function AITutor() {
               }
               rows={1}
               className="w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-              style={{ minHeight: '48px', maxHeight: '120px' }}
+              style={{ minHeight: '48px', maxHeight: '120px' }} /* textarea sizing */
             />
           </div>
           
-          <Button
+          <button
             type="submit"
             disabled={!inputValue.trim() || isLoading}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Send message"
+            aria-label="Send message"
+            className="flex items-center justify-center bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
-          </Button>
+          </button>
         </form>
         
         <p className="text-xs text-center text-gray-400 dark:text-gray-500 mt-3">

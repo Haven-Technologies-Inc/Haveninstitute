@@ -1,0 +1,56 @@
+# Haven Institute - NCLEX Prep Platform
+# https://www.havenstudy.com
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /settings/
+Disallow: /account/
+Disallow: /*.json$
+Disallow: /*?*token=
+Disallow: /*?*session=
+
+# Allow important pages for indexing
+Allow: /pricing
+Allow: /features
+Allow: /about
+Allow: /contact
+Allow: /blog
+Allow: /nclex-rn
+Allow: /nclex-pn
+Allow: /resources
+Allow: /testimonials
+Allow: /faq
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Sitemaps
+Sitemap: https://www.havenstudy.com/sitemap.xml
+Sitemap: https://www.havenstudy.com/sitemap-pages.xml
+Sitemap: https://www.havenstudy.com/sitemap-blog.xml
+
+# Google specific
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Bing specific
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Allow social media crawlers for rich previews
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Pinterest
+Allow: /

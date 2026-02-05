@@ -60,7 +60,7 @@ export function useCancelSubscription() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (immediately = false) => subscriptionApi.cancelSubscription(immediately),
+    mutationFn: (immediately: boolean = false) => subscriptionApi.cancelSubscription(immediately),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: subscriptionKeys.current() });
     },

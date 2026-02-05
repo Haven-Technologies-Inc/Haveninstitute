@@ -137,7 +137,7 @@ export default function QuizSessionPage() {
       const answer: Answer = {
         questionId: currentQuestion.id,
         selectedAnswer: selectedAnswers,
-        isCorrect: result.isCorrect,
+        isCorrect: result.correct ?? result.isCorrect,
         timeSpent
       };
       

@@ -1,7 +1,7 @@
 # Haven Institute - Caddy Configuration
 # Automatic HTTPS with Let's Encrypt
 
-# Global security headers
+# Global security headers (no CORS - backend handles it)
 (security_headers) {
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
@@ -19,16 +19,11 @@ havenstudy.com {
     reverse_proxy frontend:80
 }
 
-www.havenstudy.com {
-    redir https://havenstudy.com{uri} permanent
-}
-
-# API subdomain - Backend
+# API subdomain - Backend (CORS handled by backend)
 api.havenstudy.com {
     import security_headers
-    
     reverse_proxy backend:3001
-    
+
     # WebSocket support
     @websockets {
         header Connection *Upgrade*

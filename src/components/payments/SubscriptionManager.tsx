@@ -10,12 +10,22 @@ import {
   AlertCircle,
   CheckCircle2,
   ArrowRight,
-  Zap
+  Zap,
+  Loader2,
+  Star
 } from 'lucide-react';
 import { SubscriptionPlans } from './SubscriptionPlans';
 import { PaymentMethods } from './PaymentMethods';
 import { BillingHistory } from './BillingHistory';
 import { useAuth } from '../auth/AuthContext';
+import { 
+  useCurrentSubscription, 
+  useCancelSubscription, 
+  useReactivateSubscription,
+  useCreateCheckout,
+  useGetBillingPortalUrl
+} from '../../services/hooks/useSubscription';
+import type { PlanType, BillingPeriod } from '../../services/api/subscriptionApi';
 
 interface SubscriptionManagerProps {
   onBack: () => void;
@@ -24,26 +34,118 @@ interface SubscriptionManagerProps {
 export function SubscriptionManager({ onBack }: SubscriptionManagerProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [isProcessing, setIsProcessing] = useState(false);
   
-  // Mock subscription data
-  const [currentPlan] = useState('pro');
-  const [billingCycle] = useState('monthly');
-  const [nextBillingDate] = useState('December 1, 2024');
-  const [subscriptionStatus] = useState<'active' | 'cancelled' | 'past_due'>('active');
+  // Real subscription data from API
+  const { data: subscription, isLoading: loadingSubscription, refetch } = useCurrentSubscription();
+  const cancelMutation = useCancelSubscription();
+  const reactivateMutation = useReactivateSubscription();
+  const checkoutMutation = useCreateCheckout();
+  const billingPortalMutation = useGetBillingPortalUrl();
 
-  const handleSelectPlan = (planId: string) => {
-    // In production, this would initiate payment flow
-    console.log('Selected plan:', planId);
-    if (planId !== currentPlan) {
-      alert(`Processing upgrade/downgrade to ${planId} plan...`);
+  // Derived values from subscription
+  const currentPlan = subscription?.planType?.toLowerCase() || 'free';
+  const billingCycle = subscription?.billingPeriod || 'monthly';
+  const subscriptionStatus = subscription?.status || 'active';
+  const nextBillingDate = subscription?.currentPeriodEnd 
+    ? new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : 'N/A';
+  const amount = subscription?.amount || 0;
+
+  const handleSelectPlan = async (planId: string, period: BillingPeriod = 'monthly') => {
+    if (planId === currentPlan) return;
+    
+    setIsProcessing(true);
+    try {
+      const successUrl = `${window.location.origin}/app/subscription?success=true`;
+      const cancelUrl = `${window.location.origin}/app/subscription?canceled=true`;
+      
+      const result = await checkoutMutation.mutateAsync({
+        planType: planId.charAt(0).toUpperCase() + planId.slice(1) as PlanType,
+        billingPeriod: period,
+        successUrl,
+        cancelUrl
+      });
+      
+      // Redirect to Stripe checkout
+      if (result.url) {
+        window.location.href = result.url;
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      alert(error.message || 'Failed to start checkout. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleCancelSubscription = () => {
-    if (confirm('Are you sure you want to cancel your subscription? You will lose access to premium features at the end of your billing period.')) {
-      alert('Subscription cancelled. You will retain access until December 1, 2024.');
+  const handleCancelSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel your subscription? You will lose access to premium features at the end of your billing period.')) {
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      await cancelMutation.mutateAsync(false); // Cancel at period end
+      refetch();
+      alert('Subscription cancelled. You will retain access until the end of your billing period.');
+    } catch (error: any) {
+      console.error('Cancel error:', error);
+      alert(error.message || 'Failed to cancel subscription. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
   };
+
+  const handleReactivateSubscription = async () => {
+    setIsProcessing(true);
+    try {
+      await reactivateMutation.mutateAsync();
+      refetch();
+      alert('Subscription reactivated successfully!');
+    } catch (error: any) {
+      console.error('Reactivate error:', error);
+      alert(error.message || 'Failed to reactivate subscription. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setIsProcessing(true);
+    try {
+      const returnUrl = window.location.href;
+      const url = await billingPortalMutation.mutateAsync(returnUrl);
+      window.location.href = url;
+    } catch (error: any) {
+      console.error('Billing portal error:', error);
+      alert(error.message || 'Failed to open billing portal. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const getPlanIcon = () => {
+    switch (currentPlan) {
+      case 'premium': return Crown;
+      case 'pro': return Zap;
+      default: return Star;
+    }
+  };
+
+  const PlanIcon = getPlanIcon();
+
+  // Loading state
+  if (loadingSubscription) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="size-12 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">Loading subscription details...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -88,7 +190,7 @@ export function SubscriptionManager({ onBack }: SubscriptionManagerProps) {
                   </div>
                   <Badge className={`${
                     subscriptionStatus === 'active' ? 'bg-green-100 text-green-800' :
-                    subscriptionStatus === 'cancelled' ? 'bg-yellow-100 text-yellow-800' :
+                    subscriptionStatus === 'canceled' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-red-100 text-red-800'
                   }`}>
                     {subscriptionStatus === 'active' && <CheckCircle2 className="size-3 mr-1" />}
@@ -109,22 +211,39 @@ export function SubscriptionManager({ onBack }: SubscriptionManagerProps) {
                   </div>
                   <div>
                     <p className="text-gray-600 mb-1">Amount</p>
-                    <p className="text-xl text-gray-900">$29.99/month</p>
+                    <p className="text-xl text-gray-900">${amount.toFixed(2)}/{billingCycle === 'yearly' ? 'year' : 'month'}</p>
                   </div>
                 </div>
 
+                {subscription?.cancelAtPeriodEnd && (
+                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="size-5 text-yellow-600" />
+                      <span className="text-yellow-800">Your subscription will end on {nextBillingDate}</span>
+                    </div>
+                    <Button size="sm" onClick={handleReactivateSubscription} disabled={isProcessing}>
+                      {isProcessing ? <Loader2 className="size-4 animate-spin" /> : 'Reactivate'}
+                    </Button>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-2 sm:gap-3 mt-6 pt-6 border-t">
-                  <Button onClick={() => setActiveTab('plans')}>
+                  <Button onClick={() => setActiveTab('plans')} disabled={isProcessing}>
                     <Zap className="size-4 mr-2" />
                     Change Plan
                   </Button>
-                  <Button variant="outline" onClick={() => setActiveTab('payment')}>
+                  <Button variant="outline" onClick={handleManageBilling} disabled={isProcessing}>
                     <CreditCard className="size-4 mr-2" />
-                    Update Payment
+                    {isProcessing ? <Loader2 className="size-4 animate-spin ml-2" /> : 'Manage Billing'}
                   </Button>
-                  {subscriptionStatus === 'active' && (
-                    <Button variant="ghost" onClick={handleCancelSubscription} className="text-red-600 hover:text-red-700">
-                      Cancel Subscription
+                  {subscriptionStatus === 'active' && !subscription?.cancelAtPeriodEnd && currentPlan !== 'free' && (
+                    <Button 
+                      variant="ghost" 
+                      onClick={handleCancelSubscription} 
+                      className="text-red-600 hover:text-red-700"
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? <Loader2 className="size-4 animate-spin" /> : 'Cancel Subscription'}
                     </Button>
                   )}
                 </div>

@@ -85,6 +85,7 @@ export class AccountLockoutService {
     try {
       await LoginAudit.create({
         email,
+        eventType: 'login_failed',
         success: false,
         ipAddress: ip,
         userAgent,
@@ -113,6 +114,7 @@ export class AccountLockoutService {
       await LoginAudit.create({
         email,
         userId,
+        eventType: 'login_success',
         success: true,
         ipAddress: ip,
         userAgent,

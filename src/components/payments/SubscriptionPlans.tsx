@@ -11,14 +11,18 @@ import {
   TrendingUp,
   Shield,
   Users,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { useCreateCheckout } from '../../services/hooks/useSubscription';
+import type { PlanType, BillingPeriod } from '../../services/api/subscriptionApi';
 
 interface Plan {
   id: string;
   name: string;
   price: number;
+  yearlyPrice: number;
   period: 'month' | 'year';
   description: string;
   icon: any;
@@ -32,7 +36,7 @@ interface Plan {
 }
 
 interface SubscriptionPlansProps {
-  onSelectPlan: (planId: string) => void;
+  onSelectPlan?: (planId: string, billingPeriod: BillingPeriod) => void;
   currentPlan?: string;
 }
 
@@ -41,6 +45,7 @@ const plans: Plan[] = [
     id: 'free',
     name: 'Free',
     price: 0,
+    yearlyPrice: 0,
     period: 'month',
     description: 'Perfect for trying out NurseHaven',
     icon: Star,
@@ -62,6 +67,7 @@ const plans: Plan[] = [
     id: 'pro',
     name: 'Pro',
     price: 29.99,
+    yearlyPrice: 287.90,
     period: 'month',
     description: 'Everything you need to pass NCLEX',
     icon: Zap,
@@ -84,6 +90,7 @@ const plans: Plan[] = [
     id: 'premium',
     name: 'Premium',
     price: 49.99,
+    yearlyPrice: 479.90,
     period: 'month',
     description: 'Ultimate NCLEX preparation package',
     icon: Crown,
@@ -106,6 +113,41 @@ const plans: Plan[] = [
 export function SubscriptionPlans({ onSelectPlan, currentPlan = 'free' }: SubscriptionPlansProps) {
   const { user } = useAuth();
   const [billingPeriod, setBillingPeriod] = useState<'month' | 'year'>('month');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const checkoutMutation = useCreateCheckout();
+
+  const handleSelectPlan = async (planId: string) => {
+    if (planId === currentPlan || planId === 'free') return;
+    
+    // If external handler provided, use it
+    if (onSelectPlan) {
+      onSelectPlan(planId, billingPeriod === 'month' ? 'monthly' : 'yearly');
+      return;
+    }
+    
+    // Otherwise handle checkout directly
+    setIsProcessing(true);
+    try {
+      const successUrl = `${window.location.origin}/app/subscription?success=true`;
+      const cancelUrl = `${window.location.origin}/app/subscription?canceled=true`;
+      
+      const result = await checkoutMutation.mutateAsync({
+        planType: planId.charAt(0).toUpperCase() + planId.slice(1) as PlanType,
+        billingPeriod: billingPeriod === 'month' ? 'monthly' : 'yearly',
+        successUrl,
+        cancelUrl
+      });
+      
+      if (result.url) {
+        window.location.href = result.url;
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      alert(error.message || 'Failed to start checkout. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -204,10 +246,11 @@ export function SubscriptionPlans({ onSelectPlan, currentPlan = 'free' }: Subscr
                     plan.popular ? 'bg-gradient-to-r from-blue-600 to-purple-600' : ''
                   }`}
                   variant={isCurrentPlan ? 'outline' : plan.popular ? 'default' : 'outline'}
-                  onClick={() => onSelectPlan(plan.id)}
-                  disabled={isCurrentPlan}
+                  onClick={() => handleSelectPlan(plan.id)}
+                  disabled={isCurrentPlan || isProcessing || plan.id === 'free'}
                 >
-                  {isCurrentPlan ? 'Current Plan' : plan.cta}
+                  {isProcessing ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+                  {isCurrentPlan ? 'Current Plan' : plan.id === 'free' ? 'Free Plan' : plan.cta}
                 </Button>
 
                 {isCurrentPlan && (

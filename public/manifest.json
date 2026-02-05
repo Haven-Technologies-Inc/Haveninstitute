@@ -1,7 +1,7 @@
 {
   "name": "Haven Institute NCLEX Prep",
   "short_name": "HavenStudy",
-  "description": "Comprehensive NCLEX-RN & NCLEX-PN preparation platform with adaptive learning, AI tutoring, and exam simulation",
+  "description": "AI-Powered NCLEX Preparation Platform - Pass your nursing exam on the first attempt with adaptive learning, 10,000+ practice questions, and CAT simulation exams",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -59,6 +59,17 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
     }
   ],
   "screenshots": [
@@ -102,9 +113,16 @@
     {
       "name": "CAT Exam",
       "short_name": "CAT",
-      "description": "Take a CAT practice exam",
+      "description": "Take a CAT simulation exam",
       "url": "/practice/cat",
       "icons": [{ "src": "/icons/cat-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "AI Tutor",
+      "short_name": "Tutor",
+      "description": "Chat with AI tutor",
+      "url": "/ai-chat",
+      "icons": [{ "src": "/icons/tutor-96x96.png", "sizes": "96x96" }]
     }
   ],
   "related_applications": [],

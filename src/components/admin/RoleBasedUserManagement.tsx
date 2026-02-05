@@ -68,10 +68,34 @@ export function RoleBasedUserManagement() {
   });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [isLiveUpdating, setIsLiveUpdating] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
+  // Initial load and filter-based reload
   useEffect(() => {
     loadData();
   }, [filters]);
+
+  // Real-time polling for live user updates (every 30 seconds)
+  useEffect(() => {
+    if (!isLiveUpdating) return;
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const [usersData, statsData] = await Promise.all([
+          getAllUsers(filters.role || filters.status || filters.subscriptionPlan || filters.search ? filters : undefined),
+          getUserStatistics()
+        ]);
+        setUsers(usersData);
+        setStats(statsData);
+        setLastUpdated(new Date());
+      } catch (error) {
+        console.error('Live update failed:', error);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isLiveUpdating, filters]);
 
   const loadData = async () => {
     setLoading(true);
@@ -161,12 +185,35 @@ export function RoleBasedUserManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl text-gray-900 dark:text-white mb-2">User Management</h2>
-          <p className="text-gray-600 dark:text-gray-400">Manage users with role-based access control</p>
+          <div className="flex items-center gap-3">
+            <p className="text-gray-600 dark:text-gray-400">Manage users with role-based access control</p>
+            {isLiveUpdating && (
+              <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Live
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setIsLiveUpdating(!isLiveUpdating)}
+            className={isLiveUpdating ? 'border-green-500 text-green-600' : ''}
+          >
+            <Activity className="size-4 mr-2" />
+            {isLiveUpdating ? 'Live' : 'Paused'}
+          </Button>
+          <Button variant="outline" onClick={loadData}>
             <Download className="size-4 mr-2" />
-            Export
+            Refresh
           </Button>
           <Button onClick={() => setShowCreateModal(true)}>
             <UserPlus className="size-4 mr-2" />
@@ -256,6 +303,8 @@ export function RoleBasedUserManagement() {
               value={filters.role}
               onChange={(e) => setFilters({ ...filters, role: e.target.value as UserRole | '' })}
               className="px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              title="Filter by role"
+              aria-label="Filter by role"
             >
               <option value="">All Roles</option>
               <option value="super_admin">Super Admin</option>
@@ -269,6 +318,8 @@ export function RoleBasedUserManagement() {
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value as UserStatus | '' })}
               className="px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              title="Filter by status"
+              aria-label="Filter by status"
             >
               <option value="">All Status</option>
               <option value="active">Active</option>
@@ -281,6 +332,8 @@ export function RoleBasedUserManagement() {
               value={filters.subscriptionPlan}
               onChange={(e) => setFilters({ ...filters, subscriptionPlan: e.target.value as SubscriptionPlan | '' })}
               className="px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              title="Filter by subscription plan"
+              aria-label="Filter by subscription plan"
             >
               <option value="">All Plans</option>
               <option value="free">Free</option>
@@ -333,6 +386,8 @@ export function RoleBasedUserManagement() {
                       checked={selectedUsers.size === users.length && users.length > 0}
                       onChange={handleSelectAll}
                       className="size-4"
+                      title="Select all users"
+                      aria-label="Select all users"
                     />
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">User</th>
@@ -352,6 +407,8 @@ export function RoleBasedUserManagement() {
                         checked={selectedUsers.has(user.id)}
                         onChange={() => handleSelectUser(user.id)}
                         className="size-4"
+                        title={`Select ${user.fullName}`}
+                        aria-label={`Select ${user.fullName}`}
                       />
                     </td>
                     <td className="px-6 py-4">
@@ -371,7 +428,7 @@ export function RoleBasedUserManagement() {
                       <Badge className={`bg-${getRoleColor(user.role)}-100 text-${getRoleColor(user.role)}-800`}>
                         <span className="flex items-center gap-1">
                           {getRoleIcon(user.role)}
-                          {ROLE_CONFIGS[user.role].label}
+                          {ROLE_CONFIGS[user.role]?.label || user.role}
                         </span>
                       </Badge>
                     </td>
@@ -422,6 +479,8 @@ function UserActionsDropdown({ user, onUpdate }: { user: AdminUser; onUpdate: ()
       <button
         onClick={() => setShowMenu(!showMenu)}
         className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+        title="User actions menu"
+        aria-label="User actions menu"
       >
         <MoreVertical className="size-5" />
       </button>
@@ -521,11 +580,13 @@ function RoleChangeModal({ user, onClose, onSuccess }: { user: AdminUser; onClos
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-gray-700 dark:text-gray-300 mb-2 block">Select Role</label>
+            <label htmlFor="select-role" className="text-gray-700 dark:text-gray-300 mb-2 block">Select Role</label>
             <select
+              id="select-role"
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value as UserRole)}
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              title="Select user role"
             >
               {Object.values(ROLE_CONFIGS).map((role) => (
                 <option key={role.role} value={role.role}>
@@ -591,11 +652,13 @@ function StatusChangeModal({ user, onClose, onSuccess }: { user: AdminUser; onCl
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-gray-700 dark:text-gray-300 mb-2 block">Select Status</label>
+            <label htmlFor="select-status" className="text-gray-700 dark:text-gray-300 mb-2 block">Select Status</label>
             <select
+              id="select-status"
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value as UserStatus)}
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              title="Select user status"
             >
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
@@ -695,11 +758,13 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
           </div>
 
           <div>
-            <label className="text-gray-700 dark:text-gray-300 mb-2 block">Role</label>
+            <label htmlFor="create-user-role" className="text-gray-700 dark:text-gray-300 mb-2 block">Role</label>
             <select
+              id="create-user-role"
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              title="Select role for new user"
             >
               {Object.values(ROLE_CONFIGS).map((role) => (
                 <option key={role.role} value={role.role}>{role.label}</option>
@@ -708,11 +773,13 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
           </div>
 
           <div>
-            <label className="text-gray-700 dark:text-gray-300 mb-2 block">Subscription Plan</label>
+            <label htmlFor="create-user-plan" className="text-gray-700 dark:text-gray-300 mb-2 block">Subscription Plan</label>
             <select
+              id="create-user-plan"
               value={formData.subscriptionPlan}
               onChange={(e) => setFormData({ ...formData, subscriptionPlan: e.target.value as SubscriptionPlan })}
               className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              title="Select subscription plan for new user"
             >
               <option value="free">Free</option>
               <option value="pro">Pro</option>

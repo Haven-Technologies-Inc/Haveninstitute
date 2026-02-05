@@ -121,11 +121,25 @@ export class SubscriptionService {
     successUrl: string,
     cancelUrl: string
   ): Promise<{ sessionId: string; url: string }> {
+    // Validate Stripe configuration
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
+    if (!stripeSecretKey || stripeSecretKey === 'sk_test_xxxxx' || stripeSecretKey.length < 20) {
+      throw new Error('Stripe is not configured. Please contact administrator to set up payment processing.');
+    }
+
     const user = await User.findByPk(userId);
     if (!user) throw new Error('User not found');
 
     if (planType === 'Free') {
       throw new Error('Cannot create checkout for free plan');
+    }
+
+    // Get price ID
+    const priceKey = `${planType.toLowerCase()}${billingPeriod === 'yearly' ? 'Yearly' : 'Monthly'}` as keyof typeof stripeConfig.priceIds;
+    const priceId = stripeConfig.priceIds[priceKey];
+
+    if (!priceId || priceId === '' || priceId.startsWith('price_xxx')) {
+      throw new Error(`Stripe price not configured for ${planType} ${billingPeriod} plan. Please contact administrator.`);
     }
 
     // Get or create Stripe customer
@@ -135,20 +149,17 @@ export class SubscriptionService {
     if (existingSub?.stripeCustomerId) {
       stripeCustomerId = existingSub.stripeCustomerId;
     } else {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.fullName,
-        metadata: { userId }
-      });
-      stripeCustomerId = customer.id;
-    }
-
-    // Get price ID
-    const priceKey = `${planType.toLowerCase()}${billingPeriod === 'yearly' ? 'Yearly' : 'Monthly'}` as keyof typeof stripeConfig.priceIds;
-    const priceId = stripeConfig.priceIds[priceKey];
-
-    if (!priceId) {
-      throw new Error(`Price ID not configured for ${planType} ${billingPeriod}`);
+      try {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.fullName,
+          metadata: { userId }
+        });
+        stripeCustomerId = customer.id;
+      } catch (stripeError: any) {
+        console.error('Stripe customer creation error:', stripeError.message);
+        throw new Error('Payment service unavailable. Please try again later or contact support.');
+      }
     }
 
     // Create checkout session
