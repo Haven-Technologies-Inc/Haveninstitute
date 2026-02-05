@@ -11,6 +11,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate } from '../middleware/authenticate';
 import { nclexSimulator } from '../services/nclex-simulator.service';
 import { quickPractice } from '../services/quick-practice.service';
+import { gamificationService } from '../services/gamification.service';
 import { ResponseHandler } from '../utils/response';
 
 interface AuthRequest extends Request {
@@ -64,7 +65,18 @@ router.post('/nclex/:sessionId/answer', async (req: AuthRequest, res: Response, 
 
     const answerArray = Array.isArray(answer) ? answer : [answer];
     const result = await nclexSimulator.submitAnswer(sessionId, questionId, answerArray, timeSpent);
-    
+
+    // Award gamification points for answering
+    try {
+      await gamificationService.awardPoints(userId, 'question_answered', {
+        correct: result.isCorrect,
+        difficulty: result.difficulty
+      });
+    } catch (e) {
+      // Don't fail request if gamification fails
+      console.error('Gamification award failed:', e);
+    }
+
     ResponseHandler.success(res, result);
   } catch (error) {
     next(error);
@@ -93,8 +105,23 @@ router.post('/nclex/:sessionId/break', async (req: AuthRequest, res: Response, n
  */
 router.post('/nclex/:sessionId/end', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const userId = req.user?.id;
     const { sessionId } = req.params;
     const result = await nclexSimulator.endExam(sessionId);
+
+    // Award gamification points for completing CAT
+    if (userId) {
+      try {
+        await gamificationService.awardPoints(userId, 'cat_completed', {
+          passed: result.passed
+        });
+        // Check for new achievements
+        await gamificationService.checkAchievements(userId);
+      } catch (e) {
+        console.error('Gamification award failed:', e);
+      }
+    }
+
     ResponseHandler.success(res, result);
   } catch (error) {
     next(error);
@@ -196,6 +223,7 @@ router.get('/quick/:sessionId/question', async (req: AuthRequest, res: Response,
  */
 router.post('/quick/:sessionId/answer', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const userId = req.user?.id;
     const { sessionId } = req.params;
     const { questionId, answer, timeSpent } = req.body;
 
@@ -210,7 +238,19 @@ router.post('/quick/:sessionId/answer', async (req: AuthRequest, res: Response, 
       answerArray,
       timeSpent || 0
     );
-    
+
+    // Award gamification points for answering
+    if (userId) {
+      try {
+        await gamificationService.awardPoints(userId, 'question_answered', {
+          correct: result.isCorrect,
+          difficulty: result.difficulty
+        });
+      } catch (e) {
+        console.error('Gamification award failed:', e);
+      }
+    }
+
     ResponseHandler.success(res, result);
   } catch (error) {
     next(error);
@@ -224,8 +264,24 @@ router.post('/quick/:sessionId/answer', async (req: AuthRequest, res: Response, 
  */
 router.post('/quick/:sessionId/complete', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const userId = req.user?.id;
     const { sessionId } = req.params;
     const result = await quickPractice.completeSession(sessionId);
+
+    // Award gamification points for completing quiz
+    if (userId) {
+      try {
+        const isPerfect = result.totalCorrect === result.totalQuestions;
+        await gamificationService.awardPoints(userId, 'quiz_completed', {
+          perfect: isPerfect
+        });
+        // Check for new achievements
+        await gamificationService.checkAchievements(userId);
+      } catch (e) {
+        console.error('Gamification award failed:', e);
+      }
+    }
+
     ResponseHandler.success(res, result);
   } catch (error) {
     next(error);

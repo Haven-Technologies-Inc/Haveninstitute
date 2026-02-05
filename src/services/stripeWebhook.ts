@@ -279,9 +279,34 @@ const handleInvoicePaymentFailed = async (event: StripeWebhookEvent): Promise<vo
       .eq('user_id', userId)
       .eq('status', 'active');
 
-    // Payment failed for user
+    // Payment failed for user - send email notification
+    try {
+      // Get user email
+      const { data: userData } = await supabase
+        .from('users')
+        .select('email, full_name')
+        .eq('id', userId)
+        .single();
 
-    // TODO: Send email notification to user
+      if (userData?.email) {
+        // Trigger email notification via Edge Function or backend
+        await supabase.functions.invoke('send-email', {
+          body: {
+            type: 'payment_failed',
+            to: userData.email,
+            data: {
+              userName: userData.full_name,
+              amount: invoice.amount_due / 100,
+              invoiceUrl: invoice.hosted_invoice_url,
+              failureReason: 'Your payment method was declined'
+            }
+          }
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send payment failure email:', emailError);
+      // Don't throw - email failure shouldn't break webhook
+    }
   } catch (error) {
     console.error('Error handling payment failure:', error);
     throw error;
@@ -376,22 +401,30 @@ const handleCustomerDeleted = async (event: StripeWebhookEvent): Promise<void> =
  * Get user ID from Stripe customer ID
  */
 const getUserIdFromCustomer = async (customerId: string): Promise<string | null> => {
-  // In production, you would store the Stripe customer ID in the users table
-  // For now, we'll use a placeholder implementation
+  try {
+    // Option 1: Check users table for stripe_customer_id
+    const { data: userData } = await supabase
+      .from('users')
+      .select('id')
+      .eq('stripe_customer_id', customerId)
+      .single();
 
-  // Option 1: Query from a stripe_customers table
-  // const { data } = await supabase
-  //   .from('stripe_customers')
-  //   .select('user_id')
-  //   .eq('customer_id', customerId)
-  //   .single();
+    if (userData?.id) {
+      return userData.id;
+    }
 
-  // Option 2: Use Stripe customer metadata
-  // The customer ID should be stored in user metadata or a separate mapping table
+    // Option 2: Fallback to stripe_customers mapping table
+    const { data: mappingData } = await supabase
+      .from('stripe_customers')
+      .select('user_id')
+      .eq('customer_id', customerId)
+      .single();
 
-  // Placeholder: return null for now
-  // TODO: Implement proper customer-to-user mapping
-  return null;
+    return mappingData?.user_id || null;
+  } catch (error) {
+    console.error('Error looking up user from customer:', error);
+    return null;
+  }
 };
 
 /**

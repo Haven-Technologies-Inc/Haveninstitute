@@ -13,8 +13,8 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
-import type { 
-  NextGenQuestion, 
+import type {
+  NextGenQuestion,
   QuestionAnswer,
   MultipleChoiceQuestion,
   SelectAllQuestion,
@@ -22,7 +22,9 @@ import type {
   ClozeDropdownQuestion,
   MatrixQuestion,
   HighlightQuestion,
-  BowTieQuestion
+  BowTieQuestion,
+  HotSpotQuestion,
+  CaseStudyQuestion
 } from '../../types/nextGenNCLEX';
 
 interface QuestionRendererProps {
@@ -128,20 +130,24 @@ export function QuestionRenderer({
       
       case 'hot-spot':
         return (
-          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border-2 border-yellow-300">
-            <p className="text-yellow-800 dark:text-yellow-200">
-              Hot Spot questions require image interaction. This question type is coming soon.
-            </p>
-          </div>
+          <HotSpotRenderer
+            question={question}
+            selectedSpots={answer?.type === 'hot-spot' ? answer.selectedSpots : []}
+            onAnswer={(spots) => onAnswerChange({ type: 'hot-spot', selectedSpots: spots })}
+            showFeedback={showFeedback}
+            disabled={disabled}
+          />
         );
-      
+
       case 'case-study':
         return (
-          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border-2 border-purple-300">
-            <p className="text-purple-800 dark:text-purple-200">
-              Case Study questions contain multiple sub-questions. This question type is coming soon.
-            </p>
-          </div>
+          <CaseStudyRenderer
+            question={question}
+            subAnswers={answer?.type === 'case-study' ? answer.subAnswers : []}
+            onAnswer={(answers) => onAnswerChange({ type: 'case-study', subAnswers: answers })}
+            showFeedback={showFeedback}
+            disabled={disabled}
+          />
         );
       
       default:
@@ -829,6 +835,320 @@ function BowTieRenderer({
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Hot Spot Renderer (Image-based clicking)
+function HotSpotRenderer({
+  question,
+  selectedSpots,
+  onAnswer,
+  showFeedback,
+  disabled
+}: {
+  question: HotSpotQuestion;
+  selectedSpots: string[];
+  onAnswer: (spots: string[]) => void;
+  showFeedback: boolean;
+  disabled: boolean;
+}) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  const toggleSpot = (spotId: string) => {
+    if (disabled) return;
+    if (selectedSpots.includes(spotId)) {
+      onAnswer(selectedSpots.filter(s => s !== spotId));
+    } else {
+      onAnswer([...selectedSpots, spotId]);
+    }
+  };
+
+  const getSpotStyle = (spot: { shape: string; coords: number[] }) => {
+    if (spot.shape === 'circle') {
+      const [cx, cy, r] = spot.coords;
+      return {
+        left: `${cx - r}px`,
+        top: `${cy - r}px`,
+        width: `${r * 2}px`,
+        height: `${r * 2}px`,
+        borderRadius: '50%'
+      };
+    } else if (spot.shape === 'rect') {
+      const [x1, y1, x2, y2] = spot.coords;
+      return {
+        left: `${x1}px`,
+        top: `${y1}px`,
+        width: `${x2 - x1}px`,
+        height: `${y2 - y1}px`,
+        borderRadius: '4px'
+      };
+    }
+    return {};
+  };
+
+  if (imageError) {
+    return (
+      <div className="p-6 bg-gray-100 dark:bg-gray-800 rounded-xl text-center">
+        <p className="text-gray-600 dark:text-gray-400 mb-4">Unable to load image</p>
+        <div className="space-y-2">
+          <p className="text-sm text-gray-500">Select the correct areas:</p>
+          {question.hotSpots.map((spot) => {
+            const isSelected = selectedSpots.includes(spot.id);
+            const isCorrect = question.correctSpots.includes(spot.id);
+            const showCorrect = showFeedback && isCorrect;
+            const showWrong = showFeedback && isSelected && !isCorrect;
+
+            return (
+              <button
+                key={spot.id}
+                onClick={() => toggleSpot(spot.id)}
+                disabled={disabled}
+                className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                  showCorrect
+                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                    : showWrong
+                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                    : isSelected
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                }`}
+              >
+                {spot.label || `Area ${spot.id}`}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+        <span className="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center text-xs">◎</span>
+        Click on the correct area(s) in the image
+      </p>
+      <div className="relative inline-block">
+        <img
+          src={question.imageUrl}
+          alt="Hot spot question"
+          className="max-w-full h-auto rounded-xl"
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageError(true)}
+        />
+        {imageLoaded && question.hotSpots.map((spot) => {
+          const isSelected = selectedSpots.includes(spot.id);
+          const isCorrect = question.correctSpots.includes(spot.id);
+          const showCorrect = showFeedback && isCorrect;
+          const showWrong = showFeedback && isSelected && !isCorrect;
+
+          return (
+            <button
+              key={spot.id}
+              onClick={() => toggleSpot(spot.id)}
+              disabled={disabled}
+              style={getSpotStyle(spot)}
+              className={`absolute border-2 transition-all ${
+                disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-blue-200/30'
+              } ${
+                showCorrect
+                  ? 'border-green-500 bg-green-500/30'
+                  : showWrong
+                  ? 'border-red-500 bg-red-500/30'
+                  : isSelected
+                  ? 'border-blue-500 bg-blue-500/30'
+                  : 'border-transparent hover:border-blue-300'
+              }`}
+              title={spot.label}
+            >
+              {isSelected && (
+                <CheckCircle2 className="w-4 h-4 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {showFeedback && (
+        <div className="text-sm mt-2">
+          <span className={selectedSpots.length === question.correctSpots.length &&
+            selectedSpots.every(s => question.correctSpots.includes(s))
+              ? 'text-green-600' : 'text-red-600'}>
+            {selectedSpots.length} of {question.correctSpots.length} correct areas selected
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Case Study Renderer (Multi-question scenario)
+function CaseStudyRenderer({
+  question,
+  subAnswers,
+  onAnswer,
+  showFeedback,
+  disabled
+}: {
+  question: CaseStudyQuestion;
+  subAnswers: QuestionAnswer[];
+  onAnswer: (answers: QuestionAnswer[]) => void;
+  showFeedback: boolean;
+  disabled: boolean;
+}) {
+  const [activeTab, setActiveTab] = useState(0);
+  const [currentSubQuestion, setCurrentSubQuestion] = useState(0);
+
+  const handleSubAnswerChange = (index: number, answer: QuestionAnswer) => {
+    const newAnswers = [...subAnswers];
+    newAnswers[index] = answer;
+    onAnswer(newAnswers);
+  };
+
+  // Render sub-question based on type
+  const renderSubQuestion = (subQ: typeof question.subQuestions[0], index: number) => {
+    const currentAnswer = subAnswers[index];
+
+    switch (subQ.type) {
+      case 'multiple-choice':
+        return (
+          <MultipleChoiceRenderer
+            question={subQ as MultipleChoiceQuestion}
+            answer={currentAnswer?.type === 'multiple-choice' ? currentAnswer.answer : null}
+            onAnswer={(a) => handleSubAnswerChange(index, { type: 'multiple-choice', answer: a })}
+            showFeedback={showFeedback}
+            disabled={disabled}
+          />
+        );
+      case 'select-all':
+        return (
+          <SelectAllRenderer
+            question={subQ as SelectAllQuestion}
+            answers={currentAnswer?.type === 'select-all' ? currentAnswer.answers : []}
+            onAnswer={(a) => handleSubAnswerChange(index, { type: 'select-all', answers: a })}
+            showFeedback={showFeedback}
+            disabled={disabled}
+          />
+        );
+      case 'ordered-response':
+        return (
+          <OrderedResponseRenderer
+            question={subQ as OrderedResponseQuestion}
+            order={currentAnswer?.type === 'ordered-response' ? currentAnswer.order : ((subQ as OrderedResponseQuestion).items?.map((_, i) => i) || [])}
+            onAnswer={(o) => handleSubAnswerChange(index, { type: 'ordered-response', order: o })}
+            showFeedback={showFeedback}
+            disabled={disabled}
+          />
+        );
+      case 'matrix':
+        return (
+          <MatrixRenderer
+            question={subQ as MatrixQuestion}
+            selections={currentAnswer?.type === 'matrix' ? currentAnswer.selections : []}
+            onAnswer={(s) => handleSubAnswerChange(index, { type: 'matrix', selections: s })}
+            showFeedback={showFeedback}
+            disabled={disabled}
+          />
+        );
+      default:
+        return <div className="text-red-500">Unsupported sub-question type</div>;
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Scenario Box */}
+      <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-300 dark:border-purple-700 rounded-xl">
+        <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2 flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">📋</span>
+          Clinical Scenario
+        </h3>
+        <p className="text-purple-800 dark:text-purple-200 leading-relaxed whitespace-pre-wrap">
+          {question.scenario}
+        </p>
+      </div>
+
+      {/* Tabs for additional info (if present) */}
+      {question.tabs && question.tabs.length > 0 && (
+        <div className="border rounded-xl overflow-hidden dark:border-gray-700">
+          <div className="flex border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            {question.tabs.map((tab, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveTab(idx)}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  activeTab === idx
+                    ? 'bg-white dark:bg-gray-900 text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                {tab.title}
+              </button>
+            ))}
+          </div>
+          <div className="p-4 bg-white dark:bg-gray-900">
+            <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+              {question.tabs[activeTab]?.content}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Sub-questions Navigation */}
+      <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-lg p-2">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Question {currentSubQuestion + 1} of {question.subQuestions.length}
+        </span>
+        <div className="flex gap-1">
+          {question.subQuestions.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentSubQuestion(idx)}
+              className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                currentSubQuestion === idx
+                  ? 'bg-blue-600 text-white'
+                  : subAnswers[idx]
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              {idx + 1}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Current Sub-question */}
+      <div className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4">
+        <p className="text-lg text-gray-900 dark:text-white mb-4">
+          {question.subQuestions[currentSubQuestion]?.stem}
+        </p>
+        {renderSubQuestion(question.subQuestions[currentSubQuestion], currentSubQuestion)}
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between">
+        <button
+          onClick={() => setCurrentSubQuestion(Math.max(0, currentSubQuestion - 1))}
+          disabled={currentSubQuestion === 0}
+          className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+        >
+          ← Previous
+        </button>
+        <button
+          onClick={() => setCurrentSubQuestion(Math.min(question.subQuestions.length - 1, currentSubQuestion + 1))}
+          disabled={currentSubQuestion === question.subQuestions.length - 1}
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-700 transition-colors"
+        >
+          Next →
+        </button>
+      </div>
+
+      {/* Progress indicator */}
+      <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
+        {subAnswers.filter(a => a !== undefined).length} of {question.subQuestions.length} questions answered
       </div>
     </div>
   );
