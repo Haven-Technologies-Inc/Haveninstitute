@@ -82,6 +82,39 @@ export const DIFFICULTY_LEVELS = [
   { value: 'hard', label: 'Hard', color: '#ef4444' },
 ] as const;
 
+export const NCLEX_SUBJECTS = [
+  'Adult Health', 'Pediatrics', 'Maternity', 'Mental Health',
+  'Community Health', 'Leadership/Management', 'Pharmacology',
+  'Fundamentals', 'Critical Care', 'Emergency', 'Gerontology',
+  'Perioperative', 'Oncology', 'Endocrine', 'Cardiovascular',
+  'Respiratory', 'Neurology', 'Gastrointestinal', 'Renal/Urinary',
+  'Musculoskeletal', 'Integumentary', 'Immunology', 'Hematology',
+  'Nutrition', 'Fluid & Electrolytes', 'Infection Control',
+] as const;
+
+export const NCLEX_DISCIPLINES = [
+  'Nursing Process', 'Clinical Judgment', 'Patient Safety',
+  'Evidence-Based Practice', 'Quality Improvement', 'Informatics',
+  'Interprofessional Collaboration', 'Ethical/Legal',
+  'Cultural Competency', 'Health Promotion', 'Disease Prevention',
+  'Pathophysiology', 'Pharmacokinetics', 'Delegation',
+] as const;
+
+export const BLOOM_LEVELS = [
+  { value: 'remember', label: 'Remember' },
+  { value: 'understand', label: 'Understand' },
+  { value: 'apply', label: 'Apply' },
+  { value: 'analyze', label: 'Analyze' },
+  { value: 'evaluate', label: 'Evaluate' },
+  { value: 'create', label: 'Create' },
+] as const;
+
+export const NCLEX_VERSIONS = [
+  { value: 'NGN', label: 'Next Generation NCLEX' },
+  { value: 'Classic', label: 'Classic NCLEX' },
+  { value: 'Both', label: 'Both Formats' },
+] as const;
+
 export const APP_NAME = 'Haven Institute';
 export const APP_DESCRIPTION = 'AI-Powered NCLEX Prep Platform';
 export const APP_URL = 'https://www.havenstudy.com';

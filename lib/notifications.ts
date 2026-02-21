@@ -1,13 +1,37 @@
 import { prisma } from '@/lib/db';
+import nodemailer from 'nodemailer';
+import twilio from 'twilio';
 
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 
-const EMAIL_API_URL = process.env.EMAIL_API_URL ?? '';
-const SMS_API_URL = process.env.SMS_API_URL ?? '';
 const APP_NAME = 'Haven Institute';
 const APP_URL = process.env.NEXTAUTH_URL ?? 'https://haveninstitute.com';
+
+// Twilio
+const twilioClient =
+  process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+    ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+    : null;
+
+const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER ?? '';
+
+// Zeptomail SMTP
+const emailTransporter =
+  process.env.ZEPTOMAIL_HOST && process.env.ZEPTOMAIL_USER
+    ? nodemailer.createTransport({
+        host: process.env.ZEPTOMAIL_HOST,
+        port: parseInt(process.env.ZEPTOMAIL_PORT ?? '587', 10),
+        secure: parseInt(process.env.ZEPTOMAIL_PORT ?? '587', 10) === 465,
+        auth: {
+          user: process.env.ZEPTOMAIL_USER,
+          pass: process.env.ZEPTOMAIL_PASSWORD,
+        },
+      })
+    : null;
+
+const EMAIL_FROM = process.env.EMAIL_FROM ?? `noreply@haveninstitute.com`;
 
 // ---------------------------------------------------------------------------
 // Main notification dispatcher
@@ -64,77 +88,81 @@ export async function sendNotification(params: {
 
   // 3. Send email if requested and user has email notifications enabled
   if (sendEmail && settings?.emailNotifications) {
+    const template = renderEmailTemplate(type, {
+      userName: userWithSettings.fullName,
+      message,
+      actionUrl: actionUrl ?? '',
+    });
+
     await dispatchEmail({
       to: userWithSettings.email,
-      userName: userWithSettings.fullName,
-      subject: title,
-      htmlBody: `<p>${message}</p>${actionUrl ? `<p><a href="${APP_URL}${actionUrl}">View Details</a></p>` : ''}`,
-      textBody: `${message}${actionUrl ? `\n\nView Details: ${APP_URL}${actionUrl}` : ''}`,
+      subject: template.subject || title,
+      html: template.html,
     });
   }
 
   // 4. Send SMS if requested and user has SMS notifications enabled
   if (sendSms && settings?.smsNotifications && userWithSettings.phoneNumber) {
+    const smsTemplate = SMS_TEMPLATES[type];
+    const smsBody = smsTemplate
+      ? smsTemplate({ userName: userWithSettings.fullName, message, title })
+      : `${APP_NAME}: ${title} - ${message}`;
+
     await dispatchSms({
       to: userWithSettings.phoneNumber,
-      body: `${APP_NAME}: ${title} - ${message}`,
+      body: smsBody,
     });
   }
 }
 
 // ---------------------------------------------------------------------------
-// Email dispatch (configurable endpoint or console fallback)
+// Email dispatch via Zeptomail SMTP
 // ---------------------------------------------------------------------------
 
 async function dispatchEmail(params: {
   to: string;
-  userName: string;
   subject: string;
-  htmlBody: string;
-  textBody: string;
+  html: string;
 }): Promise<void> {
-  if (EMAIL_API_URL) {
+  if (emailTransporter) {
     try {
-      await fetch(EMAIL_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: params.to,
-          subject: params.subject,
-          html: params.htmlBody,
-          text: params.textBody,
-        }),
+      await emailTransporter.sendMail({
+        from: `"${APP_NAME}" <${EMAIL_FROM}>`,
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
       });
+      console.log(`[Email] Sent to ${params.to}: ${params.subject}`);
     } catch (error) {
       console.error('[Email] Failed to dispatch email:', error);
     }
   } else {
-    console.log('[Email] Would send to:', params.to);
+    console.log('[Email] Transporter not configured. Would send to:', params.to);
     console.log('[Email] Subject:', params.subject);
-    console.log('[Email] Body:', params.textBody);
   }
 }
 
 // ---------------------------------------------------------------------------
-// SMS dispatch (configurable endpoint or console fallback)
+// SMS dispatch via Twilio
 // ---------------------------------------------------------------------------
 
 async function dispatchSms(params: {
   to: string;
   body: string;
 }): Promise<void> {
-  if (SMS_API_URL) {
+  if (twilioClient && TWILIO_PHONE_NUMBER) {
     try {
-      await fetch(SMS_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: params.to, body: params.body }),
+      const result = await twilioClient.messages.create({
+        body: params.body,
+        from: TWILIO_PHONE_NUMBER,
+        to: params.to,
       });
+      console.log(`[SMS] Sent to ${params.to}, SID: ${result.sid}`);
     } catch (error) {
       console.error('[SMS] Failed to dispatch SMS:', error);
     }
   } else {
-    console.log('[SMS] Would send to:', params.to);
+    console.log('[SMS] Twilio not configured. Would send to:', params.to);
     console.log('[SMS] Body:', params.body);
   }
 }
@@ -233,6 +261,32 @@ function wrapInLayout(bodyContent: string, preheader: string = ''): string {
 </body>
 </html>`;
 }
+
+// ---------------------------------------------------------------------------
+// SMS Templates
+// ---------------------------------------------------------------------------
+
+type SmsTemplateFunction = (vars: Record<string, string>) => string;
+
+const SMS_TEMPLATES: Record<string, SmsTemplateFunction> = {
+  sms_verification: (vars) =>
+    `${APP_NAME}: Your verification code is ${vars.code ?? '------'}. This code expires in 10 minutes. Do not share this code with anyone.`,
+
+  sms_welcome: (vars) =>
+    `Welcome to ${APP_NAME}, ${vars.userName ?? 'there'}! Your NCLEX prep journey starts now. Log in at ${APP_URL}/dashboard to get started.`,
+
+  login_alert: (vars) =>
+    `${APP_NAME} Security: New login detected on your account${vars.device ? ` from ${vars.device}` : ''}${vars.location ? ` in ${vars.location}` : ''}. If this wasn't you, secure your account immediately at ${APP_URL}/account/settings.`,
+
+  study_reminder: (vars) =>
+    `${APP_NAME}: Hey ${vars.userName ?? 'there'}! Don't forget to study today. ${vars.currentStreak ? `Your streak: ${vars.currentStreak} days. ` : ''}Keep it going at ${APP_URL}/dashboard`,
+
+  achievement_unlocked: (vars) =>
+    `${APP_NAME}: Achievement unlocked - ${vars.achievementName ?? 'New Badge'}! ${vars.xpReward ? `+${vars.xpReward} XP ` : ''}View your achievements at ${APP_URL}/achievements`,
+
+  streak_milestone: (vars) =>
+    `${APP_NAME}: Incredible! You've hit a ${vars.streakDays ?? '7'}-day study streak! ${vars.xpBonus ? `Bonus: +${vars.xpBonus} XP ` : ''}Keep it up!`,
+};
 
 // ---------------------------------------------------------------------------
 // Email templates
@@ -543,5 +597,76 @@ const EMAIL_TEMPLATES: Record<string, TemplateFunction> = {
       `Your CAT simulation results are ready.`
     ),
     text: `CAT Simulation Complete\n\nHi ${vars.userName ?? 'there'},\n\nResult: ${vars.result === 'pass' ? 'PASS' : vars.result === 'fail' ? 'BELOW PASSING' : 'UNDETERMINED'}\nQuestions: ${vars.questionsAnswered ?? 'N/A'}${vars.passingProbability ? `\nPassing probability: ${vars.passingProbability}%` : ''}${vars.xpEarned ? `\nXP earned: +${vars.xpEarned}` : ''}\n\nView results: ${APP_URL}/analytics\n\n- The ${APP_NAME} Team`,
+  }),
+
+  // 13. Email Verification
+  email_verification: (vars) => ({
+    subject: `Verify your email address - ${APP_NAME}`,
+    html: wrapInLayout(
+      `<h2>Verify Your Email Address</h2>
+      <p>Hi ${vars.userName ?? 'there'},</p>
+      <p>Thanks for signing up for ${APP_NAME}! Please verify your email address to activate your account and start your NCLEX preparation journey.</p>
+      <p>Click the button below to verify your email:</p>
+      <p style="text-align:center;">
+        <a href="${vars.verificationUrl ?? `${APP_URL}/api/auth/verify-email?token=${vars.token ?? ''}`}" class="btn">Verify Email Address</a>
+      </p>
+      <p style="font-size:13px; color:#9ca3af;">If the button above doesn't work, copy and paste this link into your browser:</p>
+      <p style="font-size:13px; color:#6366f1; word-break:break-all;">${vars.verificationUrl ?? `${APP_URL}/api/auth/verify-email?token=${vars.token ?? ''}`}</p>
+      <hr class="divider" />
+      <p style="font-size:13px; color:#9ca3af;">If you did not create an account with ${APP_NAME}, you can safely ignore this email.</p>
+      <p style="color:#6b7280;">- The ${APP_NAME} Team</p>`,
+      `Please verify your email address to get started with ${APP_NAME}.`
+    ),
+    text: `Verify Your Email Address\n\nHi ${vars.userName ?? 'there'},\n\nThanks for signing up for ${APP_NAME}! Please verify your email by visiting:\n\n${vars.verificationUrl ?? `${APP_URL}/api/auth/verify-email?token=${vars.token ?? ''}`}\n\nIf you did not create an account, you can safely ignore this email.\n\n- The ${APP_NAME} Team`,
+  }),
+
+  // 14. Password Reset
+  password_reset: (vars) => ({
+    subject: `Reset your password - ${APP_NAME}`,
+    html: wrapInLayout(
+      `<h2>Reset Your Password</h2>
+      <p>Hi ${vars.userName ?? 'there'},</p>
+      <p>We received a request to reset the password for your ${APP_NAME} account. Click the button below to create a new password:</p>
+      <p style="text-align:center;">
+        <a href="${vars.resetUrl ?? `${APP_URL}/auth/reset-password?token=${vars.token ?? ''}`}" class="btn">Reset Password</a>
+      </p>
+      <p style="font-size:13px; color:#9ca3af;">If the button above doesn't work, copy and paste this link into your browser:</p>
+      <p style="font-size:13px; color:#6366f1; word-break:break-all;">${vars.resetUrl ?? `${APP_URL}/auth/reset-password?token=${vars.token ?? ''}`}</p>
+      <hr class="divider" />
+      <div class="stat-box" style="background-color:#fef2f2; border-color:#fecaca;">
+        <p style="color:#dc2626; font-size:14px; margin:0;"><strong>This link will expire in 1 hour.</strong> If you did not request a password reset, please ignore this email. Your password will remain unchanged.</p>
+      </div>
+      <p style="color:#6b7280;">- The ${APP_NAME} Security Team</p>`,
+      `Reset your ${APP_NAME} password. This link expires in 1 hour.`
+    ),
+    text: `Reset Your Password\n\nHi ${vars.userName ?? 'there'},\n\nWe received a request to reset your password. Visit the link below to create a new password:\n\n${vars.resetUrl ?? `${APP_URL}/auth/reset-password?token=${vars.token ?? ''}`}\n\nThis link expires in 1 hour. If you did not request a password reset, please ignore this email.\n\n- The ${APP_NAME} Security Team`,
+  }),
+
+  // 15. Login Alert
+  login_alert: (vars) => ({
+    subject: `New login to your ${APP_NAME} account`,
+    html: wrapInLayout(
+      `<h2>New Login Detected</h2>
+      <p>Hi ${vars.userName ?? 'there'},</p>
+      <p>A new login was detected on your ${APP_NAME} account.</p>
+      <div class="stat-box">
+        <table style="width:100%; font-size:14px; color:#4b5563;">
+          ${vars.date ? `<tr><td style="padding:6px 0;"><strong>Date:</strong></td><td style="padding:6px 0; text-align:right;">${vars.date}</td></tr>` : ''}
+          ${vars.device ? `<tr><td style="padding:6px 0;"><strong>Device:</strong></td><td style="padding:6px 0; text-align:right;">${vars.device}</td></tr>` : ''}
+          ${vars.browser ? `<tr><td style="padding:6px 0;"><strong>Browser:</strong></td><td style="padding:6px 0; text-align:right;">${vars.browser}</td></tr>` : ''}
+          ${vars.location ? `<tr><td style="padding:6px 0;"><strong>Location:</strong></td><td style="padding:6px 0; text-align:right;">${vars.location}</td></tr>` : ''}
+          ${vars.ipAddress ? `<tr><td style="padding:6px 0;"><strong>IP Address:</strong></td><td style="padding:6px 0; text-align:right;">${vars.ipAddress}</td></tr>` : ''}
+        </table>
+      </div>
+      <div class="stat-box" style="background-color:#fef2f2; border-color:#fecaca;">
+        <p style="color:#dc2626; font-size:14px; margin:0;"><strong>If this wasn't you</strong>, your account may be compromised. Please change your password immediately and contact our support team.</p>
+      </div>
+      <p style="text-align:center;">
+        <a href="${APP_URL}/account/settings" class="btn" style="background:linear-gradient(135deg, #dc2626, #ef4444);">Secure My Account</a>
+      </p>
+      <p style="color:#6b7280;">- The ${APP_NAME} Security Team</p>`,
+      `New login detected on your ${APP_NAME} account.`
+    ),
+    text: `New Login Detected\n\nHi ${vars.userName ?? 'there'},\n\nA new login was detected on your ${APP_NAME} account.${vars.date ? `\nDate: ${vars.date}` : ''}${vars.device ? `\nDevice: ${vars.device}` : ''}${vars.location ? `\nLocation: ${vars.location}` : ''}${vars.ipAddress ? `\nIP: ${vars.ipAddress}` : ''}\n\nIf this wasn't you, secure your account immediately: ${APP_URL}/account/settings\n\n- The ${APP_NAME} Security Team`,
   }),
 };

@@ -234,7 +234,7 @@ export default function AdminDashboardPage() {
                       tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                     />
                     <Tooltip
-                      formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                      formatter={(value: any) => [`$${Number(value).toLocaleString()}`, 'Revenue']}
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border))',
@@ -282,7 +282,7 @@ export default function AdminDashboardPage() {
                       }
                     />
                     <Tooltip
-                      formatter={(value: number) => [value.toLocaleString(), 'Users']}
+                      formatter={(value: any) => [Number(value).toLocaleString(), 'Users']}
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border))',

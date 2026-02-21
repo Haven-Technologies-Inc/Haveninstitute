@@ -1,16 +1,13 @@
 import { NextRequest } from 'next/server';
-import Stripe from 'stripe';
+import type Stripe from 'stripe';
 import { prisma } from '@/lib/db';
+import { getStripe } from '@/lib/stripe-client';
 import {
   requireAuth,
   successResponse,
   errorResponse,
   handleApiError,
 } from '@/lib/api-utils';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
-  apiVersion: '2026-01-28.clover',
-});
 
 // ---------------------------------------------------------------------------
 // POST /api/stripe/checkout
@@ -74,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     let customerId = user.stripeCustomerId;
     if (!customerId) {
-      const customer = await stripe.customers.create({
+      const customer = await getStripe().customers.create({
         email: user.email,
         name: user.fullName,
         metadata: { userId: session.user.id },
@@ -115,7 +112,7 @@ export async function POST(request: NextRequest) {
       checkoutParams.subscription_data!.trial_period_days = plan.trialDays;
     }
 
-    const checkoutSession = await stripe.checkout.sessions.create(
+    const checkoutSession = await getStripe().checkout.sessions.create(
       checkoutParams
     );
 

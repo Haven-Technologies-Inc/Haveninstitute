@@ -270,7 +270,7 @@ export default function AdminAnalyticsPage() {
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
                     <Tooltip
-                      formatter={(value: number, name: string) => [value.toLocaleString(), name === 'users' ? 'Total Users' : 'New Users']}
+                      formatter={(value: any, name: any) => [Number(value).toLocaleString(), name === 'users' ? 'Total Users' : 'New Users']}
                       contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
                     />
                     <Area type="monotone" dataKey="users" stroke="#6366f1" strokeWidth={2} fill="url(#userGrowthGrad)" />
@@ -302,7 +302,7 @@ export default function AdminAnalyticsPage() {
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip
-                      formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                      formatter={(value: any) => [`$${Number(value).toLocaleString()}`, 'Revenue']}
                       contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
                     />
                     <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} fill="url(#revTrendGrad)" />
@@ -327,7 +327,7 @@ export default function AdminAnalyticsPage() {
                     <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
                     <YAxis type="category" dataKey="feature" tick={{ fontSize: 11 }} width={80} />
                     <Tooltip
-                      formatter={(value: number) => [value.toLocaleString(), 'Usage']}
+                      formatter={(value: any) => [Number(value).toLocaleString(), 'Usage']}
                       contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
                     />
                     <Bar dataKey="usage" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
@@ -363,7 +363,7 @@ export default function AdminAnalyticsPage() {
                         outerRadius={85}
                         paddingAngle={4}
                         dataKey="value"
-                        label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                        label={({ percent }: any) => `${((percent ?? 0) * 100).toFixed(0)}%`}
                       >
                         {passDistPie.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
@@ -371,7 +371,7 @@ export default function AdminAnalyticsPage() {
                       </Pie>
                       <Legend />
                       <Tooltip
-                        formatter={(value: number, name: string) => [value.toLocaleString(), name]}
+                        formatter={(value: any, name: any) => [Number(value).toLocaleString(), name]}
                         contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
                       />
                     </PieChart>

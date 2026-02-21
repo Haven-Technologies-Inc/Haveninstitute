@@ -599,8 +599,8 @@ export default function AdminBillingPage() {
                     tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                   />
                   <Tooltip
-                    formatter={(value: number) => [
-                      `$${value.toLocaleString()}`,
+                    formatter={(value: any) => [
+                      `$${Number(value).toLocaleString()}`,
                       'Revenue',
                     ]}
                     contentStyle={{
@@ -647,8 +647,8 @@ export default function AdminBillingPage() {
                       outerRadius={90}
                       paddingAngle={4}
                       dataKey="value"
-                      label={({ name, percent }) =>
-                        `${name} ${(percent * 100).toFixed(0)}%`
+                      label={({ name, percent }: any) =>
+                        `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
                       }
                     >
                       {pieData.map((_, index) => (
@@ -659,8 +659,8 @@ export default function AdminBillingPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number, name: string) => [
-                        value.toLocaleString(),
+                      formatter={(value: any, name: any) => [
+                        Number(value).toLocaleString(),
                         name,
                       ]}
                       contentStyle={{

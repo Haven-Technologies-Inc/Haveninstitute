@@ -5,15 +5,12 @@ import { cn, getInitials } from '@/lib/utils';
 import { PageHeader } from '@/components/shared';
 import { useUser } from '@/lib/hooks';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import {
   Send,
-  Bot,
   Sparkles,
   Brain,
   Pill,
@@ -23,7 +20,8 @@ import {
   Loader2,
   RotateCcw,
   BookOpen,
-  MessageSquare,
+  GraduationCap,
+  User,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -91,7 +89,7 @@ const INITIAL_GREETING: ChatMessage = {
   id: 'greeting',
   role: 'assistant',
   content:
-    "Hello! I'm your AI NCLEX Tutor. I can help you with nursing concepts, explain complex topics, quiz you on key material, and provide study strategies. What would you like to learn about today?",
+    "Hello! I'm your Haven Institute NCLEX Tutor. I can help you with nursing concepts, explain complex topics, quiz you on key material, and provide study strategies. What would you like to learn about today?",
   timestamp: new Date(),
 };
 
@@ -127,7 +125,7 @@ export default function AIChatPage() {
 
   const hasConversation = messages.length > 1;
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change or while loading
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -160,15 +158,21 @@ export default function AIChatPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: content.trim(),
-            history: messages.map((m) => ({
-              role: m.role,
-              content: m.content,
-            })),
+            conversationHistory: messages
+              .filter((m) => m.id !== 'greeting')
+              .map((m) => ({
+                role: m.role,
+                content: m.content,
+              })),
           }),
         });
 
         if (!response.ok) {
-          throw new Error('Failed to get response');
+          const errData = await response.json().catch(() => null);
+          const errMsg =
+            errData?.error ||
+            'I had trouble getting a response. Please try again in a moment.';
+          throw new Error(errMsg);
         }
 
         const json = await response.json();
@@ -179,20 +183,21 @@ export default function AIChatPage() {
           role: 'assistant',
           content:
             data.content ??
-            data.message ??
             data.response ??
+            data.message ??
             'I apologize, but I was unable to process your request. Please try again.',
           timestamp: new Date(),
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
-      } catch {
-        // Fallback mock response for when API is not yet available
+      } catch (err: any) {
         const fallbackMessage: ChatMessage = {
           id: generateId(),
           role: 'assistant',
           content:
-            "That's a great question! While I'm currently in demo mode, here's a brief overview: This topic is commonly tested on the NCLEX and involves understanding key nursing concepts, applying clinical judgment, and using the nursing process (ADPIE) to arrive at the best answer. I recommend reviewing your study materials on this subject and practicing with NCLEX-style questions to strengthen your understanding. Would you like me to explain any specific aspect in more detail?",
+            err?.message && !err.message.includes('fetch')
+              ? err.message
+              : "I'm having a little trouble connecting right now. Please try again in a moment. If this keeps happening, your daily message limit may have been reached.",
           timestamp: new Date(),
         };
 
@@ -252,63 +257,82 @@ export default function AIChatPage() {
               key={message.id}
               className={cn(
                 'flex gap-3 max-w-3xl',
-                message.role === 'user' ? 'ml-auto flex-row-reverse' : '',
+                message.role === 'user'
+                  ? 'ml-auto flex-row-reverse'
+                  : '',
               )}
             >
               {/* Avatar */}
-              <Avatar className="h-8 w-8 shrink-0 mt-0.5">
-                {message.role === 'assistant' ? (
-                  <>
-                    <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xs">
-                      AI
-                    </AvatarFallback>
-                  </>
-                ) : (
-                  <>
-                    <AvatarImage src={user?.image ?? undefined} />
-                    <AvatarFallback className="bg-muted text-xs">
-                      {userInitials}
-                    </AvatarFallback>
-                  </>
-                )}
-              </Avatar>
+              {message.role === 'assistant' ? (
+                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shrink-0 mt-0.5 shadow-md">
+                  <GraduationCap className="h-5 w-5 text-white" />
+                </div>
+              ) : (
+                <Avatar className="h-9 w-9 shrink-0 mt-0.5 shadow-sm">
+                  <AvatarImage src={user?.image ?? undefined} />
+                  <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs font-semibold">
+                    {userInitials || <User className="h-4 w-4" />}
+                  </AvatarFallback>
+                </Avatar>
+              )}
 
               {/* Bubble */}
-              <div
-                className={cn(
-                  'rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-[85%]',
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground rounded-br-md'
-                    : 'bg-muted rounded-bl-md',
-                )}
-              >
-                <p className="whitespace-pre-wrap">{message.content}</p>
-                <p
+              <div className="flex flex-col max-w-[85%] sm:max-w-[80%]">
+                {/* Sender label */}
+                <span
                   className={cn(
-                    'text-[10px] mt-2',
+                    'text-[11px] font-medium mb-1 px-1',
                     message.role === 'user'
-                      ? 'text-primary-foreground/60'
-                      : 'text-muted-foreground',
+                      ? 'text-right text-muted-foreground'
+                      : 'text-indigo-600 dark:text-indigo-400',
                   )}
                 >
-                  {formatTime(message.timestamp)}
-                </p>
+                  {message.role === 'assistant' ? 'Haven AI Tutor' : userName}
+                </span>
+
+                <div
+                  className={cn(
+                    'rounded-2xl px-4 py-3 text-sm leading-relaxed',
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground rounded-tr-md'
+                      : 'bg-muted/80 border border-border/50 rounded-tl-md',
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                  <p
+                    className={cn(
+                      'text-[10px] mt-2',
+                      message.role === 'user'
+                        ? 'text-primary-foreground/60'
+                        : 'text-muted-foreground',
+                    )}
+                  >
+                    {formatTime(message.timestamp)}
+                  </p>
+                </div>
               </div>
             </div>
           ))}
 
-          {/* Loading indicator */}
+          {/* Typing indicator */}
           {isLoading && (
             <div className="flex gap-3 max-w-3xl">
-              <Avatar className="h-8 w-8 shrink-0 mt-0.5">
-                <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xs">
-                  AI
-                </AvatarFallback>
-              </Avatar>
-              <div className="rounded-2xl rounded-bl-md bg-muted px-4 py-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Thinking...</span>
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shrink-0 mt-0.5 shadow-md">
+                <GraduationCap className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[11px] font-medium mb-1 px-1 text-indigo-600 dark:text-indigo-400">
+                  Haven AI Tutor
+                </span>
+                <div className="rounded-2xl rounded-tl-md bg-muted/80 border border-border/50 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <div className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:0ms]" />
+                      <div className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:150ms]" />
+                      <div className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:300ms]" />
+                    </div>
+                    <span className="text-xs ml-1">Thinking...</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -358,7 +382,7 @@ export default function AIChatPage() {
         </div>
 
         {/* Input Area */}
-        <div className="shrink-0 border-t bg-background/80 backdrop-blur-sm p-4">
+        <div className="shrink-0 border-t bg-background/80 backdrop-blur-sm p-3 sm:p-4">
           <form
             onSubmit={handleSubmit}
             className="flex items-center gap-2 max-w-3xl mx-auto"
@@ -369,13 +393,13 @@ export default function AIChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={isLoading}
-              className="flex-1"
+              className="flex-1 h-11"
             />
             <Button
               type="submit"
               size="icon"
               disabled={!input.trim() || isLoading}
-              className="shrink-0"
+              className="shrink-0 h-11 w-11"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

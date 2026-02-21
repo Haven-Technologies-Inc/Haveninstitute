@@ -1,16 +1,13 @@
 import { NextRequest } from 'next/server';
-import Stripe from 'stripe';
+import type Stripe from 'stripe';
 import { prisma } from '@/lib/db';
+import { getStripe } from '@/lib/stripe-client';
 import {
   requireAdmin,
   successResponse,
   errorResponse,
   handleApiError,
 } from '@/lib/api-utils';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
-  apiVersion: '2026-01-28.clover',
-});
 
 // ---------------------------------------------------------------------------
 // PATCH /api/admin/plans/[planId]
@@ -79,7 +76,7 @@ export async function PATCH(
       if ('isActive' in data) productUpdate.active = data.isActive;
 
       if (Object.keys(productUpdate).length > 0) {
-        await stripe.products.update(
+        await getStripe().products.update(
           existingPlan.stripeProductId,
           productUpdate as Stripe.ProductUpdateParams
         );
@@ -97,13 +94,13 @@ export async function PATCH(
 
       // Archive old Stripe price
       if (existingPlan.stripeMonthlyPriceId) {
-        await stripe.prices.update(existingPlan.stripeMonthlyPriceId, {
+        await getStripe().prices.update(existingPlan.stripeMonthlyPriceId, {
           active: false,
         });
       }
 
       if (newAmountCents > 0) {
-        const newPrice = await stripe.prices.create({
+        const newPrice = await getStripe().prices.create({
           product: existingPlan.stripeProductId,
           unit_amount: newAmountCents,
           currency: 'usd',
@@ -132,13 +129,13 @@ export async function PATCH(
       const newAmountCents = Math.round(body.yearlyPrice * 100);
 
       if (existingPlan.stripeYearlyPriceId) {
-        await stripe.prices.update(existingPlan.stripeYearlyPriceId, {
+        await getStripe().prices.update(existingPlan.stripeYearlyPriceId, {
           active: false,
         });
       }
 
       if (newAmountCents > 0) {
-        const newPrice = await stripe.prices.create({
+        const newPrice = await getStripe().prices.create({
           product: existingPlan.stripeProductId,
           unit_amount: newAmountCents,
           currency: 'usd',
@@ -196,16 +193,16 @@ export async function DELETE(
     // Archive in Stripe: prices first, then product
     if (plan.stripeProductId) {
       if (plan.stripeMonthlyPriceId) {
-        await stripe.prices.update(plan.stripeMonthlyPriceId, {
+        await getStripe().prices.update(plan.stripeMonthlyPriceId, {
           active: false,
         });
       }
       if (plan.stripeYearlyPriceId) {
-        await stripe.prices.update(plan.stripeYearlyPriceId, {
+        await getStripe().prices.update(plan.stripeYearlyPriceId, {
           active: false,
         });
       }
-      await stripe.products.update(plan.stripeProductId, { active: false });
+      await getStripe().products.update(plan.stripeProductId, { active: false });
     }
 
     // Soft delete in DB

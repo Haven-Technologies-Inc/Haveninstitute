@@ -4,17 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { loginSchema, type LoginInput } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -29,18 +27,34 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
+
+  const validate = (): boolean => {
+    const newErrors: typeof errors = {};
+
+    if (!email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required";
+    } else if (password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const redirectByRole = async () => {
     const session = await update();
@@ -65,19 +79,24 @@ export default function LoginPage() {
     }
   };
 
-  const onSubmit = async (data: LoginInput) => {
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validate()) return;
+
     setIsLoading(true);
     try {
       const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
+        email: email.trim().toLowerCase(),
+        password,
         redirect: false,
       });
 
       if (result?.error) {
-        toast.error(result.error === "CredentialsSignin"
-          ? "Invalid email or password"
-          : result.error
+        toast.error(
+          result.error === "CredentialsSignin"
+            ? "Invalid email or password"
+            : result.error
         );
         return;
       }
@@ -107,7 +126,10 @@ export default function LoginPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
-      <Card glass className="border-white/20 dark:border-zinc-800/50 shadow-2xl shadow-indigo-500/5">
+      <Card
+        glass
+        className="border-white/20 dark:border-zinc-800/50 shadow-2xl shadow-indigo-500/5"
+      >
         <CardHeader className="text-center pb-2">
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
             Welcome back
@@ -163,7 +185,8 @@ export default function LoginPage() {
           </div>
 
           {/* Email/Password Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={onSubmit} className="space-y-4">
+            {/* Email */}
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">
                 Email
@@ -174,11 +197,18 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errors.email) {
+                      setErrors((prev) => ({ ...prev, email: undefined }));
+                    }
+                  }}
                   className={cn(
                     "pl-10 h-11 bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700",
-                    errors.email && "border-red-500 focus-visible:ring-red-500/20"
+                    errors.email &&
+                      "border-red-500 focus-visible:ring-red-500/20"
                   )}
-                  {...register("email")}
                   disabled={isLoading}
                 />
               </div>
@@ -188,18 +218,19 @@ export default function LoginPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="text-sm text-red-500"
                 >
-                  {errors.email.message}
+                  {errors.email}
                 </motion.p>
               )}
             </div>
 
+            {/* Password */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-sm font-medium">
                   Password
                 </Label>
                 <Link
-                  href="/reset-password"
+                  href="/forgot-password"
                   className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors"
                 >
                   Forgot password?
@@ -211,17 +242,25 @@ export default function LoginPage() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errors.password) {
+                      setErrors((prev) => ({ ...prev, password: undefined }));
+                    }
+                  }}
                   className={cn(
                     "pl-10 pr-10 h-11 bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700",
-                    errors.password && "border-red-500 focus-visible:ring-red-500/20"
+                    errors.password &&
+                      "border-red-500 focus-visible:ring-red-500/20"
                   )}
-                  {...register("password")}
                   disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -236,9 +275,26 @@ export default function LoginPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="text-sm text-red-500"
                 >
-                  {errors.password.message}
+                  {errors.password}
                 </motion.p>
               )}
+            </div>
+
+            {/* Remember Me */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remember"
+                checked={rememberMe}
+                onCheckedChange={(checked) =>
+                  setRememberMe(checked as boolean)
+                }
+              />
+              <Label
+                htmlFor="remember"
+                className="text-sm font-normal text-muted-foreground cursor-pointer"
+              >
+                Remember me
+              </Label>
             </div>
 
             <Button

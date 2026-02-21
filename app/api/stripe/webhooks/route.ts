@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
+import { getStripe } from '@/lib/stripe-client';
 import { sendNotification } from '@/lib/notifications';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
-  apiVersion: '2026-01-28.clover',
-});
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? '';
 
@@ -31,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = getStripe().webhooks.constructEvent(body, signature, webhookSecret);
   } catch {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
@@ -122,7 +119,7 @@ async function handleCheckoutCompleted(
       : checkoutSession.subscription.id;
 
   // Retrieve full subscription from Stripe
-  const sub = await stripe.subscriptions.retrieve(subId);
+  const sub = await getStripe().subscriptions.retrieve(subId);
   const priceId = sub.items.data[0]?.price.id;
   if (!priceId) return;
 

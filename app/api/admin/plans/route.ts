@@ -1,16 +1,12 @@
 import { NextRequest } from 'next/server';
-import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
+import { getStripe } from '@/lib/stripe-client';
 import {
   requireAdmin,
   successResponse,
   errorResponse,
   handleApiError,
 } from '@/lib/api-utils';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
-  apiVersion: '2026-01-28.clover',
-});
 
 // ---------------------------------------------------------------------------
 // GET /api/admin/plans
@@ -94,7 +90,7 @@ export async function POST(request: NextRequest) {
     const yearlyPriceCents = Math.round((yearlyPrice ?? 0) * 100);
 
     // --- Create Stripe product ---
-    const stripeProduct = await stripe.products.create({
+    const stripeProduct = await getStripe().products.create({
       name,
       description: description ?? `${name} subscription plan`,
       metadata: { tier, slug },
@@ -105,7 +101,7 @@ export async function POST(request: NextRequest) {
     let stripeYearlyPriceId: string | null = null;
 
     if (monthlyPriceCents > 0) {
-      const monthlyStripePrice = await stripe.prices.create({
+      const monthlyStripePrice = await getStripe().prices.create({
         product: stripeProduct.id,
         unit_amount: monthlyPriceCents,
         currency: 'usd',
@@ -116,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (yearlyPriceCents > 0) {
-      const yearlyStripePrice = await stripe.prices.create({
+      const yearlyStripePrice = await getStripe().prices.create({
         product: stripeProduct.id,
         unit_amount: yearlyPriceCents,
         currency: 'usd',

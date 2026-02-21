@@ -49,7 +49,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
-import { QUESTION_TYPES } from '@/lib/constants';
+import { QUESTION_TYPES, NCLEX_SUBJECTS, NCLEX_DISCIPLINES } from '@/lib/constants';
 
 interface Question {
   id: string;
@@ -91,6 +91,8 @@ export default function AdminQuestionsPage() {
   const [difficultyFilter, setDifficultyFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [subjectFilter, setSubjectFilter] = useState('all');
+  const [disciplineFilter, setDisciplineFilter] = useState('all');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [total, setTotal] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -111,6 +113,8 @@ export default function AdminQuestionsPage() {
       if (categoryFilter !== 'all') params.set('categoryId', categoryFilter);
       if (difficultyFilter !== 'all') params.set('difficulty', difficultyFilter);
       if (typeFilter !== 'all') params.set('type', typeFilter);
+      if (subjectFilter !== 'all') params.set('subject', subjectFilter);
+      if (disciplineFilter !== 'all') params.set('discipline', disciplineFilter);
 
       const res = await fetch(`/api/admin/questions?${params}`);
       const json = await res.json();
@@ -139,7 +143,7 @@ export default function AdminQuestionsPage() {
 
   useEffect(() => {
     loadQuestions();
-  }, [currentPage, categoryFilter, difficultyFilter, typeFilter, searchQuery]);
+  }, [currentPage, categoryFilter, difficultyFilter, typeFilter, subjectFilter, disciplineFilter, searchQuery]);
 
   const handleImport = async () => {
     setImportLoading(true);
@@ -250,40 +254,88 @@ export default function AdminQuestionsPage() {
                 Import
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <FileJson className="h-5 w-5" />
-                  Bulk Import Questions
+                  Bulk Import Questions (up to 500)
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Paste a JSON array of questions. Each question needs: questionText, categoryCode, and correctAnswers. Supported types: {QUESTION_TYPES.map(t => t.label).join(', ')}.
-                </p>
-                <textarea
-                  value={importJson}
-                  onChange={(e) => setImportJson(e.target.value)}
-                  placeholder={`[
+                <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-2">
+                  <p className="font-medium">Required fields: questionText, categoryCode, correctAnswers (or correctOrder)</p>
+                  <p className="text-muted-foreground">
+                    Optional: questionType, difficulty, subject, discipline, nclexVersion, options, explanation, rationale, tags, bloomLevel, scenario, clinicalPearl
+                  </p>
+                  <p className="text-muted-foreground">
+                    Question types: {QUESTION_TYPES.map(t => t.label).join(', ')}
+                  </p>
+                </div>
+
+                {/* File upload */}
+                <div>
+                  <Label className="text-sm font-medium">Upload JSON file</Label>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          setImportJson(ev.target?.result as string || '');
+                        };
+                        reader.readAsText(file);
+                      }
+                    }}
+                    className="mt-1 block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                  />
+                </div>
+
+                <div className="relative">
+                  <Label className="text-sm font-medium">Or paste JSON directly</Label>
+                  <textarea
+                    value={importJson}
+                    onChange={(e) => setImportJson(e.target.value)}
+                    placeholder={`[
   {
-    "questionText": "Which nursing action...",
+    "questionText": "A patient with heart failure is prescribed furosemide. Which finding should the nurse report immediately?",
     "categoryCode": "PHARMACOLOGY",
     "questionType": "multiple_choice",
     "difficulty": "medium",
+    "subject": "Cardiovascular",
+    "discipline": "Clinical Judgment",
+    "nclexVersion": "NGN",
     "options": [
-      { "id": "A", "text": "Option A" },
-      { "id": "B", "text": "Option B" },
-      { "id": "C", "text": "Option C" },
-      { "id": "D", "text": "Option D" }
+      { "id": "A", "text": "Urine output of 2000 mL in 8 hours" },
+      { "id": "B", "text": "Potassium level of 2.8 mEq/L" },
+      { "id": "C", "text": "Weight loss of 2 pounds" },
+      { "id": "D", "text": "Blood pressure of 118/76 mmHg" }
     ],
     "correctAnswers": ["B"],
-    "explanation": "Because...",
-    "rationale": "The rationale is..."
+    "explanation": "Furosemide is a loop diuretic that can cause hypokalemia...",
+    "rationale": "A potassium level of 2.8 mEq/L is critically low (normal 3.5-5.0 mEq/L)...",
+    "bloomLevel": "analyze"
   }
 ]`}
-                  rows={12}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono resize-y"
-                />
+                    rows={14}
+                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm font-mono resize-y"
+                  />
+                  {importJson && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {(() => {
+                        try {
+                          const parsed = JSON.parse(importJson);
+                          const arr = Array.isArray(parsed) ? parsed : parsed.questions;
+                          return `Detected ${arr?.length || 0} questions`;
+                        } catch {
+                          return 'Invalid JSON format';
+                        }
+                      })()}
+                    </p>
+                  )}
+                </div>
+
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
                   <Button onClick={handleImport} disabled={importLoading || !importJson.trim()}>
@@ -383,6 +435,28 @@ export default function AdminQuestionsPage() {
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="draft">Draft</SelectItem>
                     <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={subjectFilter} onValueChange={(v) => { setSubjectFilter(v); setCurrentPage(1); }}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subjects</SelectItem>
+                    {NCLEX_SUBJECTS.map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={disciplineFilter} onValueChange={(v) => { setDisciplineFilter(v); setCurrentPage(1); }}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Discipline" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Disciplines</SelectItem>
+                    {NCLEX_DISCIPLINES.map(d => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

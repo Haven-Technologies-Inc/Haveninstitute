@@ -66,10 +66,10 @@ export async function GET() {
     });
 
     const totalDays = 7;
-    const avgQuestionsPerDay = recentUsage.reduce((sum, u) => sum + u.questionsAttempted, 0) / totalDays;
-    const avgAiChatsPerDay = recentUsage.reduce((sum, u) => sum + u.aiChatMessages, 0) / totalDays;
-    const avgFlashcardsPerDay = recentUsage.reduce((sum, u) => sum + u.flashcardsReviewed, 0) / totalDays;
-    const avgStudyMinutes = recentUsage.reduce((sum, u) => sum + u.studyTimeMinutes, 0) / totalDays;
+    const avgQuestionsPerDay = recentUsage.reduce((sum: number, u: any) => sum + u.questionsAttempted, 0) / totalDays;
+    const avgAiChatsPerDay = recentUsage.reduce((sum: number, u: any) => sum + u.aiChatMessages, 0) / totalDays;
+    const avgFlashcardsPerDay = recentUsage.reduce((sum: number, u: any) => sum + u.flashcardsReviewed, 0) / totalDays;
+    const avgStudyMinutes = recentUsage.reduce((sum: number, u: any) => sum + u.studyTimeMinutes, 0) / totalDays;
 
     // User growth data (last 12 months)
     const userGrowthData: { month: string; users: number; newUsers: number }[] = [];
@@ -96,7 +96,7 @@ export async function GET() {
         where: { status: 'succeeded', createdAt: { gte: monthStart, lt: monthEnd } },
         select: { amount: true },
       });
-      const total = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const total = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
       revenueTrend.push({
         month: monthStart.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
         revenue: Math.round(total * 100) / 100,
@@ -117,9 +117,9 @@ export async function GET() {
       },
     });
 
-    const categoryPerformance = categories.map((cat) => {
-      const totalAttempts = cat.questions.reduce((sum, q) => sum + q.timesUsed, 0);
-      const totalCorrect = cat.questions.reduce((sum, q) => sum + q.timesCorrect, 0);
+    const categoryPerformance = categories.map((cat: any) => {
+      const totalAttempts = cat.questions.reduce((sum: number, q: any) => sum + q.timesUsed, 0);
+      const totalCorrect = cat.questions.reduce((sum: number, q: any) => sum + q.timesCorrect, 0);
       const passRate = totalAttempts > 0 ? (totalCorrect / totalAttempts) * 100 : 0;
       return {
         name: cat.name,
@@ -128,7 +128,7 @@ export async function GET() {
         totalAttempts,
         passRate: Math.round(passRate * 10) / 10,
       };
-    }).sort((a, b) => b.totalAttempts - a.totalAttempts);
+    }).sort((a: any, b: any) => b.totalAttempts - a.totalAttempts);
 
     // CAT exam readiness distribution
     const completedCATSessions = await prisma.cATSession.findMany({
@@ -137,17 +137,16 @@ export async function GET() {
     });
 
     const passDistribution = {
-      high: completedCATSessions.filter(s => Number(s.passingProbability || 0) >= 0.7).length,
-      medium: completedCATSessions.filter(s => {
+      high: completedCATSessions.filter((s: any) => Number(s.passingProbability || 0) >= 0.7).length,
+      medium: completedCATSessions.filter((s: any) => {
         const p = Number(s.passingProbability || 0);
         return p >= 0.4 && p < 0.7;
       }).length,
-      low: completedCATSessions.filter(s => Number(s.passingProbability || 0) < 0.4).length,
+      low: completedCATSessions.filter((s: any) => Number(s.passingProbability || 0) < 0.4).length,
     };
 
     // Feature usage (last 30 days)
-    const featureUsage = await prisma.dailyUsage.groupBy({
-      by: [],
+    const featureUsage = await prisma.dailyUsage.aggregate({
       where: { usageDate: { gte: thirtyDaysAgo } },
       _sum: {
         questionsAttempted: true,
@@ -159,10 +158,10 @@ export async function GET() {
     });
 
     const featureUsageData = [
-      { feature: 'Questions', usage: featureUsage[0]?._sum?.questionsAttempted ?? 0 },
-      { feature: 'AI Chat', usage: featureUsage[0]?._sum?.aiChatMessages ?? 0 },
-      { feature: 'Flashcards', usage: featureUsage[0]?._sum?.flashcardsReviewed ?? 0 },
-      { feature: 'CAT Sessions', usage: featureUsage[0]?._sum?.catSessions ?? 0 },
+      { feature: 'Questions', usage: featureUsage._sum?.questionsAttempted ?? 0 },
+      { feature: 'AI Chat', usage: featureUsage._sum?.aiChatMessages ?? 0 },
+      { feature: 'Flashcards', usage: featureUsage._sum?.flashcardsReviewed ?? 0 },
+      { feature: 'CAT Sessions', usage: featureUsage._sum?.catSessions ?? 0 },
     ];
 
     // Subscription distribution
@@ -198,7 +197,7 @@ export async function GET() {
       categoryPerformance,
       passDistribution,
       featureUsageData,
-      subscriptionDistribution: subscriptionDistribution.map(s => ({
+      subscriptionDistribution: subscriptionDistribution.map((s: any) => ({
         tier: s.subscriptionTier,
         count: s._count,
       })),

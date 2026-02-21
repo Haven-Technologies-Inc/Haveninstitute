@@ -14,10 +14,10 @@ import {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { bookId: string } }
+  { params }: { params: Promise<{ bookId: string }> }
 ) {
   try {
-    const { bookId } = params;
+    const { bookId } = await params;
 
     const book = await prisma.book.findUnique({
       where: { id: bookId },
@@ -81,11 +81,11 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { bookId: string } }
+  { params }: { params: Promise<{ bookId: string }> }
 ) {
   try {
     await requireAdmin();
-    const { bookId } = params;
+    const { bookId } = await params;
 
     const existing = await prisma.book.findUnique({ where: { id: bookId } });
     if (!existing) {
@@ -144,11 +144,11 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { bookId: string } }
+  { params }: { params: Promise<{ bookId: string }> }
 ) {
   try {
     await requireAdmin();
-    const { bookId } = params;
+    const { bookId } = await params;
 
     const existing = await prisma.book.findUnique({ where: { id: bookId } });
     if (!existing) {

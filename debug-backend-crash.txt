@@ -1,9 +1,0 @@
-The backend container is crashing and restarting! We need to see the error logs.
-
-Run this command to see why it's crashing:
-
-ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose logs backend --tail=100"
-
-This will show us the actual error that's causing the backend to crash in a loop.
-
-Once we see the error, we can fix it and get your platform running!

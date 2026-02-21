@@ -13,12 +13,12 @@ import {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { bookId: string } }
+  { params }: { params: Promise<{ bookId: string }> }
 ) {
   try {
     const session = await requireAuth();
     const userId = (session.user as any).id;
-    const { bookId } = params;
+    const { bookId } = await params;
 
     // Verify book exists
     const book = await prisma.book.findUnique({ where: { id: bookId } });
