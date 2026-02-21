@@ -15,6 +15,7 @@ import {
   PLAN_FEATURES,
   PLAN_PRICING 
 } from '../models/Subscription';
+import { paymentNotificationsService } from './paymentNotifications.service';
 
 export interface CreateSubscriptionInput {
   userId: string;
@@ -134,12 +135,10 @@ export class SubscriptionService {
       throw new Error('Cannot create checkout for free plan');
     }
 
-    // Get price ID
-    const priceKey = `${planType.toLowerCase()}${billingPeriod === 'yearly' ? 'Yearly' : 'Monthly'}` as keyof typeof stripeConfig.priceIds;
-    const priceId = stripeConfig.priceIds[priceKey];
-
-    if (!priceId || priceId === '' || priceId.startsWith('price_xxx')) {
-      throw new Error(`Stripe price not configured for ${planType} ${billingPeriod} plan. Please contact administrator.`);
+    // Get price from PLAN_PRICING (dynamic pricing - no manual config needed)
+    const price = PLAN_PRICING[planType][billingPeriod];
+    if (!price || price <= 0) {
+      throw new Error(`Invalid price for ${planType} ${billingPeriod} plan`);
     }
 
     // Get or create Stripe customer
@@ -162,13 +161,25 @@ export class SubscriptionService {
       }
     }
 
-    // Create checkout session
+    // Create checkout session with inline price_data (auto-creates on Stripe)
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       payment_method_types: ['card'],
       line_items: [{
-        price: priceId,
-        quantity: 1
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `Haven Institute ${planType} Plan`,
+            description: planType === 'Pro' 
+              ? 'Perfect for serious NCLEX preparation' 
+              : 'Complete access with priority support',
+          },
+          unit_amount: Math.round(price * 100), // Convert to cents
+          recurring: {
+            interval: billingPeriod === 'yearly' ? 'year' : 'month',
+          },
+        },
+        quantity: 1,
       }],
       mode: 'subscription',
       success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
@@ -245,6 +256,19 @@ export class SubscriptionService {
       description: `${planType} subscription - ${billingPeriod}`
     });
 
+    // Send subscription created email notification
+    try {
+      await paymentNotificationsService.sendSubscriptionCreated({
+        userId,
+        planType,
+        billingPeriod,
+        amount: PLAN_PRICING[planType][billingPeriod],
+        nextBillingDate: new Date(stripeSubscription.current_period_end * 1000)
+      });
+    } catch (emailError) {
+      console.error('Failed to send subscription email:', emailError);
+    }
+
     return subscription;
   }
 
@@ -296,6 +320,17 @@ export class SubscriptionService {
         { subscriptionTier: 'Free' },
         { where: { id: userId } }
       );
+    }
+
+    // Send cancellation email notification
+    try {
+      await paymentNotificationsService.sendSubscriptionCanceled({
+        userId,
+        planType: subscription.planType,
+        nextBillingDate: subscription.currentPeriodEnd || undefined
+      });
+    } catch (emailError) {
+      console.error('Failed to send cancellation email:', emailError);
     }
 
     return subscription;
@@ -490,6 +525,18 @@ export class SubscriptionService {
       receiptUrl: invoice.hosted_invoice_url,
       invoicePdf: invoice.invoice_pdf
     });
+
+    // Send payment receipt email notification
+    try {
+      await paymentNotificationsService.sendPaymentReceipt({
+        userId: subscription.userId,
+        amount: invoice.amount_paid / 100,
+        planType: subscription.planType,
+        receiptUrl: invoice.hosted_invoice_url
+      });
+    } catch (emailError) {
+      console.error('Failed to send payment receipt email:', emailError);
+    }
   }
 
   private async handlePaymentFailed(invoice: any) {
@@ -511,6 +558,16 @@ export class SubscriptionService {
       description: 'Failed subscription payment',
       failureMessage: invoice.last_payment_error?.message
     });
+
+    // Send payment failed email notification
+    try {
+      await paymentNotificationsService.sendPaymentFailed({
+        userId: subscription.userId,
+        failureReason: invoice.last_payment_error?.message || 'Payment could not be processed'
+      });
+    } catch (emailError) {
+      console.error('Failed to send payment failed email:', emailError);
+    }
   }
 
   // ==================== ADMIN METHODS ====================
