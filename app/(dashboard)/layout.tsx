@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Sidebar } from '@/components/shared/sidebar';
 import { TopBar } from '@/components/shared/topbar';
+import { PWAInstallPrompt } from '@/components/shared/pwa-install';
 
 export default function DashboardLayout({
   children,
@@ -42,6 +43,7 @@ export default function DashboardLayout({
         <TopBar />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
+      <PWAInstallPrompt />
     </div>
   );
 }

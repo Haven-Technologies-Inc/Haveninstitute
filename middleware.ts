@@ -48,7 +48,9 @@ export default withAuth(
           pathname.startsWith('/nclex-pn') ||
           pathname.startsWith('/api/auth') ||
           pathname.startsWith('/api/health') ||
-          pathname.startsWith('/api/stripe/webhooks')
+          pathname.startsWith('/api/stripe/webhooks') ||
+          pathname.startsWith('/api/account') ||
+          (pathname === '/api/admin/plans' && req.method === 'GET')
         ) {
           return true;
         }

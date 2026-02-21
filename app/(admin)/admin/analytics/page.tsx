@@ -1,232 +1,173 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/shared';
-import { StatCard } from '@/components/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users,
   UserCheck,
   DollarSign,
   TrendingUp,
   BarChart3,
-  Calendar,
   Download,
   ArrowUpRight,
   ArrowDownRight,
   Activity,
   Brain,
+  MessageSquare,
   BookOpen,
   GraduationCap,
+  RefreshCw,
+  AlertTriangle,
+  Layers,
 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { toast } from 'sonner';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 
-// --- Types ---
-
-interface DateRangeOption {
-  value: string;
-  label: string;
+interface AnalyticsData {
+  overview: {
+    totalUsers: number;
+    dau: number;
+    mau: number;
+    totalQuestions: number;
+    totalQuizSessions: number;
+    totalCATSessions: number;
+  };
+  engagement: {
+    avgQuestionsPerDay: number;
+    avgAiChatsPerDay: number;
+    avgFlashcardsPerDay: number;
+    avgStudyMinutesPerDay: number;
+  };
+  revenue: {
+    mrr: number;
+    arr: number;
+    arpu: number;
+    churnRate: number;
+    activeSubscriptions: number;
+  };
+  userGrowthData: { month: string; users: number; newUsers: number }[];
+  revenueTrend: { month: string; revenue: number }[];
+  categoryPerformance: {
+    name: string;
+    code: string;
+    questionCount: number;
+    totalAttempts: number;
+    passRate: number;
+  }[];
+  passDistribution: { high: number; medium: number; low: number };
+  featureUsageData: { feature: string; usage: number }[];
+  subscriptionDistribution: { tier: string; count: number }[];
 }
 
-interface OverviewStat {
-  label: string;
-  value: string;
-  change: string;
-  trend: 'up' | 'down';
-  icon: React.ComponentType<{ className?: string }>;
-  iconColor: string;
-}
+const PIE_COLORS = ['#10b981', '#f59e0b', '#ef4444'];
 
-interface CategoryPerformance {
-  name: string;
-  questionsAnswered: number;
-  avgScore: number;
-  passRate: number;
-  trend: 'up' | 'down';
-  trendValue: string;
-}
-
-interface RecentSignup {
-  id: string;
-  name: string;
-  email: string;
-  plan: 'free' | 'pro' | 'premium';
-  date: string;
-}
-
-// --- Mock Data ---
-
-const dateRangeOptions: DateRangeOption[] = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-  { value: '1y', label: 'Last year' },
-];
-
-const overviewStats: OverviewStat[] = [
-  {
-    label: 'Total Users',
-    value: '12,847',
-    change: '+12.5%',
-    trend: 'up',
-    icon: Users,
-    iconColor: 'text-blue-600',
-  },
-  {
-    label: 'Active Users',
-    value: '5,430',
-    change: '+23.1%',
-    trend: 'up',
-    icon: UserCheck,
-    iconColor: 'text-emerald-600',
-  },
-  {
-    label: 'Revenue',
-    value: '$94,230',
-    change: '+8.2%',
-    trend: 'up',
-    icon: DollarSign,
-    iconColor: 'text-purple-600',
-  },
-  {
-    label: 'Pass Rate',
-    value: '78.4%',
-    change: '-1.3%',
-    trend: 'down',
-    icon: GraduationCap,
-    iconColor: 'text-amber-600',
-  },
-];
-
-const categoryPerformanceData: CategoryPerformance[] = [
-  { name: 'Pharmacology', questionsAnswered: 45230, avgScore: 72.3, passRate: 74.1, trend: 'up', trendValue: '+2.4%' },
-  { name: 'Medical-Surgical Nursing', questionsAnswered: 38940, avgScore: 68.7, passRate: 70.2, trend: 'down', trendValue: '-1.1%' },
-  { name: 'Maternal & Newborn', questionsAnswered: 29180, avgScore: 76.5, passRate: 81.3, trend: 'up', trendValue: '+3.2%' },
-  { name: 'Pediatric Nursing', questionsAnswered: 24670, avgScore: 74.1, passRate: 77.8, trend: 'up', trendValue: '+1.7%' },
-  { name: 'Mental Health', questionsAnswered: 21350, avgScore: 71.9, passRate: 73.5, trend: 'down', trendValue: '-0.8%' },
-  { name: 'Community Health', questionsAnswered: 18420, avgScore: 79.2, passRate: 84.6, trend: 'up', trendValue: '+4.1%' },
-  { name: 'Leadership & Management', questionsAnswered: 15890, avgScore: 75.8, passRate: 79.4, trend: 'up', trendValue: '+1.9%' },
-  { name: 'Fundamentals of Nursing', questionsAnswered: 34560, avgScore: 80.1, passRate: 86.2, trend: 'up', trendValue: '+2.8%' },
-];
-
-const recentSignupsData: RecentSignup[] = [
-  { id: '1', name: 'Olivia Martinez', email: 'olivia.m@email.com', plan: 'premium', date: 'Feb 21, 2026' },
-  { id: '2', name: 'Liam Thompson', email: 'liam.t@email.com', plan: 'pro', date: 'Feb 21, 2026' },
-  { id: '3', name: 'Emma Wilson', email: 'emma.w@email.com', plan: 'free', date: 'Feb 21, 2026' },
-  { id: '4', name: 'Noah Rodriguez', email: 'noah.r@email.com', plan: 'pro', date: 'Feb 20, 2026' },
-  { id: '5', name: 'Ava Chen', email: 'ava.c@email.com', plan: 'premium', date: 'Feb 20, 2026' },
-  { id: '6', name: 'Ethan Patel', email: 'ethan.p@email.com', plan: 'free', date: 'Feb 20, 2026' },
-  { id: '7', name: 'Sophia Kim', email: 'sophia.k@email.com', plan: 'pro', date: 'Feb 19, 2026' },
-  { id: '8', name: 'Mason Davis', email: 'mason.d@email.com', plan: 'free', date: 'Feb 19, 2026' },
-];
-
-const monthlyDataLabels = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'];
-const userGrowthValues = [8420, 9150, 10200, 10890, 11640, 12847];
-const revenueValues = [62100, 68400, 75300, 79800, 87500, 94230];
-const questionCompletionValues = [120400, 134200, 148900, 156700, 172300, 189500];
-
-// --- Helpers ---
-
-const planColors: Record<string, string> = {
-  free: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  pro: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  premium: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-};
-
-function ChartPlaceholder({
-  title,
-  labels,
-  values,
-  color = 'bg-primary',
-}: {
-  title: string;
-  labels: string[];
-  values: number[];
-  color?: string;
-}) {
-  const maxValue = Math.max(...values);
-
+function AnalyticsSkeleton() {
   return (
-    <Card className="border-0 shadow-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-end gap-2 h-40 pt-4">
-          {labels.map((label, i) => {
-            const heightPercent = (values[i] / maxValue) * 100;
-            return (
-              <div key={label} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-[10px] text-muted-foreground font-medium">
-                  {typeof values[i] === 'number' && values[i] >= 1000
-                    ? values[i] >= 1000000
-                      ? `${(values[i] / 1000000).toFixed(1)}M`
-                      : `${(values[i] / 1000).toFixed(0)}K`
-                    : values[i]}
-                </span>
-                <div className="w-full flex-1 flex items-end">
-                  <div
-                    className={cn('w-full rounded-t transition-all', color)}
-                    style={{ height: `${heightPercent}%` }}
-                  />
-                </div>
-                <span className="text-[10px] text-muted-foreground">{label}</span>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-6 p-6 lg:p-8">
+      <Skeleton className="h-10 w-48" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="h-28 rounded-xl" />
+        ))}
+      </div>
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Skeleton className="h-72 rounded-xl" />
+        <Skeleton className="h-72 rounded-xl" />
+      </div>
+    </div>
   );
 }
-
-function CategoryPerformanceChart({
-  data,
-}: {
-  data: CategoryPerformance[];
-}) {
-  const sortedData = [...data].sort((a, b) => b.passRate - a.passRate);
-  const topCategories = sortedData.slice(0, 6);
-
-  return (
-    <Card className="border-0 shadow-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Category Performance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {topCategories.map((cat) => (
-            <div key={cat.name} className="space-y-1.5">
-              <div className="flex items-center justify-between text-sm">
-                <span className="truncate font-medium">{cat.name}</span>
-                <span className="text-muted-foreground ml-2 shrink-0">
-                  {cat.passRate}%
-                </span>
-              </div>
-              <Progress value={cat.passRate} className="h-2" />
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// --- Page Component ---
 
 export default function AdminAnalyticsPage() {
-  const [dateRange, setDateRange] = useState('30d');
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch('/api/admin/analytics');
+      if (!res.ok) throw new Error('Failed to fetch analytics');
+      const json = await res.json();
+      setData(json.data);
+    } catch (err: any) {
+      setError(err.message);
+      toast.error('Failed to load analytics');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) return <AnalyticsSkeleton />;
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6">
+        <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+        <h2 className="text-lg font-semibold mb-2">Failed to Load Analytics</h2>
+        <p className="text-sm text-muted-foreground mb-4">{error}</p>
+        <Button onClick={fetchData} variant="outline">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const overviewStats = [
+    { label: 'Total Users', value: data.overview.totalUsers.toLocaleString(), icon: Users, iconColor: 'text-blue-600' },
+    { label: 'DAU', value: data.overview.dau.toLocaleString(), icon: UserCheck, iconColor: 'text-emerald-600' },
+    { label: 'MAU', value: data.overview.mau.toLocaleString(), icon: Activity, iconColor: 'text-purple-600' },
+    { label: 'Total Questions', value: data.overview.totalQuestions.toLocaleString(), icon: Brain, iconColor: 'text-amber-600' },
+  ];
+
+  const engagementStats = [
+    { label: 'Avg Questions/Day', value: data.engagement.avgQuestionsPerDay.toLocaleString(), icon: BookOpen, iconColor: 'text-blue-600' },
+    { label: 'Avg AI Chats/Day', value: data.engagement.avgAiChatsPerDay.toLocaleString(), icon: MessageSquare, iconColor: 'text-purple-600' },
+    { label: 'Avg Flashcards/Day', value: data.engagement.avgFlashcardsPerDay.toLocaleString(), icon: Layers, iconColor: 'text-emerald-600' },
+    { label: 'Avg Study Min/Day', value: data.engagement.avgStudyMinutesPerDay.toLocaleString(), icon: Activity, iconColor: 'text-amber-600' },
+  ];
+
+  const revenueStats = [
+    { label: 'MRR', value: `$${data.revenue.mrr.toLocaleString()}`, icon: DollarSign, iconColor: 'text-emerald-600' },
+    { label: 'ARR', value: `$${data.revenue.arr.toLocaleString()}`, icon: TrendingUp, iconColor: 'text-blue-600' },
+    { label: 'ARPU', value: `$${data.revenue.arpu.toFixed(2)}`, icon: Users, iconColor: 'text-purple-600' },
+    { label: 'Churn Rate', value: `${data.revenue.churnRate}%`, icon: RefreshCw, iconColor: 'text-amber-600' },
+  ];
+
+  const passDistPie = [
+    { name: 'High (70%+)', value: data.passDistribution.high },
+    { name: 'Medium (40-70%)', value: data.passDistribution.medium },
+    { name: 'Low (<40%)', value: data.passDistribution.low },
+  ].filter((d) => d.value > 0);
 
   return (
     <div className="space-y-6 p-6 lg:p-8">
@@ -235,241 +176,276 @@ export default function AdminAnalyticsPage() {
         title="Analytics"
         description="Platform usage, performance, and growth insights."
       >
-        <Select value={dateRange} onValueChange={setDateRange}>
-          <SelectTrigger className="w-[160px]">
-            <Calendar className="h-4 w-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {dateRangeOptions.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
-          Export
+        <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+          <RefreshCw className={cn('h-4 w-4 mr-2', loading && 'animate-spin')} />
+          Refresh
         </Button>
       </PageHeader>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {overviewStats.map((stat) => (
-          <Card key={stat.label} className="border-0 shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <stat.icon className={cn('h-5 w-5', stat.iconColor)} />
-                <Badge
-                  variant="secondary"
-                  className={cn(
-                    'text-xs font-normal',
-                    stat.trend === 'up'
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : 'bg-red-500/10 text-red-600 dark:text-red-400'
-                  )}
-                >
-                  {stat.trend === 'up' ? (
-                    <ArrowUpRight className="h-3 w-3 mr-0.5" />
-                  ) : (
-                    <ArrowDownRight className="h-3 w-3 mr-0.5" />
-                  )}
-                  {stat.change}
-                </Badge>
-              </div>
-              <p className="text-2xl font-bold">{stat.value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Platform Overview */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          Platform Overview
+        </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {overviewStats.map((stat, i) => (
+            <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <stat.icon className={cn('h-5 w-5', stat.iconColor)} />
+                  </div>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Engagement */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          User Engagement (7-Day Avg)
+        </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {engagementStats.map((stat, i) => (
+            <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.05 }}>
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <stat.icon className={cn('h-5 w-5', stat.iconColor)} />
+                  </div>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Revenue Metrics */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          Revenue Metrics
+        </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {revenueStats.map((stat, i) => (
+            <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 + i * 0.05 }}>
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <stat.icon className={cn('h-5 w-5', stat.iconColor)} />
+                  </div>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
       </div>
 
       {/* Charts Section */}
       <div className="grid lg:grid-cols-2 gap-6">
-        <ChartPlaceholder
-          title="User Growth"
-          labels={monthlyDataLabels}
-          values={userGrowthValues}
-          color="bg-gradient-to-t from-blue-600/80 to-blue-400/60"
-        />
-        <ChartPlaceholder
-          title="Revenue"
-          labels={monthlyDataLabels}
-          values={revenueValues}
-          color="bg-gradient-to-t from-emerald-600/80 to-emerald-400/60"
-        />
-        <ChartPlaceholder
-          title="Question Completions"
-          labels={monthlyDataLabels}
-          values={questionCompletionValues}
-          color="bg-gradient-to-t from-purple-600/80 to-purple-400/60"
-        />
-        <CategoryPerformanceChart data={categoryPerformanceData} />
+        {/* User Growth */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">User Growth</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.userGrowthData}>
+                    <defs>
+                      <linearGradient id="userGrowthGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [value.toLocaleString(), name === 'users' ? 'Total Users' : 'New Users']}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                    />
+                    <Area type="monotone" dataKey="users" stroke="#6366f1" strokeWidth={2} fill="url(#userGrowthGrad)" />
+                    <Bar dataKey="newUsers" fill="#a5b4fc" radius={[2, 2, 0, 0]} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Revenue Trend */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}>
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Revenue Trend</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.revenueTrend}>
+                    <defs>
+                      <linearGradient id="revTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                    />
+                    <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} fill="url(#revTrendGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Feature Usage */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Feature Usage (30 Days)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.featureUsageData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+                    <YAxis type="category" dataKey="feature" tick={{ fontSize: 11 }} width={80} />
+                    <Tooltip
+                      formatter={(value: number) => [value.toLocaleString(), 'Usage']}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                    />
+                    <Bar dataKey="usage" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Exam Readiness Distribution */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.65 }}>
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Exam Readiness (CAT Pass Probability)</CardTitle>
+                <Badge variant="secondary" className="text-xs">
+                  <GraduationCap className="h-3 w-3 mr-1" />
+                  30 Days
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64 flex items-center justify-center">
+                {passDistPie.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={passDistPie}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={4}
+                        dataKey="value"
+                        label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                      >
+                        {passDistPie.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Legend />
+                      <Tooltip
+                        formatter={(value: number, name: string) => [value.toLocaleString(), name]}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No CAT session data available</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
 
-      {/* Top Performing Categories Table */}
-      <Card className="border-0 shadow-sm overflow-hidden">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">Top Performing Categories</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Category breakdown by pass rate and question volume
-              </p>
+      {/* Category Performance Table */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}>
+        <Card className="border-0 shadow-sm overflow-hidden">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Category Performance</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  NCLEX categories by pass rate and question volume
+                </p>
+              </div>
             </div>
-            <Button variant="outline" size="sm">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              View All
-            </Button>
-          </div>
-        </CardHeader>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                  Category
-                </th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                  Questions Answered
-                </th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                  Avg. Score
-                </th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                  Pass Rate
-                </th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                  Trend
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {categoryPerformanceData
-                .sort((a, b) => b.passRate - a.passRate)
-                .map((cat) => (
-                  <tr
-                    key={cat.name}
-                    className="hover:bg-muted/20 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          <Brain className="h-4 w-4 text-primary" />
-                        </div>
-                        <span className="font-medium text-sm">{cat.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">
-                      {cat.questionsAnswered.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">
-                      {cat.avgScore}%
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Progress value={cat.passRate} className="h-2 w-20" />
-                        <span className="text-sm font-medium">{cat.passRate}%</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          'text-xs',
-                          cat.trend === 'up'
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-red-500/10 text-red-600 dark:text-red-400'
-                        )}
-                      >
-                        {cat.trend === 'up' ? (
-                          <ArrowUpRight className="h-3 w-3 mr-0.5" />
-                        ) : (
-                          <ArrowDownRight className="h-3 w-3 mr-0.5" />
-                        )}
-                        {cat.trendValue}
-                      </Badge>
-                    </td>
+          </CardHeader>
+          {data.categoryPerformance.length === 0 ? (
+            <CardContent>
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No category performance data available
+              </p>
+            </CardContent>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border/50 bg-muted/30">
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Category</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Questions</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Total Attempts</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Pass Rate</th>
                   </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Recent Signups Table */}
-      <Card className="border-0 shadow-sm overflow-hidden">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">Recent Signups</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Newest user registrations on the platform
-              </p>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {data.categoryPerformance.map((cat) => (
+                    <tr key={cat.code} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <Brain className="h-4 w-4 text-primary" />
+                          </div>
+                          <span className="font-medium text-sm">{cat.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        {cat.questionCount.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        {cat.totalAttempts.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <Progress value={cat.passRate} className="h-2 w-20" />
+                          <span className="text-sm font-medium">{cat.passRate}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <Button variant="outline" size="sm">
-              <Users className="h-4 w-4 mr-2" />
-              View All Users
-            </Button>
-          </div>
-        </CardHeader>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                  User
-                </th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                  Email
-                </th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                  Plan
-                </th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                  Signup Date
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {recentSignupsData.map((user) => (
-                <tr
-                  key={user.id}
-                  className="hover:bg-muted/20 transition-colors"
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-                        {user.name
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')
-                          .toUpperCase()}
-                      </div>
-                      <span className="font-medium text-sm">{user.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">
-                    {user.email}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge
-                      variant="secondary"
-                      className={cn('text-xs capitalize', planColors[user.plan])}
-                    >
-                      {user.plan}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-muted-foreground">
-                    {user.date}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+          )}
+        </Card>
+      </motion.div>
     </div>
   );
 }

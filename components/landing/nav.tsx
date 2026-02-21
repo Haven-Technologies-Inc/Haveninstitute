@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/shared/logo";
@@ -11,13 +12,19 @@ import { Logo } from "@/components/shared/logo";
 const navLinks = [
   { label: "Features", href: "#features" },
   { label: "Pricing", href: "#pricing" },
-  { label: "Testimonials", href: "#testimonials" },
+  { label: "About", href: "#testimonials" },
   { label: "FAQ", href: "#faq" },
 ];
 
 export function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -48,6 +55,10 @@ export function LandingNav() {
       }
       setMobileOpen(false);
     }
+  };
+
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
   return (
@@ -82,8 +93,41 @@ export function LandingNav() {
             ))}
           </div>
 
-          {/* Desktop CTAs */}
+          {/* Desktop CTAs + Theme Toggle */}
           <div className="hidden md:flex items-center gap-3">
+            {/* Dark mode toggle */}
+            {mounted && (
+              <button
+                onClick={toggleTheme}
+                className="relative h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200"
+                aria-label="Toggle dark mode"
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  {resolvedTheme === "dark" ? (
+                    <motion.div
+                      key="sun"
+                      initial={{ rotate: -90, scale: 0, opacity: 0 }}
+                      animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                      exit={{ rotate: 90, scale: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Sun className="h-[18px] w-[18px]" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="moon"
+                      initial={{ rotate: 90, scale: 0, opacity: 0 }}
+                      animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                      exit={{ rotate: -90, scale: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Moon className="h-[18px] w-[18px]" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </button>
+            )}
+
             <Button variant="ghost" asChild>
               <Link href="/login">Sign In</Link>
             </Button>
@@ -95,36 +139,52 @@ export function LandingNav() {
             </Button>
           </div>
 
-          {/* Mobile Hamburger */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden relative z-50 p-2 rounded-lg hover:bg-accent transition-colors"
-            aria-label="Toggle menu"
-          >
-            <AnimatePresence mode="wait">
-              {mobileOpen ? (
-                <motion.div
-                  key="close"
-                  initial={{ rotate: -90, opacity: 0 }}
-                  animate={{ rotate: 0, opacity: 1 }}
-                  exit={{ rotate: 90, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <X className="h-5 w-5" />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="menu"
-                  initial={{ rotate: 90, opacity: 0 }}
-                  animate={{ rotate: 0, opacity: 1 }}
-                  exit={{ rotate: -90, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Menu className="h-5 w-5" />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </button>
+          {/* Mobile: Theme toggle + Hamburger */}
+          <div className="flex md:hidden items-center gap-2">
+            {mounted && (
+              <button
+                onClick={toggleTheme}
+                className="relative z-50 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                aria-label="Toggle dark mode"
+              >
+                {resolvedTheme === "dark" ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+              </button>
+            )}
+
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="relative z-50 p-2 rounded-lg hover:bg-accent transition-colors"
+              aria-label="Toggle menu"
+            >
+              <AnimatePresence mode="wait">
+                {mobileOpen ? (
+                  <motion.div
+                    key="close"
+                    initial={{ rotate: -90, opacity: 0 }}
+                    animate={{ rotate: 0, opacity: 1 }}
+                    exit={{ rotate: 90, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <X className="h-5 w-5" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="menu"
+                    initial={{ rotate: 90, opacity: 0 }}
+                    animate={{ rotate: 0, opacity: 1 }}
+                    exit={{ rotate: -90, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Menu className="h-5 w-5" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </button>
+          </div>
         </nav>
       </motion.header>
 

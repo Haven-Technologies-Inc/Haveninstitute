@@ -1,130 +1,28 @@
 {
-  "name": "Haven Institute NCLEX Prep",
-  "short_name": "HavenStudy",
-  "description": "AI-Powered NCLEX Preparation Platform - Pass your nursing exam on the first attempt with adaptive learning, 10,000+ practice questions, and CAT simulation exams",
-  "start_url": "/",
+  "name": "Haven Institute - NCLEX Prep",
+  "short_name": "Haven Study",
+  "description": "AI-Powered NCLEX Prep Platform",
+  "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#09090b",
   "theme_color": "#6366f1",
-  "orientation": "any",
+  "orientation": "portrait-primary",
   "scope": "/",
-  "lang": "en-US",
-  "dir": "ltr",
-  "categories": ["education", "medical", "productivity"],
+  "categories": ["education", "medical"],
   "icons": [
-    {
-      "src": "/icons/icon-72x72.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-96x96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-128x128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-144x144.png",
-      "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-152x152.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-384x384.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/logo.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/favicon.png",
-      "sizes": "32x32",
-      "type": "image/png"
-    }
+    { "src": "/icons/icon-72.png", "sizes": "72x72", "type": "image/png" },
+    { "src": "/icons/icon-96.png", "sizes": "96x96", "type": "image/png" },
+    { "src": "/icons/icon-128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/icons/icon-144.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "/icons/icon-152.png", "sizes": "152x152", "type": "image/png" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-384.png", "sizes": "384x384", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshots/dashboard.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Dashboard Overview"
-    },
-    {
-      "src": "/screenshots/practice.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Practice Questions"
-    },
-    {
-      "src": "/screenshots/mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Mobile Experience"
-    }
-  ],
+  "screenshots": [],
   "shortcuts": [
-    {
-      "name": "Quick Practice",
-      "short_name": "Practice",
-      "description": "Start a quick practice session",
-      "url": "/practice/quick",
-      "icons": [{ "src": "/icons/practice-96x96.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Flashcards",
-      "short_name": "Flashcards",
-      "description": "Review flashcards",
-      "url": "/flashcards",
-      "icons": [{ "src": "/icons/flashcards-96x96.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "CAT Exam",
-      "short_name": "CAT",
-      "description": "Take a CAT simulation exam",
-      "url": "/practice/cat",
-      "icons": [{ "src": "/icons/cat-96x96.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "AI Tutor",
-      "short_name": "Tutor",
-      "description": "Chat with AI tutor",
-      "url": "/ai-chat",
-      "icons": [{ "src": "/icons/tutor-96x96.png", "sizes": "96x96" }]
-    }
-  ],
-  "related_applications": [],
-  "prefer_related_applications": false
+    { "name": "Practice Quiz", "url": "/practice/quiz", "description": "Start a practice quiz" },
+    { "name": "AI Tutor", "url": "/study/ai-chat", "description": "Chat with AI tutor" },
+    { "name": "Flashcards", "url": "/study/flashcards", "description": "Study flashcards" }
+  ]
 }

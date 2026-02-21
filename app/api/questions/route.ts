@@ -37,13 +37,25 @@ export async function GET(request: NextRequest) {
       return successResponse({ questions: ordered, total: ordered.length });
     }
 
+    const subject = searchParams.get('subject');
+    const discipline = searchParams.get('discipline');
+    const verified = searchParams.get('verified');
+
     const where: any = { isActive: true };
 
     if (categoryId) where.categoryId = parseInt(categoryId);
     if (difficulty) where.difficulty = difficulty;
     if (type) where.questionType = type;
+    if (subject) where.subject = subject;
+    if (discipline) where.discipline = discipline;
+    if (verified === 'true') where.isVerified = true;
+    if (verified === 'false') where.isVerified = false;
     if (search) {
-      where.questionText = { contains: search, mode: 'insensitive' };
+      where.OR = [
+        { questionText: { contains: search, mode: 'insensitive' } },
+        { rationale: { contains: search, mode: 'insensitive' } },
+        { explanation: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
     const [questions, total] = await Promise.all([

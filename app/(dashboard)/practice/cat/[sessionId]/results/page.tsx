@@ -33,6 +33,15 @@ import {
   Target,
   Loader2,
   AlertTriangle,
+  Sparkles,
+  CheckCircle2,
+  XCircle,
+  ArrowUp,
+  ArrowDown,
+  Lightbulb,
+  BookOpen,
+  BarChart3,
+  Shield,
 } from "lucide-react";
 
 interface CATResponse {
@@ -104,6 +113,8 @@ export default function CATResultsPage() {
   const [sessionResult, setSessionResult] = useState<CATSessionResult | null>(
     null
   );
+  const [analysis, setAnalysis] = useState<any>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,6 +125,8 @@ export default function CATResultsPage() {
         const json = await res.json();
         if (json.success && json.data) {
           setSessionResult(json.data);
+          // Fetch AI analysis in parallel
+          fetchAnalysis();
         } else {
           setError(json.error || "Failed to load results.");
         }
@@ -124,6 +137,22 @@ export default function CATResultsPage() {
         setLoading(false);
       }
     }
+
+    async function fetchAnalysis() {
+      setAnalysisLoading(true);
+      try {
+        const res = await fetch(`/api/cat/${sessionId}/analysis`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          setAnalysis(json.data);
+        }
+      } catch {
+        // Analysis is supplementary, don't block on errors
+      } finally {
+        setAnalysisLoading(false);
+      }
+    }
+
     fetchResults();
   }, [sessionId]);
 
@@ -376,11 +405,195 @@ export default function CATResultsPage() {
         transition={{ delay: 0.3 }}
       >
         <Tabs defaultValue="ability" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="insights">
+              <Sparkles className="h-3.5 w-3.5 mr-1.5 hidden sm:inline" />
+              AI Insights
+            </TabsTrigger>
             <TabsTrigger value="ability">Ability Graph</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="difficulty">Difficulty</TabsTrigger>
           </TabsList>
+
+          {/* AI Insights Tab */}
+          <TabsContent value="insights" className="space-y-4">
+            {analysisLoading ? (
+              <Card className="border-0 shadow-sm bg-card/80 backdrop-blur-sm">
+                <CardContent className="p-8 text-center">
+                  <Sparkles className="h-8 w-8 animate-pulse text-primary mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">Analyzing your performance...</p>
+                </CardContent>
+              </Card>
+            ) : analysis ? (
+              <>
+                {/* NCLEX Readiness Score */}
+                <Card className="border-0 shadow-sm bg-card/80 backdrop-blur-sm overflow-hidden">
+                  <div className={cn(
+                    "h-1.5",
+                    analysis.readiness?.score >= 85 ? "bg-emerald-500" :
+                    analysis.readiness?.score >= 70 ? "bg-amber-500" :
+                    analysis.readiness?.score >= 55 ? "bg-orange-500" : "bg-red-500"
+                  )} />
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      NCLEX Readiness Score
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <p className={cn(
+                          "text-5xl font-bold",
+                          analysis.readiness?.score >= 85 ? "text-emerald-500" :
+                          analysis.readiness?.score >= 70 ? "text-amber-500" :
+                          analysis.readiness?.score >= 55 ? "text-orange-500" : "text-red-500"
+                        )}>
+                          {analysis.readiness?.score || 0}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">out of 100</p>
+                      </div>
+                      <div className="flex-1">
+                        <Badge className={cn(
+                          "mb-2",
+                          analysis.readiness?.level === 'exam_ready' ? "bg-emerald-500" :
+                          analysis.readiness?.level === 'nearly_ready' ? "bg-amber-500" :
+                          analysis.readiness?.level === 'developing' ? "bg-orange-500" : "bg-red-500"
+                        )}>
+                          {analysis.readiness?.level === 'exam_ready' ? 'Exam Ready' :
+                           analysis.readiness?.level === 'nearly_ready' ? 'Nearly Ready' :
+                           analysis.readiness?.level === 'developing' ? 'Developing' : 'Needs Preparation'}
+                        </Badge>
+                        <p className="text-sm text-muted-foreground">{analysis.readiness?.message}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Predicted NCLEX Performance */}
+                {analysis.predictedPerformance && (
+                  <Card className="border-0 shadow-sm bg-card/80 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-primary" />
+                        Predicted NCLEX Performance
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="text-center p-3 rounded-xl bg-muted/30">
+                          <p className="text-2xl font-bold text-primary">
+                            {analysis.predictedPerformance.passingProbability}%
+                          </p>
+                          <p className="text-xs text-muted-foreground">Passing Probability</p>
+                        </div>
+                        <div className="text-center p-3 rounded-xl bg-muted/30">
+                          <p className="text-2xl font-bold">
+                            {analysis.predictedPerformance.predictedResult}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Predicted Result</p>
+                        </div>
+                        <div className="text-center p-3 rounded-xl bg-muted/30">
+                          <p className="text-2xl font-bold">
+                            {analysis.predictedPerformance.estimatedQuestionsOnRealExam?.min}-
+                            {analysis.predictedPerformance.estimatedQuestionsOnRealExam?.max}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Est. Questions on NCLEX</p>
+                        </div>
+                        <div className="text-center p-3 rounded-xl bg-muted/30">
+                          <p className="text-2xl font-bold capitalize">
+                            {analysis.predictedPerformance.confidence}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Confidence Level</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* AI Recommendations */}
+                {analysis.recommendations && analysis.recommendations.length > 0 && (
+                  <Card className="border-0 shadow-sm bg-card/80 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-amber-500" />
+                        Personalized Recommendations
+                      </CardTitle>
+                      <CardDescription>
+                        AI-powered study suggestions based on your performance
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {analysis.recommendations.map((rec: any, i: number) => (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.08 }}
+                          className={cn(
+                            "p-4 rounded-xl border",
+                            rec.priority === 'high' ? "border-red-500/20 bg-red-500/5" :
+                            rec.priority === 'medium' ? "border-amber-500/20 bg-amber-500/5" :
+                            "border-emerald-500/20 bg-emerald-500/5"
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Badge variant="outline" className={cn(
+                              "text-[10px] shrink-0 mt-0.5",
+                              rec.priority === 'high' ? "border-red-500/50 text-red-600" :
+                              rec.priority === 'medium' ? "border-amber-500/50 text-amber-600" :
+                              "border-emerald-500/50 text-emerald-600"
+                            )}>
+                              {rec.priority}
+                            </Badge>
+                            <div>
+                              <p className="text-sm font-medium">{rec.title}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{rec.description}</p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Time Analysis */}
+                {analysis.timeAnalysis && (
+                  <Card className="border-0 shadow-sm bg-card/80 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-primary" />
+                        Time Analysis
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center p-3 rounded-xl bg-muted/30">
+                          <p className="text-xl font-bold">{analysis.timeAnalysis.averagePerQuestion}s</p>
+                          <p className="text-xs text-muted-foreground">Avg per Question</p>
+                        </div>
+                        <div className="text-center p-3 rounded-xl bg-muted/30">
+                          <p className="text-xl font-bold">{analysis.timeAnalysis.fastest}s</p>
+                          <p className="text-xs text-muted-foreground">Fastest</p>
+                        </div>
+                        <div className="text-center p-3 rounded-xl bg-muted/30">
+                          <p className="text-xl font-bold">{analysis.timeAnalysis.slowest}s</p>
+                          <p className="text-xs text-muted-foreground">Slowest</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            ) : (
+              <Card className="border-0 shadow-sm bg-card/80 backdrop-blur-sm">
+                <CardContent className="p-8 text-center">
+                  <Sparkles className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">AI analysis not available for this session.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
           {/* Ability Graph */}
           <TabsContent value="ability">

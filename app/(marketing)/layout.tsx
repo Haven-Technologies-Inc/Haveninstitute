@@ -1,3 +1,6 @@
+import { LandingNav } from "@/components/landing/nav";
+import { LandingFooter } from "@/components/landing/footer";
+
 export default function MarketingLayout({
   children,
 }: {
@@ -5,7 +8,9 @@ export default function MarketingLayout({
 }) {
   return (
     <div className="min-h-screen">
-      {children}
+      <LandingNav />
+      <main className="pt-16">{children}</main>
+      <LandingFooter />
     </div>
   );
 }

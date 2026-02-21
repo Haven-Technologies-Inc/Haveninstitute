@@ -48,7 +48,7 @@ const navItems = [
     items: [
       { href: '/study/flashcards', icon: Layers, label: 'Flashcards' },
       { href: '/study/books', icon: BookOpen, label: 'Library' },
-      { href: '/study/ai', icon: MessageSquare, label: 'AI Tutor' },
+      { href: '/study/ai-chat', icon: MessageSquare, label: 'AI Tutor' },
     ],
   },
   {
@@ -56,6 +56,7 @@ const navItems = [
     items: [
       { href: '/progress', icon: TrendingUp, label: 'Overview' },
       { href: '/progress/analytics', icon: BarChart3, label: 'Analytics' },
+      { href: '/progress/achievements', icon: Trophy, label: 'Achievements' },
       { href: '/progress/planner', icon: CalendarDays, label: 'Study Planner' },
     ],
   },

@@ -7,12 +7,16 @@ interface QuestionImport {
   questionType?: string;
   categoryCode: string;
   difficulty?: string;
+  subject?: string;
+  discipline?: string;
+  nclexVersion?: string;
   options?: any;
   correctAnswers?: any;
   correctOrder?: any;
   hotSpotData?: any;
   explanation?: string;
   rationale?: string;
+  references?: string;
   tags?: string[];
   bloomLevel?: string;
   clinicalPearl?: string;
@@ -22,6 +26,25 @@ interface QuestionImport {
   difficultyIrt?: number;
   guessing?: number;
 }
+
+// Standard NCLEX subjects and disciplines for validation
+const VALID_SUBJECTS = [
+  'Adult Health', 'Pediatrics', 'Maternity', 'Mental Health',
+  'Community Health', 'Leadership/Management', 'Pharmacology',
+  'Fundamentals', 'Critical Care', 'Emergency', 'Gerontology',
+  'Perioperative', 'Oncology', 'Endocrine', 'Cardiovascular',
+  'Respiratory', 'Neurology', 'Gastrointestinal', 'Renal/Urinary',
+  'Musculoskeletal', 'Integumentary', 'Immunology', 'Hematology',
+  'Nutrition', 'Fluid & Electrolytes', 'Infection Control',
+];
+
+const VALID_DISCIPLINES = [
+  'Nursing Process', 'Clinical Judgment', 'Patient Safety',
+  'Evidence-Based Practice', 'Quality Improvement', 'Informatics',
+  'Interprofessional Collaboration', 'Ethical/Legal',
+  'Cultural Competency', 'Health Promotion', 'Disease Prevention',
+  'Pathophysiology', 'Pharmacokinetics', 'Delegation',
+];
 
 // Bulk upload questions
 export async function POST(request: NextRequest) {
@@ -97,6 +120,19 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Validate subject if provided
+      if (q.subject && !VALID_SUBJECTS.includes(q.subject)) {
+        // Allow custom subjects, just normalize
+      }
+
+      // Calculate IRT difficulty from difficulty level if not provided
+      const irtDiffMap: Record<string, number> = {
+        easy: -1.0,
+        medium: 0.0,
+        hard: 1.0,
+      };
+      const defaultIrtDiff = irtDiffMap[(q.difficulty || 'medium').toLowerCase()] ?? 0.0;
+
       try {
         await prisma.question.create({
           data: {
@@ -104,19 +140,23 @@ export async function POST(request: NextRequest) {
             questionType: qType as any,
             categoryId,
             difficulty: (q.difficulty as any) || 'medium',
+            subject: q.subject ?? null,
+            discipline: q.discipline ?? null,
+            nclexVersion: q.nclexVersion ?? 'NGN',
             options: q.options ?? null,
             correctAnswers: q.correctAnswers ?? null,
             correctOrder: q.correctOrder ?? null,
             hotSpotData: q.hotSpotData ?? null,
             explanation: q.explanation ?? null,
             rationale: q.rationale ?? null,
+            references: q.references ?? null,
             tags: q.tags ?? null,
             bloomLevel: q.bloomLevel as any ?? null,
             clinicalPearl: q.clinicalPearl ?? null,
             scenario: q.scenario ?? null,
             sourceReference: q.sourceReference ?? null,
             discrimination: q.discrimination ?? 1.0,
-            difficultyIrt: q.difficultyIrt ?? 0.0,
+            difficultyIrt: q.difficultyIrt ?? defaultIrtDiff,
             guessing: q.guessing ?? (qType === 'multiple_choice' ? 0.25 : 0.0),
             createdBy: session.user.id,
             isActive: true,

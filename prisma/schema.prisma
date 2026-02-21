@@ -68,6 +68,13 @@ model User {
   mfaBackupCodes Json?        @map("mfa_backup_codes")
   stripeCustomerId String?    @map("stripe_customer_id")
 
+  // Gamification
+  xpTotal        Int      @default(0) @map("xp_total")
+  level          Int      @default(1)
+  currentStreak  Int      @default(0) @map("current_streak")
+  longestStreak  Int      @default(0) @map("longest_streak")
+  lastActiveDate DateTime? @map("last_active_date") @db.Date
+
   // Status
   emailVerified Boolean   @default(false) @map("email_verified")
   isActive      Boolean   @default(true) @map("is_active")
@@ -224,6 +231,79 @@ model PaymentTransaction {
 }
 
 // ============================================================================
+// SUBSCRIPTION PLANS (Admin-managed, auto-synced to Stripe)
+// ============================================================================
+
+model SubscriptionPlan {
+  id          String           @id @default(uuid())
+  name        String
+  slug        String           @unique
+  description String?
+  tier        SubscriptionTier
+  isActive    Boolean          @default(true) @map("is_active")
+
+  // Pricing
+  monthlyPrice    Decimal  @default(0.00) @db.Decimal(10, 2) @map("monthly_price")
+  yearlyPrice     Decimal  @default(0.00) @db.Decimal(10, 2) @map("yearly_price")
+  currency        String   @default("USD") @db.VarChar(3)
+
+  // Stripe sync
+  stripeProductId       String? @unique @map("stripe_product_id")
+  stripeMonthlyPriceId  String? @map("stripe_monthly_price_id")
+  stripeYearlyPriceId   String? @map("stripe_yearly_price_id")
+
+  // Features & Limits
+  features         Json?
+  limits           Json?
+  trialDays        Int      @default(0) @map("trial_days")
+  displayOrder     Int      @default(0) @map("display_order")
+  isPopular        Boolean  @default(false) @map("is_popular")
+  badge            String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([tier])
+  @@index([isActive])
+  @@map("subscription_plans")
+}
+
+// ============================================================================
+// NOTIFICATION TEMPLATES (Email/SMS)
+// ============================================================================
+
+model NotificationTemplate {
+  id          String  @id @default(uuid())
+  slug        String  @unique
+  name        String
+  description String?
+  category    String  @default("system")
+
+  // Email
+  emailSubject String? @map("email_subject")
+  emailHtml    String? @map("email_html")
+  emailText    String? @map("email_text")
+
+  // SMS
+  smsBody      String? @map("sms_body")
+
+  // Push
+  pushTitle    String? @map("push_title")
+  pushBody     String? @map("push_body")
+
+  // Config
+  isActive     Boolean @default(true) @map("is_active")
+  variables    Json?
+  metadata     Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("notification_templates")
+}
+
+// ============================================================================
 // QUESTIONS & QUIZZES
 // ============================================================================
 
@@ -285,6 +365,9 @@ model Question {
   hotSpotData    Json? @map("hot_spot_data")
 
   difficulty    Difficulty @default(medium)
+  subject       String?
+  discipline    String?
+  nclexVersion  String?    @map("nclex_version")
   explanation   String?
   rationale     String?
   references    String?
@@ -1176,9 +1259,13 @@ model UserSettings {
   timezone String @default("UTC")
 
   emailNotifications Boolean @default(true) @map("email_notifications")
+  smsNotifications   Boolean @default(false) @map("sms_notifications")
   pushNotifications  Boolean @default(true) @map("push_notifications")
   studyReminders     Boolean @default(true) @map("study_reminders")
   marketingEmails    Boolean @default(false) @map("marketing_emails")
+  weeklyDigest       Boolean @default(true) @map("weekly_digest")
+  achievementAlerts  Boolean @default(true) @map("achievement_alerts")
+  communityUpdates   Boolean @default(true) @map("community_updates")
 
   dailyGoalQuestions  Int    @default(20) @map("daily_goal_questions")
   preferredDifficulty String @default("adaptive") @map("preferred_difficulty")

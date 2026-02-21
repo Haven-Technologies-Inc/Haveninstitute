@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { cn, getInitials } from '@/lib/utils';
+import { cn, getInitials, formatRelativeTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,21 +16,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Search,
-  Download,
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
   Eye,
-  Edit,
   Ban,
   Shield,
   Users,
@@ -41,123 +37,187 @@ import {
   Mail,
   Calendar,
   Clock,
-  CreditCard,
-  BookOpen,
   Activity,
+  BookOpen,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
 
-interface User {
+interface UserRecord {
   id: string;
-  name: string;
   email: string;
-  role: 'student' | 'instructor' | 'admin';
-  subscription: 'free' | 'pro' | 'premium';
-  status: 'active' | 'inactive' | 'suspended';
-  lastLogin: string;
-  joinedDate: string;
-  questionsCompleted: number;
-  studyHours: number;
-  avatar?: string;
+  fullName: string;
+  role: string;
+  subscriptionTier: string;
+  avatarUrl: string | null;
+  isActive: boolean;
+  emailVerified: boolean;
+  lastLogin: string | null;
+  createdAt: string;
+  stripeCustomerId: string | null;
+  _count: { quizSessions: number; catSessions: number };
 }
-
-const mockUsers: User[] = [
-  { id: '1', name: 'Sarah Johnson', email: 'sarah.j@email.com', role: 'student', subscription: 'premium', status: 'active', lastLogin: '2 hours ago', joinedDate: 'Jan 15, 2026', questionsCompleted: 1247, studyHours: 342, },
-  { id: '2', name: 'Michael Chen', email: 'mchen@email.com', role: 'student', subscription: 'pro', status: 'active', lastLogin: '5 hours ago', joinedDate: 'Feb 3, 2026', questionsCompleted: 892, studyHours: 215, },
-  { id: '3', name: 'Emily Davis', email: 'emily.d@email.com', role: 'instructor', subscription: 'premium', status: 'active', lastLogin: '1 day ago', joinedDate: 'Nov 28, 2025', questionsCompleted: 2341, studyHours: 567, },
-  { id: '4', name: 'James Wilson', email: 'jwilson@email.com', role: 'student', subscription: 'free', status: 'inactive', lastLogin: '2 weeks ago', joinedDate: 'Dec 10, 2025', questionsCompleted: 156, studyHours: 34, },
-  { id: '5', name: 'Maria Garcia', email: 'mgarcia@email.com', role: 'student', subscription: 'pro', status: 'active', lastLogin: '30 min ago', joinedDate: 'Jan 22, 2026', questionsCompleted: 634, studyHours: 178, },
-  { id: '6', name: 'David Kim', email: 'dkim@email.com', role: 'admin', subscription: 'premium', status: 'active', lastLogin: 'Just now', joinedDate: 'Sep 5, 2025', questionsCompleted: 3120, studyHours: 890, },
-  { id: '7', name: 'Ashley Brown', email: 'abrown@email.com', role: 'student', subscription: 'free', status: 'suspended', lastLogin: '1 month ago', joinedDate: 'Oct 14, 2025', questionsCompleted: 89, studyHours: 12, },
-  { id: '8', name: 'Robert Taylor', email: 'rtaylor@email.com', role: 'instructor', subscription: 'premium', status: 'active', lastLogin: '3 hours ago', joinedDate: 'Aug 20, 2025', questionsCompleted: 1876, studyHours: 445, },
-  { id: '9', name: 'Jennifer Martinez', email: 'jmartinez@email.com', role: 'student', subscription: 'pro', status: 'active', lastLogin: '12 hours ago', joinedDate: 'Feb 10, 2026', questionsCompleted: 412, studyHours: 98, },
-  { id: '10', name: 'Thomas Anderson', email: 'tanderson@email.com', role: 'student', subscription: 'free', status: 'inactive', lastLogin: '3 days ago', joinedDate: 'Jan 30, 2026', questionsCompleted: 267, studyHours: 56, },
-];
 
 const roleColors: Record<string, string> = {
   student: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   instructor: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+  editor: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',
+  moderator: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
   admin: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
 };
 
-const subscriptionColors: Record<string, string> = {
-  free: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
-  pro: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  premium: 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 text-purple-600 dark:text-purple-400',
-};
-
-const statusColors: Record<string, string> = {
-  active: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  inactive: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
-  suspended: 'bg-red-500/10 text-red-600 dark:text-red-400',
-};
-
-const statusDot: Record<string, string> = {
-  active: 'bg-emerald-500',
-  inactive: 'bg-gray-400',
-  suspended: 'bg-red-500',
+const tierColors: Record<string, string> = {
+  Free: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
+  Pro: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  Premium: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
 };
 
 export default function AdminUsersPage() {
-  const { data: session } = useSession();
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-  const [subscriptionFilter, setSubscriptionFilter] = useState('all');
+  const [tierFilter, setTierFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const itemsPerPage = 5;
+  const limit = 20;
 
-  const filteredUsers = mockUsers.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const matchesSub = subscriptionFilter === 'all' || user.subscription === subscriptionFilter;
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-    return matchesSearch && matchesRole && matchesSub && matchesStatus;
-  });
+  const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Debounced search
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  const stats = [
-    { label: 'Total Users', value: '12,847', icon: Users, color: 'from-blue-500 to-indigo-600' },
-    { label: 'New This Week', value: '234', icon: UserPlus, color: 'from-emerald-500 to-teal-600' },
-    { label: 'Active Now', value: '1,892', icon: UserCheck, color: 'from-purple-500 to-pink-600' },
-    { label: 'Admins', value: '8', icon: Shield, color: 'from-amber-500 to-orange-600' },
-  ];
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        limit: String(limit),
+      });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (roleFilter !== 'all') params.set('role', roleFilter);
+      if (tierFilter !== 'all') params.set('tier', tierFilter);
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+
+      const res = await fetch(`/api/admin/users?${params}`);
+      if (!res.ok) throw new Error('Failed to fetch users');
+      const json = await res.json();
+      setUsers(json.data.users);
+      setTotal(json.data.total);
+      setTotalPages(json.data.totalPages);
+    } catch (err: any) {
+      setError(err.message);
+      toast.error('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, debouncedSearch, roleFilter, tierFilter, statusFilter]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleUpdateUser = async (userId: string, updates: Record<string, any>) => {
+    try {
+      setActionLoading(true);
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to update user');
+      }
+      const json = await res.json();
+      toast.success('User updated successfully');
+
+      // Update local state
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, ...json.data } : u))
+      );
+      if (selectedUser?.id === userId) {
+        setSelectedUser((prev) => (prev ? { ...prev, ...json.data } : prev));
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Stats from current data
+  const activeCount = users.filter((u) => u.isActive).length;
+  const adminCount = users.filter((u) => u.role === 'admin').length;
 
   return (
     <div className="space-y-6 p-6 lg:p-8">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Link href="/admin" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link
+              href="/admin"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <h1 className="text-2xl font-bold">User Management</h1>
           </div>
-          <p className="text-muted-foreground text-sm">Manage users, roles, and permissions across the platform.</p>
+          <p className="text-muted-foreground text-sm">
+            Manage users, roles, and permissions across the platform.
+          </p>
         </div>
-        <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/25">
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
+        <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading}>
+          <RefreshCw className={cn('h-4 w-4 mr-2', loading && 'animate-spin')} />
+          Refresh
         </Button>
       </motion.div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, i) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
+        {[
+          { label: 'Total Users', value: total.toLocaleString(), icon: Users, color: 'from-blue-500 to-indigo-600' },
+          { label: 'New This Week', value: '-', icon: UserPlus, color: 'from-emerald-500 to-teal-600' },
+          { label: 'Active (page)', value: String(activeCount), icon: UserCheck, color: 'from-purple-500 to-pink-600' },
+          { label: 'Admins (page)', value: String(adminCount), icon: Shield, color: 'from-amber-500 to-orange-600' },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+          >
             <Card className="border-0 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className={cn('h-10 w-10 rounded-xl bg-gradient-to-br flex items-center justify-center shrink-0', stat.color)}>
+                  <div
+                    className={cn(
+                      'h-10 w-10 rounded-xl bg-gradient-to-br flex items-center justify-center shrink-0',
+                      stat.color
+                    )}
+                  >
                     <stat.icon className="h-5 w-5 text-white" />
                   </div>
                   <div>
@@ -172,7 +232,11 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Filters */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
             <div className="flex flex-col lg:flex-row gap-3">
@@ -181,12 +245,18 @@ export default function AdminUsersPage() {
                 <Input
                   placeholder="Search by name or email..."
                   value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
               <div className="flex flex-wrap gap-3">
-                <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v); setCurrentPage(1); }}>
+                <Select
+                  value={roleFilter}
+                  onValueChange={(v) => {
+                    setRoleFilter(v);
+                    setCurrentPage(1);
+                  }}
+                >
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Role" />
                   </SelectTrigger>
@@ -197,18 +267,30 @@ export default function AdminUsersPage() {
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={subscriptionFilter} onValueChange={(v) => { setSubscriptionFilter(v); setCurrentPage(1); }}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="Subscription" />
+                <Select
+                  value={tierFilter}
+                  onValueChange={(v) => {
+                    setTierFilter(v);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Tier" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Tiers</SelectItem>
-                    <SelectItem value="free">Free</SelectItem>
-                    <SelectItem value="pro">Pro</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
+                    <SelectItem value="Free">Free</SelectItem>
+                    <SelectItem value="Pro">Pro</SelectItem>
+                    <SelectItem value="Premium">Premium</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(v) => {
+                    setStatusFilter(v);
+                    setCurrentPage(1);
+                  }}
+                >
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -216,7 +298,6 @@ export default function AdminUsersPage() {
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -225,191 +306,395 @@ export default function AdminUsersPage() {
         </Card>
       </motion.div>
 
+      {/* Error State */}
+      {error && (
+        <Card className="border-0 shadow-sm border-l-4 border-l-red-500">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <p className="text-sm">{error}</p>
+            <Button variant="outline" size="sm" onClick={fetchUsers}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Users Table */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
         <Card className="border-0 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border/50 bg-muted/30">
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">User</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Email</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Role</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Subscription</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Status</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Last Login</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {paginatedUsers.map((user, i) => (
-                  <motion.tr
-                    key={user.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.05 * i }}
-                    className="hover:bg-muted/20 transition-colors group"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
-                          {getInitials(user.name)}
-                        </div>
-                        <span className="font-medium text-sm whitespace-nowrap">{user.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">{user.email}</td>
-                    <td className="px-6 py-4">
-                      <Badge variant="secondary" className={cn('text-xs capitalize', roleColors[user.role])}>
-                        {user.role}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge variant="secondary" className={cn('text-xs capitalize', subscriptionColors[user.subscription])}>
-                        {user.subscription}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className={cn('h-2 w-2 rounded-full', statusDot[user.status])} />
-                        <span className="text-sm capitalize">{user.status}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground whitespace-nowrap">{user.lastLogin}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedUser(user)}>
+          {loading ? (
+            <div className="p-6 space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : users.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Users className="h-12 w-12 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">No users found matching your filters.</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border/50 bg-muted/30">
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        User
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3 hidden md:table-cell">
+                        Email
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Role
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3 hidden sm:table-cell">
+                        Tier
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3 hidden lg:table-cell">
+                        Status
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3 hidden xl:table-cell">
+                        Last Login
+                      </th>
+                      <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {users.map((user, i) => (
+                      <tr
+                        key={user.id}
+                        className="hover:bg-muted/20 transition-colors group"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                              {getInitials(user.fullName)}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-medium text-sm whitespace-nowrap block">
+                                {user.fullName}
+                              </span>
+                              <span className="text-xs text-muted-foreground md:hidden">
+                                {user.email}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground hidden md:table-cell">
+                          {user.email}
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              'text-xs capitalize',
+                              roleColors[user.role] || ''
+                            )}
+                          >
+                            {user.role}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 hidden sm:table-cell">
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              'text-xs',
+                              tierColors[user.subscriptionTier] || ''
+                            )}
+                          >
+                            {user.subscriptionTier}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 hidden lg:table-cell">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={cn(
+                                'h-2 w-2 rounded-full',
+                                user.isActive ? 'bg-emerald-500' : 'bg-gray-400'
+                              )}
+                            />
+                            <span className="text-sm">
+                              {user.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground whitespace-nowrap hidden xl:table-cell">
+                          {user.lastLogin
+                            ? formatRelativeTime(user.lastLogin)
+                            : 'Never'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setDialogOpen(true);
+                              }}
+                            >
                               <Eye className="h-4 w-4" />
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-md">
-                            <DialogHeader>
-                              <DialogTitle>User Details</DialogTitle>
-                            </DialogHeader>
-                            {selectedUser && (
-                              <div className="space-y-6">
-                                <div className="flex items-center gap-4">
-                                  <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary/30 to-primary/5 flex items-center justify-center text-xl font-bold text-primary">
-                                    {getInitials(selectedUser.name)}
-                                  </div>
-                                  <div>
-                                    <h3 className="font-semibold text-lg">{selectedUser.name}</h3>
-                                    <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
-                                    <div className="flex gap-2 mt-1">
-                                      <Badge variant="secondary" className={cn('text-xs capitalize', roleColors[selectedUser.role])}>
-                                        {selectedUser.role}
-                                      </Badge>
-                                      <Badge variant="secondary" className={cn('text-xs capitalize', subscriptionColors[selectedUser.subscription])}>
-                                        {selectedUser.subscription}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                </div>
-                                <Separator />
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                                    <div>
-                                      <p className="text-muted-foreground text-xs">Joined</p>
-                                      <p className="font-medium">{selectedUser.joinedDate}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <Clock className="h-4 w-4 text-muted-foreground" />
-                                    <div>
-                                      <p className="text-muted-foreground text-xs">Last Login</p>
-                                      <p className="font-medium">{selectedUser.lastLogin}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                                    <div>
-                                      <p className="text-muted-foreground text-xs">Questions Done</p>
-                                      <p className="font-medium">{selectedUser.questionsCompleted.toLocaleString()}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <Activity className="h-4 w-4 text-muted-foreground" />
-                                    <div>
-                                      <p className="text-muted-foreground text-xs">Study Hours</p>
-                                      <p className="font-medium">{selectedUser.studyHours}h</p>
-                                    </div>
-                                  </div>
-                                </div>
-                                <Separator />
-                                <div className="flex gap-2">
-                                  <Button size="sm" variant="outline" className="flex-1">
-                                    <Mail className="h-4 w-4 mr-2" />
-                                    Email
-                                  </Button>
-                                  <Button size="sm" variant="outline" className="flex-1">
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Edit
-                                  </Button>
-                                  <Button size="sm" variant="outline" className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20">
-                                    <Ban className="h-4 w-4 mr-2" />
-                                    Suspend
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600">
-                          <Ban className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                'h-8 w-8',
+                                user.isActive
+                                  ? 'text-red-500 hover:text-red-600'
+                                  : 'text-emerald-500 hover:text-emerald-600'
+                              )}
+                              onClick={() =>
+                                handleUpdateUser(user.id, {
+                                  isActive: !user.isActive,
+                                })
+                              }
+                              disabled={actionLoading}
+                            >
+                              {user.isActive ? (
+                                <Ban className="h-4 w-4" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-border/50">
-            <p className="text-sm text-muted-foreground">
-              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} users
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => p - 1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              {Array.from({ length: totalPages }, (_, i) => (
-                <Button
-                  key={i + 1}
-                  variant={currentPage === i + 1 ? 'default' : 'outline'}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setCurrentPage(i + 1)}
-                >
-                  {i + 1}
-                </Button>
-              ))}
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+              {/* Pagination */}
+              <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-border/50 gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(currentPage - 1) * limit + 1} to{' '}
+                  {Math.min(currentPage * limit, total)} of {total} users
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {Array.from(
+                    { length: Math.min(totalPages, 5) },
+                    (_, i) => {
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? 'default' : 'outline'}
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setCurrentPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    }
+                  )}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </Card>
       </motion.div>
+
+      {/* User Detail Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary/30 to-primary/5 flex items-center justify-center text-xl font-bold text-primary">
+                  {getInitials(selectedUser.fullName)}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">{selectedUser.fullName}</h3>
+                  <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                  <div className="flex gap-2 mt-1">
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        'text-xs capitalize',
+                        roleColors[selectedUser.role]
+                      )}
+                    >
+                      {selectedUser.role}
+                    </Badge>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        'text-xs',
+                        tierColors[selectedUser.subscriptionTier]
+                      )}
+                    >
+                      {selectedUser.subscriptionTier}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground text-xs">Joined</p>
+                    <p className="font-medium">
+                      {new Date(selectedUser.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground text-xs">Last Login</p>
+                    <p className="font-medium">
+                      {selectedUser.lastLogin
+                        ? formatRelativeTime(selectedUser.lastLogin)
+                        : 'Never'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground text-xs">Quiz Sessions</p>
+                    <p className="font-medium">
+                      {selectedUser._count.quizSessions}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground text-xs">CAT Sessions</p>
+                    <p className="font-medium">
+                      {selectedUser._count.catSessions}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Quick actions */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Change Role</Label>
+                <Select
+                  value={selectedUser.role}
+                  onValueChange={(v) =>
+                    handleUpdateUser(selectedUser.id, { role: v })
+                  }
+                  disabled={actionLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="instructor">Instructor</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Change Tier</Label>
+                <Select
+                  value={selectedUser.subscriptionTier}
+                  onValueChange={(v) =>
+                    handleUpdateUser(selectedUser.id, { subscriptionTier: v })
+                  }
+                  disabled={actionLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Free">Free</SelectItem>
+                    <SelectItem value="Pro">Pro</SelectItem>
+                    <SelectItem value="Premium">Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() =>
+                    handleUpdateUser(selectedUser.id, {
+                      isActive: !selectedUser.isActive,
+                    })
+                  }
+                  disabled={actionLoading}
+                >
+                  {selectedUser.isActive ? (
+                    <>
+                      <Ban className="h-4 w-4 mr-2" />
+                      Deactivate
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Activate
+                    </>
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  asChild
+                >
+                  <a href={`mailto:${selectedUser.email}`}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Email
+                  </a>
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

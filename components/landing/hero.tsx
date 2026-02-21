@@ -7,12 +7,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-const stats = [
-  { value: "10,000+", label: "Students" },
-  { value: "98%", label: "Pass Rate" },
-  { value: "1,000+", label: "Questions" },
-];
-
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number) => ({
@@ -68,11 +62,11 @@ export function LandingHero() {
               custom={1}
               className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1]"
             >
-              Master Your{" "}
+              Pass the{" "}
               <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                 NCLEX
               </span>{" "}
-              Exam
+              on Your First Attempt
             </motion.h1>
 
             <motion.p
@@ -122,7 +116,11 @@ export function LandingHero() {
               custom={4}
               className="mt-14 flex items-center gap-8 justify-center lg:justify-start"
             >
-              {stats.map((stat, i) => (
+              {[
+                { value: "95%+", label: "Pass Rate" },
+                { value: "50,000+", label: "Questions" },
+                { value: "10,000+", label: "Students" },
+              ].map((stat, i) => (
                 <div key={stat.label} className="flex flex-col items-center lg:items-start">
                   <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
                     {stat.value}
@@ -130,9 +128,6 @@ export function LandingHero() {
                   <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                     {stat.label}
                   </div>
-                  {i < stats.length - 1 && (
-                    <div className="hidden" />
-                  )}
                 </div>
               ))}
             </motion.div>
