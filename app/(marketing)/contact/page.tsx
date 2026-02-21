@@ -1,199 +1,322 @@
-import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, MessageSquare, Clock, MapPin, Phone } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { JsonLd } from '@/components/seo/json-ld';
-import { createMetadata, breadcrumbSchema } from '@/lib/seo';
+import { createMetadata, breadcrumbSchema, faqSchema } from '@/lib/seo';
+import {
+  Mail,
+  Clock,
+  MessageSquare,
+  Phone,
+  ArrowRight,
+  HelpCircle,
+} from 'lucide-react';
 
 export const metadata = createMetadata({
-  title: 'Contact Us - Get Help with NCLEX Prep',
+  title: 'Contact Haven Institute | NCLEX Prep Support & Help',
   description:
-    'Contact Haven Institute for NCLEX prep support. Get help with your account, subscription, study plan, or technical issues. We respond within 24 hours.',
+    'Contact Haven Institute for NCLEX prep support, technical help, billing questions, or partnership inquiries. Our support team is available Monday through Saturday to help you succeed.',
   path: '/contact',
   keywords: [
-    'Haven Institute contact',
+    'contact Haven Institute',
     'NCLEX prep support',
     'Haven Institute help',
-    'NCLEX study help',
+    'Haven Institute email',
+    'NCLEX prep customer service',
+    'Haven study contact',
   ],
 });
 
-const contactMethods = [
+const contactFaqs = [
   {
-    icon: Mail,
-    title: 'Email Support',
-    description: 'Get a response within 24 hours',
-    detail: 'support@havenstudy.com',
+    question: 'What are Haven Institute support hours?',
+    answer:
+      'Our support team is available Monday through Friday from 8:00 AM to 8:00 PM Eastern Time, and Saturday from 9:00 AM to 5:00 PM Eastern Time. Premium plan members have access to 24/7 priority support. For urgent technical issues outside regular hours, email urgent@havenstudy.com.',
   },
   {
-    icon: MessageSquare,
-    title: 'Live Chat',
-    description: 'Chat with our support team',
-    detail: 'Available Mon-Fri, 9am-6pm EST',
+    question: 'How quickly can I expect a response?',
+    answer:
+      'Free and Pro plan members typically receive a response within 24 hours during business days. Premium plan members receive priority support with responses within 4 hours. For urgent account or billing issues, we aim to respond within 2 hours during support hours.',
   },
   {
-    icon: Phone,
-    title: 'Phone Support',
-    description: 'Premium plan subscribers',
-    detail: '1-800-HAVEN-NCLEX',
-  },
-];
-
-const faqs = [
-  {
-    q: 'How quickly will I get a response?',
-    a: 'We respond to all email inquiries within 24 hours. Premium plan subscribers get priority support with responses within 4 hours during business hours.',
+    question: 'Can I request a demo or group trial for my nursing school?',
+    answer:
+      'Yes, we offer demos and group trials for nursing schools and educational institutions. Contact our partnerships team at partnerships@havenstudy.com or fill out the contact form and select "Partnership/Institutional" as the category. We offer special group pricing for cohorts of 10 or more students.',
   },
   {
-    q: 'I forgot my password. How do I reset it?',
-    a: 'Click "Forgot Password" on the login page and enter your email. You\'ll receive a password reset link within minutes.',
+    question: 'How do I report a technical issue or bug?',
+    answer:
+      'To help us resolve technical issues quickly, please include the following in your message: a description of the issue, steps to reproduce it, your browser and device information, and any error messages or screenshots. Email support@havenstudy.com or use the contact form below with the "Technical Support" category.',
   },
   {
-    q: 'How do I cancel my subscription?',
-    a: 'You can cancel anytime from your Account Settings page. Your access continues until the end of your current billing period.',
-  },
-  {
-    q: 'I found a bug. How do I report it?',
-    a: 'Email us at support@havenstudy.com with a description of the issue, your browser/device info, and any screenshots. We\'ll investigate and fix it promptly.',
+    question: 'How do I cancel my subscription or request a refund?',
+    answer:
+      'You can cancel your subscription at any time from your account settings page. For refund requests within our 14-day money-back guarantee period, contact support@havenstudy.com with your account email. Refunds are typically processed within 5-7 business days.',
   },
 ];
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen">
+    <>
       <JsonLd
-        data={breadcrumbSchema([
-          { name: 'Home', url: '/' },
-          { name: 'Contact', url: '/contact' },
-        ])}
+        data={[
+          breadcrumbSchema([
+            { name: 'Home', url: '/' },
+            { name: 'Contact', url: '/contact' },
+          ]),
+          faqSchema(contactFaqs),
+        ]}
       />
 
-      {/* Hero */}
-      <section className="bg-gradient-to-b from-blue-50/50 to-white dark:from-zinc-950 dark:to-zinc-900 pt-8 pb-12">
-        <div className="max-w-3xl mx-auto px-4 text-center space-y-4">
-          <Badge variant="secondary" className="text-sm px-4 py-1">
-            <MessageSquare className="mr-1 h-3 w-3" /> Get in Touch
+      <div className="min-h-screen bg-gradient-to-b from-indigo-50/50 to-white dark:from-zinc-950 dark:to-zinc-900">
+        {/* Hero */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center">
+          <Badge variant="secondary" className="mb-6 text-sm px-4 py-1">
+            Get in Touch
           </Badge>
-          <h1 className="text-4xl lg:text-5xl font-bold tracking-tight">
-            Contact Haven Institute
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
+            Contact{' '}
+            <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+              Haven Institute
+            </span>
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Have questions about your NCLEX prep? Our support team is here to help you
-            succeed.
+          <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
+            Have a question about NCLEX preparation, your account, or our platform? Our dedicated
+            support team is here to help you succeed.
           </p>
-        </div>
-      </section>
+        </section>
 
-      {/* Contact Methods */}
-      <section className="py-12">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-6">
-            {contactMethods.map((method) => (
-              <Card key={method.title} className="text-center border-0 shadow-sm">
-                <CardContent className="pt-6 space-y-3">
-                  <div className="h-12 w-12 mx-auto rounded-xl bg-primary/10 flex items-center justify-center">
-                    <method.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <h2 className="font-semibold">{method.title}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {method.description}
+        {/* Contact Info Cards */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="border-0 shadow-sm text-center">
+              <CardContent className="p-6">
+                <Mail className="h-8 w-8 text-indigo-500 mx-auto mb-3" />
+                <h3 className="font-semibold mb-1">Email Us</h3>
+                <a href="mailto:support@havenstudy.com" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                  support@havenstudy.com
+                </a>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-sm text-center">
+              <CardContent className="p-6">
+                <Clock className="h-8 w-8 text-indigo-500 mx-auto mb-3" />
+                <h3 className="font-semibold mb-1">Support Hours</h3>
+                <p className="text-sm text-muted-foreground">Mon-Fri: 8AM - 8PM ET</p>
+                <p className="text-sm text-muted-foreground">Sat: 9AM - 5PM ET</p>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-sm text-center">
+              <CardContent className="p-6">
+                <MessageSquare className="h-8 w-8 text-indigo-500 mx-auto mb-3" />
+                <h3 className="font-semibold mb-1">Live Chat</h3>
+                <p className="text-sm text-muted-foreground">Available for Premium members 24/7</p>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-sm text-center">
+              <CardContent className="p-6">
+                <Phone className="h-8 w-8 text-indigo-500 mx-auto mb-3" />
+                <h3 className="font-semibold mb-1">Phone</h3>
+                <p className="text-sm text-muted-foreground">1-800-HAVEN-NCLEX</p>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        {/* Contact Form & Info */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="grid lg:grid-cols-5 gap-12">
+            {/* Form */}
+            <div className="lg:col-span-3">
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-2xl">Send Us a Message</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Fill out the form below and our support team will get back to you as soon as possible.
                   </p>
-                  <p className="text-sm font-medium text-primary">{method.detail}</p>
+                </CardHeader>
+                <CardContent>
+                  <form className="space-y-5">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="firstName" className="block text-sm font-medium mb-1.5">
+                          First Name
+                        </label>
+                        <input
+                          id="firstName"
+                          type="text"
+                          placeholder="Jane"
+                          className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="lastName" className="block text-sm font-medium mb-1.5">
+                          Last Name
+                        </label>
+                        <input
+                          id="lastName"
+                          type="text"
+                          placeholder="Doe"
+                          className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium mb-1.5">
+                        Email Address
+                      </label>
+                      <input
+                        id="email"
+                        type="email"
+                        placeholder="jane@example.com"
+                        className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="category" className="block text-sm font-medium mb-1.5">
+                        Category
+                      </label>
+                      <select
+                        id="category"
+                        className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      >
+                        <option value="">Select a category</option>
+                        <option value="general">General Question</option>
+                        <option value="technical">Technical Support</option>
+                        <option value="billing">Billing &amp; Subscription</option>
+                        <option value="partnership">Partnership / Institutional</option>
+                        <option value="feedback">Feedback &amp; Suggestions</option>
+                        <option value="press">Press &amp; Media</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="subject" className="block text-sm font-medium mb-1.5">
+                        Subject
+                      </label>
+                      <input
+                        id="subject"
+                        type="text"
+                        placeholder="Brief description of your inquiry"
+                        className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="message" className="block text-sm font-medium mb-1.5">
+                        Message
+                      </label>
+                      <textarea
+                        id="message"
+                        rows={5}
+                        placeholder="Provide details about your question or issue..."
+                        className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-y"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full sm:w-auto">
+                      Send Message <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <Mail className="h-5 w-5 text-indigo-500" />
+                    Email Contacts
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">General Support</p>
+                      <a href="mailto:support@havenstudy.com" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                        support@havenstudy.com
+                      </a>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Billing Questions</p>
+                      <a href="mailto:billing@havenstudy.com" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                        billing@havenstudy.com
+                      </a>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Partnerships</p>
+                      <a href="mailto:partnerships@havenstudy.com" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                        partnerships@havenstudy.com
+                      </a>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Press &amp; Media</p>
+                      <a href="mailto:press@havenstudy.com" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                        press@havenstudy.com
+                      </a>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-indigo-500" />
+                    Social Media
+                  </h3>
+                  <div className="space-y-2">
+                    <a href="https://twitter.com/haveninstitute" target="_blank" rel="noopener noreferrer" className="block text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                      Twitter / X: @haveninstitute
+                    </a>
+                    <a href="https://instagram.com/haveninstitute" target="_blank" rel="noopener noreferrer" className="block text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                      Instagram: @haveninstitute
+                    </a>
+                    <a href="https://linkedin.com/company/haveninstitute" target="_blank" rel="noopener noreferrer" className="block text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+                      LinkedIn: Haven Institute
+                    </a>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/10">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <HelpCircle className="h-5 w-5 text-indigo-500" />
+                    Looking for Quick Answers?
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Many common questions are answered in our comprehensive FAQ section.
+                  </p>
+                  <Button variant="outline" size="sm" asChild className="w-full">
+                    <Link href="/faq">Visit FAQ Page</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold">
+              Support{' '}
+              <span className="bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
+                FAQ
+              </span>
+            </h2>
+          </div>
+          <div className="space-y-4">
+            {contactFaqs.map((faq) => (
+              <Card key={faq.question} className="border-border/50">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold mb-2">{faq.question}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{faq.answer}</p>
                 </CardContent>
               </Card>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Contact Form */}
-      <section className="py-12 bg-muted/30">
-        <div className="max-w-2xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-center mb-8">Send Us a Message</h2>
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6 space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">First Name</label>
-                  <input
-                    type="text"
-                    placeholder="Your first name"
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Last Name</label>
-                  <input
-                    type="text"
-                    placeholder="Your last name"
-                    className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Email</label>
-                <input
-                  type="email"
-                  placeholder="your@email.com"
-                  className="w-full px-3 py-2 rounded-lg border bg-background text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Subject</label>
-                <select className="w-full px-3 py-2 rounded-lg border bg-background text-sm">
-                  <option>General Inquiry</option>
-                  <option>Technical Support</option>
-                  <option>Billing Question</option>
-                  <option>Feature Request</option>
-                  <option>Partnership Inquiry</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Message</label>
-                <textarea
-                  rows={5}
-                  placeholder="How can we help you?"
-                  className="w-full px-3 py-2 rounded-lg border bg-background text-sm resize-none"
-                />
-              </div>
-              <button className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-medium hover:opacity-90 transition-opacity">
-                Send Message
-              </button>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="py-12">
-        <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-center mb-8">
-            Common Support Questions
-          </h2>
-          <div className="space-y-4">
-            {faqs.map((faq) => (
-              <div key={faq.q} className="bg-muted/30 rounded-xl p-6 space-y-2">
-                <h3 className="font-semibold">{faq.q}</h3>
-                <p className="text-sm text-muted-foreground">{faq.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Hours */}
-      <section className="py-12 bg-muted/30 text-center">
-        <div className="max-w-2xl mx-auto px-4 space-y-4">
-          <div className="flex items-center justify-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-bold">Support Hours</h2>
-          </div>
-          <div className="text-sm text-muted-foreground space-y-1">
-            <p>Monday - Friday: 9:00 AM - 6:00 PM EST</p>
-            <p>Saturday: 10:00 AM - 2:00 PM EST</p>
-            <p>Sunday: Closed (email support only)</p>
-          </div>
-        </div>
-      </section>
-    </div>
+        </section>
+      </div>
+    </>
   );
 }
