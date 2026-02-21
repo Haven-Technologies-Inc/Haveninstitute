@@ -63,11 +63,17 @@ export const SUBSCRIPTION_PLANS = [
 ] as const;
 
 export const QUESTION_TYPES = [
-  { value: 'multiple_choice', label: 'Multiple Choice' },
-  { value: 'multiple_response', label: 'Select All That Apply' },
-  { value: 'fill_blank', label: 'Fill in the Blank' },
-  { value: 'ordered_response', label: 'Ordered Response' },
-  { value: 'hot_spot', label: 'Hot Spot' },
+  { value: 'multiple_choice', label: 'Multiple Choice', icon: 'CircleDot' },
+  { value: 'multiple_response', label: 'Select All That Apply (SATA)', icon: 'CheckSquare' },
+  { value: 'select_all', label: 'Select All', icon: 'CheckSquare' },
+  { value: 'fill_blank', label: 'Fill in the Blank', icon: 'TextCursorInput' },
+  { value: 'ordered_response', label: 'Ordered Response (Drag & Drop)', icon: 'ArrowUpDown' },
+  { value: 'hot_spot', label: 'Hot Spot', icon: 'MapPin' },
+  { value: 'cloze_dropdown', label: 'Cloze (Drop-Down)', icon: 'ChevronDown' },
+  { value: 'matrix', label: 'Matrix / Grid', icon: 'Table' },
+  { value: 'highlight', label: 'Highlight Text', icon: 'Highlighter' },
+  { value: 'bow_tie', label: 'Bow-Tie', icon: 'GitBranch' },
+  { value: 'case_study', label: 'Case Study', icon: 'FileText' },
 ] as const;
 
 export const DIFFICULTY_LEVELS = [

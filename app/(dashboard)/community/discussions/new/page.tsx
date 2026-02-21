@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -37,7 +38,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 
-const categories = [
+const fallbackCategories = [
   "Pharmacology",
   "Management of Care",
   "Safety & Infection Control",
@@ -58,6 +59,46 @@ export default function NewDiscussionPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [isPreview, setIsPreview] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/discussions")
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data.categories) {
+          setCategories(json.data.categories.map((c: any) => ({ id: c.id, name: c.name })));
+        } else {
+          setCategories(fallbackCategories.map((c, i) => ({ id: String(i), name: c })));
+        }
+      })
+      .catch(() => {
+        setCategories(fallbackCategories.map((c, i) => ({ id: String(i), name: c })));
+      });
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!isValid || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/discussions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content, categoryId: category }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Discussion posted!");
+        router.push("/community/discussions");
+      } else {
+        toast.error(json.error || "Failed to post");
+      }
+    } catch {
+      toast.error("Failed to post discussion");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const addTag = () => {
     const trimmed = tagInput.trim().toLowerCase();
@@ -128,8 +169,8 @@ export default function NewDiscussionPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -274,9 +315,9 @@ export default function NewDiscussionPage() {
               <Button variant="ghost" onClick={() => router.back()}>
                 Cancel
               </Button>
-              <Button disabled={!isValid}>
+              <Button disabled={!isValid || submitting} onClick={handleSubmit}>
                 <Send className="mr-2 h-4 w-4" />
-                Post Discussion
+                {submitting ? "Posting..." : "Post Discussion"}
               </Button>
             </div>
           </CardContent>

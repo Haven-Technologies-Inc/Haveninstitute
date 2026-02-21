@@ -41,6 +41,7 @@ import {
   Stethoscope,
   HeartPulse,
   Info,
+  Loader2,
 } from "lucide-react";
 
 const features = [
@@ -94,10 +95,34 @@ export default function NCLEXSimulatorPage() {
   const router = useRouter();
   const [examType, setExamType] = useState("rn");
   const [timedMode, setTimedMode] = useState("timed");
+  const [starting, setStarting] = useState(false);
 
-  const handleStartSimulation = () => {
-    const sessionId = `nclex-${Date.now()}`;
-    router.push(`/practice/cat/${sessionId}`);
+  const handleStartSimulation = async () => {
+    setStarting(true);
+    try {
+      const res = await fetch("/api/cat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nclexType: examType.toUpperCase(),
+          minQuestions: 60,
+          maxQuestions: 145,
+          timeLimitSeconds: timedMode === "timed" ? 18000 : 36000,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data?.sessionId) {
+        sessionStorage.setItem(
+          `cat-${json.data.sessionId}`,
+          JSON.stringify(json.data)
+        );
+        router.push(`/practice/cat/${json.data.sessionId}`);
+      }
+    } catch {
+      // fallback
+    } finally {
+      setStarting(false);
+    }
   };
 
   return (
@@ -282,10 +307,20 @@ export default function NCLEXSimulatorPage() {
                 <Button
                   onClick={handleStartSimulation}
                   size="lg"
+                  disabled={starting}
                   className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg"
                 >
-                  <Play className="mr-2 h-5 w-5" />
-                  Start Simulation
+                  {starting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Preparing Simulation...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="mr-2 h-5 w-5" />
+                      Start Simulation
+                    </>
+                  )}
                 </Button>
               </CardContent>
             </Card>

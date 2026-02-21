@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -41,6 +41,7 @@ import {
   BookOpen,
   Target,
   Layers,
+  Loader2,
 } from "lucide-react";
 
 const catRules = [
@@ -76,53 +77,88 @@ const catRules = [
   },
 ];
 
-const pastResults = [
-  {
-    id: "cat1",
-    date: "Feb 18, 2026",
-    type: "RN",
-    result: "Pass",
-    questions: 85,
-    confidence: 92,
-    ability: 1.24,
-  },
-  {
-    id: "cat2",
-    date: "Feb 15, 2026",
-    type: "RN",
-    result: "Pass",
-    questions: 110,
-    confidence: 87,
-    ability: 0.98,
-  },
-  {
-    id: "cat3",
-    date: "Feb 10, 2026",
-    type: "RN",
-    result: "Fail",
-    questions: 145,
-    confidence: 73,
-    ability: -0.12,
-  },
-  {
-    id: "cat4",
-    date: "Feb 5, 2026",
-    type: "PN",
-    result: "Pass",
-    questions: 95,
-    confidence: 89,
-    ability: 1.15,
-  },
-];
+interface PastResult {
+  id: string;
+  date: string;
+  type: string;
+  result: string;
+  questions: number;
+  confidence: number;
+  ability: number;
+}
 
 export default function CATStartPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [examType, setExamType] = useState("rn");
+  const [pastResults, setPastResults] = useState<PastResult[]>([]);
+  const [loadingResults, setLoadingResults] = useState(true);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleBeginCAT = () => {
-    const sessionId = `cat-${Date.now()}`;
-    router.push(`/practice/cat/${sessionId}`);
+  // Fetch past CAT results
+  useEffect(() => {
+    async function fetchPastResults() {
+      try {
+        const res = await fetch("/api/cat?limit=5");
+        const json = await res.json();
+        if (json.success && json.data) {
+          const mapped = json.data.map((s: any) => ({
+            id: s.id,
+            date: new Date(s.completedAt || s.createdAt).toLocaleDateString(
+              "en-US",
+              { month: "short", day: "numeric", year: "numeric" }
+            ),
+            type: (s.nclexType || "RN").toUpperCase(),
+            result: s.passed ? "Pass" : "Fail",
+            questions: s.totalQuestions || s.responses?.length || 0,
+            confidence: Math.round(
+              (s.confidence || (1 - (s.standardError || 0.5))) * 100
+            ),
+            ability: s.finalAbility ?? s.currentAbility ?? 0,
+          }));
+          setPastResults(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to fetch past CAT results:", err);
+      } finally {
+        setLoadingResults(false);
+      }
+    }
+    fetchPastResults();
+  }, []);
+
+  const handleBeginCAT = async () => {
+    setStarting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/cat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nclexType: examType,
+          minQuestions: examType === "rn" ? 60 : 60,
+          maxQuestions: examType === "rn" ? 145 : 145,
+          timeLimitSeconds: 5 * 60 * 60,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        // Store the initial session data (including currentQuestion) in sessionStorage
+        sessionStorage.setItem(
+          `cat-session-${json.data.id}`,
+          JSON.stringify(json.data)
+        );
+        router.push(`/practice/cat/${json.data.id}`);
+      } else {
+        setError(json.error || "Failed to start CAT session.");
+        setStarting(false);
+      }
+    } catch (err) {
+      console.error("Failed to start CAT session:", err);
+      setError("Something went wrong. Please try again.");
+      setStarting(false);
+    }
   };
 
   return (
@@ -251,13 +287,32 @@ export default function CATStartPage() {
                   </Select>
                 </div>
 
+                {error && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                    <p className="text-xs text-red-700 dark:text-red-400">
+                      {error}
+                    </p>
+                  </div>
+                )}
+
                 <Button
                   onClick={handleBeginCAT}
+                  disabled={starting}
                   size="lg"
                   className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg"
                 >
-                  <Play className="mr-2 h-5 w-5" />
-                  Begin CAT Test
+                  {starting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Starting CAT...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="mr-2 h-5 w-5" />
+                      Begin CAT Test
+                    </>
+                  )}
                 </Button>
               </CardContent>
             </Card>
@@ -279,57 +334,74 @@ export default function CATStartPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {pastResults.map((r) => (
-                  <div
-                    key={r.id}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border"
-                  >
-                    <div
-                      className={cn(
-                        "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-                        r.result === "Pass"
-                          ? "bg-emerald-500/10"
-                          : "bg-red-500/10"
-                      )}
-                    >
-                      {r.result === "Pass" ? (
-                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-red-500" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-medium">
-                          {r.result}
-                        </p>
-                        <Badge variant="outline" className="text-[10px]">
-                          {r.type}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {r.questions} Qs &middot; {r.confidence}% confidence
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {r.date}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs font-medium">Ability</p>
-                      <p
-                        className={cn(
-                          "text-sm font-bold",
-                          r.ability >= 0
-                            ? "text-emerald-600"
-                            : "text-red-600"
-                        )}
-                      >
-                        {r.ability > 0 ? "+" : ""}
-                        {r.ability.toFixed(2)}
-                      </p>
-                    </div>
+                {loadingResults ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
-                ))}
+                ) : pastResults.length === 0 ? (
+                  <div className="text-center py-6">
+                    <Brain className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      No past CAT results yet
+                    </p>
+                    <p className="text-xs text-muted-foreground/60">
+                      Complete your first CAT to see results here
+                    </p>
+                  </div>
+                ) : (
+                  pastResults.map((r) => (
+                    <Link
+                      key={r.id}
+                      href={`/practice/cat/${r.id}/results`}
+                      className="block"
+                    >
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 transition-colors">
+                        <div
+                          className={cn(
+                            "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+                            r.result === "Pass"
+                              ? "bg-emerald-500/10"
+                              : "bg-red-500/10"
+                          )}
+                        >
+                          {r.result === "Pass" ? (
+                            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-red-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium">{r.result}</p>
+                            <Badge variant="outline" className="text-[10px]">
+                              {r.type}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {r.questions} Qs &middot; {r.confidence}% confidence
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {r.date}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-medium">Ability</p>
+                          <p
+                            className={cn(
+                              "text-sm font-bold",
+                              r.ability >= 0
+                                ? "text-emerald-600"
+                                : "text-red-600"
+                            )}
+                          >
+                            {r.ability > 0 ? "+" : ""}
+                            {r.ability.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                )}
               </CardContent>
             </Card>
           </motion.div>

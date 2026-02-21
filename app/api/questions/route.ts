@@ -14,6 +14,29 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
 
+    // Support loading questions by IDs (for quiz sessions)
+    const ids = searchParams.get('ids');
+    if (ids) {
+      const idList = ids.split(',').filter(Boolean);
+      const questions = await prisma.question.findMany({
+        where: { id: { in: idList }, isActive: true },
+        select: {
+          id: true,
+          questionText: true,
+          questionType: true,
+          options: true,
+          difficulty: true,
+          scenario: true,
+          hotSpotData: true,
+          category: { select: { name: true, code: true, id: true } },
+        },
+      });
+      // Preserve the order from idList
+      const map = new Map(questions.map(q => [q.id, q]));
+      const ordered = idList.map(id => map.get(id)).filter(Boolean);
+      return successResponse({ questions: ordered, total: ordered.length });
+    }
+
     const where: any = { isActive: true };
 
     if (categoryId) where.categoryId = parseInt(categoryId);

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useApi } from "@/lib/hooks/use-api";
+import { useUser } from "@/lib/hooks/use-user";
+import { NCLEX_CATEGORIES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,119 +39,100 @@ import {
   TrendingUp,
   Target,
   Layers,
+  Loader2,
 } from "lucide-react";
 
-const nclexCategories = [
-  {
-    id: "management-of-care",
-    name: "Management of Care",
-    questions: 182,
-    color: "bg-indigo-500",
-  },
-  {
-    id: "safety-infection",
-    name: "Safety & Infection Control",
-    questions: 124,
-    color: "bg-emerald-500",
-  },
-  {
-    id: "health-promotion",
-    name: "Health Promotion & Maintenance",
-    questions: 96,
-    color: "bg-amber-500",
-  },
-  {
-    id: "psychosocial",
-    name: "Psychosocial Integrity",
-    questions: 108,
-    color: "bg-purple-500",
-  },
-  {
-    id: "basic-care",
-    name: "Basic Care & Comfort",
-    questions: 134,
-    color: "bg-blue-500",
-  },
-  {
-    id: "pharmacology",
-    name: "Pharmacological Therapies",
-    questions: 156,
-    color: "bg-pink-500",
-  },
-  {
-    id: "risk-reduction",
-    name: "Reduction of Risk Potential",
-    questions: 142,
-    color: "bg-orange-500",
-  },
-  {
-    id: "physiological",
-    name: "Physiological Adaptation",
-    questions: 118,
-    color: "bg-red-500",
-  },
-];
+const categoryColors: Record<number, string> = {
+  1: "bg-indigo-500",
+  2: "bg-emerald-500",
+  3: "bg-amber-500",
+  4: "bg-purple-500",
+  5: "bg-blue-500",
+  6: "bg-pink-500",
+  7: "bg-orange-500",
+  8: "bg-red-500",
+};
 
-const recentResults = [
-  {
-    id: "r1",
-    title: "Pharmacology",
-    score: 82,
-    total: 25,
-    correct: 20,
-    date: "2h ago",
-  },
-  {
-    id: "r2",
-    title: "Management of Care",
-    score: 90,
-    total: 50,
-    correct: 45,
-    date: "Yesterday",
-  },
-  {
-    id: "r3",
-    title: "Mixed Categories",
-    score: 68,
-    total: 100,
-    correct: 68,
-    date: "3 days ago",
-  },
-  {
-    id: "r4",
-    title: "Safety & Infection",
-    score: 76,
-    total: 10,
-    correct: 8,
-    date: "5 days ago",
-  },
-];
+interface RecentQuizSession {
+  id: string;
+  sessionType: string;
+  status: string;
+  score: number | null;
+  totalQuestions: number;
+  correctAnswers: number | null;
+  startedAt: string;
+  completedAt: string | null;
+  totalTimeSeconds: number | null;
+  difficulty: string;
+}
 
 export default function QuizSetupPage() {
-  const { data: session } = useSession();
+  const { user } = useUser();
   const router = useRouter();
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [difficulty, setDifficulty] = useState("mixed");
   const [questionCount, setQuestionCount] = useState("25");
   const [timerEnabled, setTimerEnabled] = useState(false);
 
-  const toggleCategory = (id: string) => {
+  const recentApi = useApi<RecentQuizSession[]>();
+  const createApi = useApi<{
+    sessionId: string;
+    questionIds: string[];
+    totalQuestions: number;
+    timeLimitMinutes: number | null;
+  }>();
+
+  // Load recent quiz results
+  useEffect(() => {
+    recentApi.get("/api/quiz?limit=5");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const recentResults = (recentApi.data ?? []).filter(
+    (s) => s.status === "completed" && s.score !== null
+  );
+
+  const toggleCategory = (id: number) => {
     setSelectedCategories((prev) =>
       prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
     );
   };
 
   const selectAll = () => {
-    if (selectedCategories.length === nclexCategories.length) {
+    if (selectedCategories.length === NCLEX_CATEGORIES.length) {
       setSelectedCategories([]);
     } else {
-      setSelectedCategories(nclexCategories.map((c) => c.id));
+      setSelectedCategories(NCLEX_CATEGORIES.map((c) => c.id));
     }
   };
 
-  const handleStartQuiz = () => {
-    const sessionId = `quiz-${Date.now()}`;
-    router.push(`/practice/quiz/${sessionId}`);
+  const handleStartQuiz = async () => {
+    const timeLimitMinutes = timerEnabled ? parseInt(questionCount) : null;
+
+    const result = await createApi.post("/api/quiz", {
+      categoryIds: selectedCategories,
+      difficulty,
+      questionCount: parseInt(questionCount),
+      timeLimitMinutes,
+    });
+
+    if (result?.sessionId) {
+      router.push(`/practice/quiz/${result.sessionId}`);
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
   };
 
   return (
@@ -200,14 +183,14 @@ export default function QuizSetupPage() {
                     onClick={selectAll}
                     className="text-xs"
                   >
-                    {selectedCategories.length === nclexCategories.length
+                    {selectedCategories.length === NCLEX_CATEGORIES.length
                       ? "Deselect All"
                       : "Select All"}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {nclexCategories.map((category) => (
+                {NCLEX_CATEGORIES.map((category) => (
                   <div
                     key={category.id}
                     onClick={() => toggleCategory(category.id)}
@@ -228,13 +211,13 @@ export default function QuizSetupPage() {
                         {category.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {category.questions} questions available
+                        {category.short}
                       </p>
                     </div>
                     <div
                       className={cn(
                         "h-2 w-2 rounded-full shrink-0",
-                        category.color
+                        categoryColors[category.id] ?? "bg-gray-500"
                       )}
                     />
                   </div>
@@ -338,10 +321,19 @@ export default function QuizSetupPage() {
                   onClick={handleStartQuiz}
                   size="lg"
                   className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg"
-                  disabled={selectedCategories.length === 0}
+                  disabled={selectedCategories.length === 0 || createApi.loading}
                 >
-                  <Play className="mr-2 h-5 w-5" />
-                  Start Quiz ({questionCount} Questions)
+                  {createApi.loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Creating Quiz...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="mr-2 h-5 w-5" />
+                      Start Quiz ({questionCount} Questions)
+                    </>
+                  )}
                 </Button>
                 {selectedCategories.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center">
@@ -368,34 +360,52 @@ export default function QuizSetupPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {recentResults.map((result) => (
-                  <div
-                    key={result.id}
-                    className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div
-                      className={cn(
-                        "h-10 w-10 rounded-lg flex items-center justify-center text-sm font-bold",
-                        result.score >= 80
-                          ? "bg-emerald-500/10 text-emerald-600"
-                          : result.score >= 65
-                          ? "bg-amber-500/10 text-amber-600"
-                          : "bg-red-500/10 text-red-600"
-                      )}
-                    >
-                      {result.score}%
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {result.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {result.correct}/{result.total} correct &middot;{" "}
-                        {result.date}
-                      </p>
-                    </div>
+                {recentApi.loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
-                ))}
+                ) : recentResults.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No quiz results yet. Start your first quiz!
+                  </p>
+                ) : (
+                  recentResults.map((result) => (
+                    <Link
+                      key={result.id}
+                      href={`/practice/quiz/${result.id}/results`}
+                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div
+                        className={cn(
+                          "h-10 w-10 rounded-lg flex items-center justify-center text-sm font-bold",
+                          (result.score ?? 0) >= 80
+                            ? "bg-emerald-500/10 text-emerald-600"
+                            : (result.score ?? 0) >= 65
+                            ? "bg-amber-500/10 text-amber-600"
+                            : "bg-red-500/10 text-red-600"
+                        )}
+                      >
+                        {result.score}%
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {result.difficulty === "mixed"
+                            ? "Mixed Categories"
+                            : result.difficulty.charAt(0).toUpperCase() +
+                              result.difficulty.slice(1)}{" "}
+                          Quiz
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {result.correctAnswers}/{result.totalQuestions} correct
+                          &middot;{" "}
+                          {result.completedAt
+                            ? formatTimeAgo(result.completedAt)
+                            : "In progress"}
+                        </p>
+                      </div>
+                    </Link>
+                  ))
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -423,7 +433,7 @@ export default function QuizSetupPage() {
                   variant="secondary"
                   className="w-full"
                   onClick={() => {
-                    setSelectedCategories(["pharmacology"]);
+                    setSelectedCategories([6]); // Pharmacological Therapies category id
                     setDifficulty("medium");
                     setQuestionCount("25");
                   }}

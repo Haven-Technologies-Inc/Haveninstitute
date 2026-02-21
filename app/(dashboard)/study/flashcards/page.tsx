@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { PageHeader, StatCard, EmptyState, CardSkeleton } from '@/components/shared';
 import { Button } from '@/components/ui/button';
@@ -48,158 +49,72 @@ import {
 interface FlashcardDeck {
   id: string;
   name: string;
+  description?: string;
   category: string;
   totalCards: number;
   masteredCards: number;
-  lastStudied: string;
+  lastStudied: string | null;
+  isPublic: boolean;
   gradient: string;
 }
 
 interface BrowseDeck {
   id: string;
   name: string;
+  description?: string;
   category: string;
   totalCards: number;
   author: string;
   subscribers: number;
+  isPublic: boolean;
   gradient: string;
 }
 
 // ---------------------------------------------------------------------------
-// Mock Data
+// Gradient helper
 // ---------------------------------------------------------------------------
 
-const myDecks: FlashcardDeck[] = [
-  {
-    id: 'd1',
-    name: 'Pharmacology Essentials',
-    category: 'Pharmacological Therapies',
-    totalCards: 120,
-    masteredCards: 78,
-    lastStudied: '2h ago',
-    gradient: 'from-pink-500 to-rose-600',
-  },
-  {
-    id: 'd2',
-    name: 'Lab Values & Diagnostics',
-    category: 'Reduction of Risk Potential',
-    totalCards: 85,
-    masteredCards: 52,
-    lastStudied: 'Yesterday',
-    gradient: 'from-blue-500 to-indigo-600',
-  },
-  {
-    id: 'd3',
-    name: 'Maternal & Newborn Care',
-    category: 'Health Promotion',
-    totalCards: 64,
-    masteredCards: 41,
-    lastStudied: '2 days ago',
-    gradient: 'from-purple-500 to-violet-600',
-  },
-  {
-    id: 'd4',
-    name: 'Mental Health Nursing',
-    category: 'Psychosocial Integrity',
-    totalCards: 72,
-    masteredCards: 68,
-    lastStudied: '3 days ago',
-    gradient: 'from-emerald-500 to-teal-600',
-  },
-  {
-    id: 'd5',
-    name: 'Cardiac Disorders',
-    category: 'Physiological Adaptation',
-    totalCards: 95,
-    masteredCards: 45,
-    lastStudied: '4 days ago',
-    gradient: 'from-red-500 to-orange-600',
-  },
-  {
-    id: 'd6',
-    name: 'Infection Control',
-    category: 'Safety & Infection Control',
-    totalCards: 55,
-    masteredCards: 48,
-    lastStudied: '5 days ago',
-    gradient: 'from-amber-500 to-yellow-600',
-  },
-  {
-    id: 'd7',
-    name: 'Delegation & Prioritization',
-    category: 'Management of Care',
-    totalCards: 40,
-    masteredCards: 32,
-    lastStudied: '1 week ago',
-    gradient: 'from-indigo-500 to-blue-600',
-  },
-  {
-    id: 'd8',
-    name: 'Nutrition & Diet Therapy',
-    category: 'Basic Care & Comfort',
-    totalCards: 58,
-    masteredCards: 22,
-    lastStudied: '1 week ago',
-    gradient: 'from-orange-500 to-amber-600',
-  },
+const GRADIENTS = [
+  'from-pink-500 to-rose-600',
+  'from-blue-500 to-indigo-600',
+  'from-purple-500 to-violet-600',
+  'from-emerald-500 to-teal-600',
+  'from-red-500 to-orange-600',
+  'from-amber-500 to-yellow-600',
+  'from-indigo-500 to-blue-600',
+  'from-orange-500 to-amber-600',
+  'from-cyan-500 to-blue-600',
+  'from-lime-500 to-emerald-600',
+  'from-rose-500 to-pink-600',
+  'from-violet-500 to-purple-600',
+  'from-slate-500 to-zinc-600',
+  'from-fuchsia-500 to-pink-600',
 ];
 
-const browseDecks: BrowseDeck[] = [
-  {
-    id: 'bd1',
-    name: 'NCLEX Quick Review - Med Surg',
-    category: 'Physiological Adaptation',
-    totalCards: 200,
-    author: 'Haven Institute',
-    subscribers: 1243,
-    gradient: 'from-cyan-500 to-blue-600',
-  },
-  {
-    id: 'bd2',
-    name: 'Pediatric Milestones',
-    category: 'Health Promotion',
-    totalCards: 80,
-    author: 'NursePrep Community',
-    subscribers: 876,
-    gradient: 'from-lime-500 to-emerald-600',
-  },
-  {
-    id: 'bd3',
-    name: 'Critical Care Essentials',
-    category: 'Physiological Adaptation',
-    totalCards: 150,
-    author: 'Dr. Sarah Kim',
-    subscribers: 654,
-    gradient: 'from-rose-500 to-pink-600',
-  },
-  {
-    id: 'bd4',
-    name: 'OB/GYN Comprehensive',
-    category: 'Health Promotion',
-    totalCards: 110,
-    author: 'Haven Institute',
-    subscribers: 1021,
-    gradient: 'from-violet-500 to-purple-600',
-  },
-  {
-    id: 'bd5',
-    name: 'Ethics & Legal Nursing',
-    category: 'Management of Care',
-    totalCards: 60,
-    author: 'Prof. Martinez',
-    subscribers: 432,
-    gradient: 'from-slate-500 to-zinc-600',
-  },
-  {
-    id: 'bd6',
-    name: 'Psych Nursing Rapid Review',
-    category: 'Psychosocial Integrity',
-    totalCards: 90,
-    author: 'MindfulNurse',
-    subscribers: 789,
-    gradient: 'from-fuchsia-500 to-pink-600',
-  },
-];
+function getGradient(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return GRADIENTS[Math.abs(hash) % GRADIENTS.length];
+}
+
+function formatLastStudied(dateStr: string | null): string {
+  if (!dateStr) return 'Never';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHr < 24) return `${diffHr}h ago`;
+  if (diffDay === 1) return 'Yesterday';
+  if (diffDay < 7) return `${diffDay} days ago`;
+  return `${Math.floor(diffDay / 7)} week${Math.floor(diffDay / 7) > 1 ? 's' : ''} ago`;
+}
 
 const NCLEX_CATEGORIES = [
   'Pharmacological Therapies',
@@ -217,22 +132,82 @@ const NCLEX_CATEGORIES = [
 // ---------------------------------------------------------------------------
 
 export default function FlashcardsPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newDeckName, setNewDeckName] = useState('');
+  const [newDeckDescription, setNewDeckDescription] = useState('');
   const [newDeckCategory, setNewDeckCategory] = useState('');
+  const [newDeckIsPublic, setNewDeckIsPublic] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Data state
+  const [myDecks, setMyDecks] = useState<FlashcardDeck[]>([]);
+  const [browseDecks, setBrowseDecks] = useState<BrowseDeck[]>([]);
+  const [loadingMyDecks, setLoadingMyDecks] = useState(true);
+  const [loadingBrowse, setLoadingBrowse] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch my decks
+  const fetchMyDecks = useCallback(async () => {
+    try {
+      setLoadingMyDecks(true);
+      const res = await fetch('/api/flashcards');
+      const json = await res.json();
+      if (json.success && json.data) {
+        const decks = (Array.isArray(json.data) ? json.data : json.data.decks ?? json.data.items ?? []).map(
+          (d: any) => ({
+            ...d,
+            gradient: d.gradient || getGradient(d.id),
+          })
+        );
+        setMyDecks(decks);
+      }
+    } catch (err) {
+      console.error('Failed to fetch my decks:', err);
+      setError('Failed to load your decks.');
+    } finally {
+      setLoadingMyDecks(false);
+    }
+  }, []);
+
+  // Fetch browse decks
+  const fetchBrowseDecks = useCallback(async () => {
+    try {
+      setLoadingBrowse(true);
+      const res = await fetch('/api/flashcards?browse=true');
+      const json = await res.json();
+      if (json.success && json.data) {
+        const decks = (Array.isArray(json.data) ? json.data : json.data.decks ?? json.data.items ?? []).map(
+          (d: any) => ({
+            ...d,
+            gradient: d.gradient || getGradient(d.id),
+          })
+        );
+        setBrowseDecks(decks);
+      }
+    } catch (err) {
+      console.error('Failed to fetch browse decks:', err);
+    } finally {
+      setLoadingBrowse(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMyDecks();
+    fetchBrowseDecks();
+  }, [fetchMyDecks, fetchBrowseDecks]);
 
   // Derived stats
-  const totalCards = myDecks.reduce((sum, d) => sum + d.totalCards, 0);
-  const totalMastered = myDecks.reduce((sum, d) => sum + d.masteredCards, 0);
-  const dueToday = 42; // mock
-  const streak = 7; // mock
+  const totalCards = myDecks.reduce((sum, d) => sum + (d.totalCards || 0), 0);
+  const totalMastered = myDecks.reduce((sum, d) => sum + (d.masteredCards || 0), 0);
+  const masteredPercent = totalCards > 0 ? Math.round((totalMastered / totalCards) * 100) : 0;
 
   // Filtered decks
   const categories = useMemo(
-    () => [...new Set(myDecks.map((d) => d.category))],
-    [],
+    () => [...new Set(myDecks.map((d) => d.category).filter(Boolean))],
+    [myDecks],
   );
 
   const filteredDecks = useMemo(
@@ -245,7 +220,7 @@ export default function FlashcardsPage() {
           categoryFilter === 'all' || deck.category === categoryFilter;
         return matchesSearch && matchesCategory;
       }),
-    [searchQuery, categoryFilter],
+    [myDecks, searchQuery, categoryFilter],
   );
 
   const filteredBrowse = useMemo(
@@ -253,14 +228,40 @@ export default function FlashcardsPage() {
       browseDecks.filter((deck) =>
         deck.name.toLowerCase().includes(searchQuery.toLowerCase()),
       ),
-    [searchQuery],
+    [browseDecks, searchQuery],
   );
 
-  function handleCreateDeck() {
-    // Placeholder: would POST to API
-    setCreateDialogOpen(false);
-    setNewDeckName('');
-    setNewDeckCategory('');
+  async function handleCreateDeck() {
+    if (!newDeckName.trim() || !newDeckCategory) return;
+    setIsCreating(true);
+    try {
+      const res = await fetch('/api/flashcards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newDeckName.trim(),
+          description: newDeckDescription.trim(),
+          category: newDeckCategory,
+          isPublic: newDeckIsPublic,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setCreateDialogOpen(false);
+        setNewDeckName('');
+        setNewDeckDescription('');
+        setNewDeckCategory('');
+        setNewDeckIsPublic(false);
+        // Refresh decks
+        fetchMyDecks();
+      } else {
+        console.error('Create deck failed:', json);
+      }
+    } catch (err) {
+      console.error('Failed to create deck:', err);
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   return (
@@ -292,6 +293,15 @@ export default function FlashcardsPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="deck-description">Description</Label>
+                <Input
+                  id="deck-description"
+                  placeholder="Brief description of this deck"
+                  value={newDeckDescription}
+                  onChange={(e) => setNewDeckDescription(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="deck-category">Category</Label>
                 <Select value={newDeckCategory} onValueChange={setNewDeckCategory}>
                   <SelectTrigger id="deck-category">
@@ -306,18 +316,38 @@ export default function FlashcardsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="deck-public"
+                  checked={newDeckIsPublic}
+                  onChange={(e) => setNewDeckIsPublic(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <Label htmlFor="deck-public" className="text-sm font-normal">
+                  Make this deck public
+                </Label>
+              </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   variant="outline"
                   onClick={() => setCreateDialogOpen(false)}
+                  disabled={isCreating}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleCreateDeck}
-                  disabled={!newDeckName.trim() || !newDeckCategory}
+                  disabled={!newDeckName.trim() || !newDeckCategory || isCreating}
                 >
-                  Create Deck
+                  {isCreating ? (
+                    <>
+                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Deck'
+                  )}
                 </Button>
               </div>
             </div>
@@ -336,7 +366,7 @@ export default function FlashcardsPage() {
         />
         <StatCard
           label="Due Today"
-          value={dueToday}
+          value="-"
           icon={CalendarDays}
           iconColor="text-amber-500"
           change="Spaced repetition"
@@ -346,14 +376,14 @@ export default function FlashcardsPage() {
           value={totalMastered}
           icon={CheckCircle2}
           iconColor="text-emerald-500"
-          change={`${Math.round((totalMastered / totalCards) * 100)}% of total`}
+          change={`${masteredPercent}% of total`}
         />
         <StatCard
-          label="Streak"
-          value={`${streak} days`}
+          label="Decks"
+          value={myDecks.length}
           icon={Flame}
           iconColor="text-orange-500"
-          change="Keep it going!"
+          change="Keep studying!"
         />
       </div>
 
@@ -398,7 +428,17 @@ export default function FlashcardsPage() {
 
         {/* ---- My Decks Tab ---- */}
         <TabsContent value="my-decks">
-          {filteredDecks.length === 0 ? (
+          {loadingMyDecks ? (
+            <CardSkeleton count={6} />
+          ) : error ? (
+            <EmptyState
+              icon={Layers}
+              title="Error loading decks"
+              description={error}
+            >
+              <Button onClick={fetchMyDecks}>Try Again</Button>
+            </EmptyState>
+          ) : filteredDecks.length === 0 ? (
             <EmptyState
               icon={Layers}
               title="No decks found"
@@ -418,9 +458,10 @@ export default function FlashcardsPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredDecks.map((deck) => {
-                const progress = Math.round(
-                  (deck.masteredCards / deck.totalCards) * 100,
-                );
+                const progress =
+                  deck.totalCards > 0
+                    ? Math.round((deck.masteredCards / deck.totalCards) * 100)
+                    : 0;
                 return (
                   <Card
                     key={deck.id}
@@ -473,14 +514,18 @@ export default function FlashcardsPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {deck.lastStudied}
+                          {formatLastStudied(deck.lastStudied)}
                         </span>
                         <div className="flex items-center gap-1">
                           <Button size="sm" variant="ghost" className="text-xs h-8 px-2">
                             <Pencil className="h-3 w-3 mr-1" />
                             Edit
                           </Button>
-                          <Button size="sm" className="text-xs h-8">
+                          <Button
+                            size="sm"
+                            className="text-xs h-8"
+                            onClick={() => router.push(`/study/flashcards/${deck.id}`)}
+                          >
                             <Play className="h-3 w-3 mr-1" />
                             Study
                           </Button>
@@ -512,7 +557,9 @@ export default function FlashcardsPage() {
 
         {/* ---- Browse Tab ---- */}
         <TabsContent value="browse">
-          {filteredBrowse.length === 0 ? (
+          {loadingBrowse ? (
+            <CardSkeleton count={6} />
+          ) : filteredBrowse.length === 0 ? (
             <EmptyState
               icon={BookOpen}
               title="No community decks found"
@@ -538,7 +585,7 @@ export default function FlashcardsPage() {
                           {deck.name}
                         </h3>
                         <p className="text-xs text-muted-foreground mt-1">
-                          by {deck.author}
+                          by {deck.author || 'Community'}
                         </p>
                       </div>
                       <div
@@ -558,7 +605,7 @@ export default function FlashcardsPage() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
-                        {deck.subscribers.toLocaleString()} users
+                        {(deck.subscribers || 0).toLocaleString()} users
                       </span>
                     </div>
 

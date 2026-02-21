@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { cn, getInitials, formatRelativeTime } from '@/lib/utils';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { EmptyState } from '@/components/shared/empty-state';
+import { CardSkeleton } from '@/components/shared/loading-skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -58,12 +59,15 @@ interface DiscussionAuthor {
 }
 
 interface Discussion {
+  id: string;
   slug: string;
   title: string;
   excerpt: string;
+  content?: string;
   author: DiscussionAuthor;
   category: string;
-  date: Date;
+  categoryId?: string;
+  date: string;
   replies: number;
   likes: number;
   views: number;
@@ -84,130 +88,32 @@ interface SortOption {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-// ── Data ───────────────────────────────────────────────────────────
+// ── Static config ───────────────────────────────────────────────
 
-const categories: Category[] = [
-  { name: 'All', icon: MessageSquare, count: 156 },
-  { name: 'General', icon: MessageSquare, count: 35 },
-  { name: 'NCLEX Tips', icon: Brain, count: 28 },
-  { name: 'Study Groups', icon: Users, count: 22 },
-  { name: 'Pharmacology', icon: Pill, count: 34 },
-  { name: 'Management of Care', icon: Shield, count: 19 },
-  { name: 'Clinical', icon: Stethoscope, count: 18 },
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  All: MessageSquare,
+  General: MessageSquare,
+  'NCLEX Tips': Brain,
+  'Study Groups': Users,
+  Pharmacology: Pill,
+  'Management of Care': Shield,
+  Clinical: Stethoscope,
+};
+
+const STATIC_CATEGORIES: Category[] = [
+  { name: 'All', icon: MessageSquare, count: 0 },
+  { name: 'General', icon: MessageSquare, count: 0 },
+  { name: 'NCLEX Tips', icon: Brain, count: 0 },
+  { name: 'Study Groups', icon: Users, count: 0 },
+  { name: 'Pharmacology', icon: Pill, count: 0 },
+  { name: 'Management of Care', icon: Shield, count: 0 },
+  { name: 'Clinical', icon: Stethoscope, count: 0 },
 ];
 
 const sortOptions: SortOption[] = [
   { value: 'latest', label: 'Latest', icon: Clock },
   { value: 'popular', label: 'Popular', icon: TrendingUp },
   { value: 'unanswered', label: 'Unanswered', icon: HelpCircle },
-];
-
-const discussions: Discussion[] = [
-  {
-    slug: 'best-way-to-memorize-drug-classifications',
-    title: 'Best way to memorize drug classifications?',
-    excerpt:
-      "I'm struggling with remembering all the different drug classes and their mechanisms. What mnemonics or techniques have worked for you?",
-    author: { name: 'Sarah Chen', avatar: null },
-    category: 'Pharmacology',
-    date: new Date('2026-02-20T14:30:00'),
-    replies: 24,
-    likes: 48,
-    views: 312,
-    isPinned: true,
-    isResolved: true,
-    tags: ['pharmacology', 'mnemonics', 'study-tips'],
-  },
-  {
-    slug: 'cat-simulation-vs-actual-nclex',
-    title: 'How accurate are CAT simulations compared to the actual NCLEX?',
-    excerpt:
-      'Those who have taken the real NCLEX - how did CAT practice simulations compare in difficulty and question style?',
-    author: { name: 'Marcus Johnson', avatar: null },
-    category: 'NCLEX Tips',
-    date: new Date('2026-02-20T10:15:00'),
-    replies: 18,
-    likes: 35,
-    views: 256,
-    isPinned: true,
-    isResolved: false,
-    tags: ['cat-exam', 'nclex', 'experience'],
-  },
-  {
-    slug: 'delegation-and-prioritization-tips',
-    title: 'Delegation and prioritization - anyone else finding these tough?',
-    excerpt:
-      'I keep getting delegation questions wrong. The answer choices always seem so similar. How do you approach these?',
-    author: { name: 'Emily Rodriguez', avatar: null },
-    category: 'Management of Care',
-    date: new Date('2026-02-19T16:45:00'),
-    replies: 31,
-    likes: 62,
-    views: 445,
-    isPinned: false,
-    isResolved: true,
-    tags: ['delegation', 'prioritization', 'management'],
-  },
-  {
-    slug: 'study-schedule-for-working-nurses',
-    title: 'Study schedule for working nurses - how do you balance it all?',
-    excerpt:
-      'I work 3 twelve-hour shifts a week and struggle to find time to study. What schedules have worked for other working nurses?',
-    author: { name: 'Jessica Park', avatar: null },
-    category: 'Study Groups',
-    date: new Date('2026-02-19T09:20:00'),
-    replies: 42,
-    likes: 89,
-    views: 678,
-    isPinned: false,
-    isResolved: false,
-    tags: ['work-life-balance', 'study-schedule'],
-  },
-  {
-    slug: 'fluid-and-electrolyte-cheat-sheet',
-    title: 'Fluid and Electrolyte imbalances - my comprehensive cheat sheet',
-    excerpt:
-      'After weeks of struggling, I created a detailed cheat sheet for all fluid and electrolyte imbalances. Sharing here for everyone!',
-    author: { name: 'David Kim', avatar: null },
-    category: 'Clinical',
-    date: new Date('2026-02-18T20:00:00'),
-    replies: 56,
-    likes: 124,
-    views: 892,
-    isPinned: false,
-    isResolved: false,
-    tags: ['fluid-electrolyte', 'cheat-sheet', 'resource'],
-  },
-  {
-    slug: 'nclex-anxiety-and-mental-health',
-    title: "Dealing with NCLEX anxiety - you're not alone",
-    excerpt:
-      "Let's talk about the mental health side of NCLEX prep. I've been feeling overwhelmed and want to share some coping strategies.",
-    author: { name: 'Alex Thompson', avatar: null },
-    category: 'General',
-    date: new Date('2026-02-18T15:30:00'),
-    replies: 38,
-    likes: 97,
-    views: 543,
-    isPinned: false,
-    isResolved: false,
-    tags: ['mental-health', 'anxiety', 'support'],
-  },
-  {
-    slug: 'pediatric-growth-milestones-tips',
-    title: 'Pediatric growth and development milestones - easy memory tricks',
-    excerpt:
-      'I found these amazing tricks to remember all the developmental milestones. Works perfectly for NCLEX questions!',
-    author: { name: 'Maria Garcia', avatar: null },
-    category: 'Clinical',
-    date: new Date('2026-02-17T11:00:00'),
-    replies: 15,
-    likes: 41,
-    views: 287,
-    isPinned: false,
-    isResolved: false,
-    tags: ['pediatrics', 'milestones', 'memory-tricks'],
-  },
 ];
 
 // ── Component ──────────────────────────────────────────────────────
@@ -224,35 +130,144 @@ export default function DiscussionsPage() {
   const [newPostContent, setNewPostContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const filteredDiscussions = discussions
-    .filter((d) => {
-      const matchesSearch =
-        d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        d.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        selectedCategory === 'All' || d.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'popular') return b.likes - a.likes;
-      if (sortBy === 'unanswered') return a.replies - b.replies;
-      return b.date.getTime() - a.date.getTime();
-    });
+  // Data state
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
-  const myPostsCount = 3;
+  // Debounced search
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch discussions from API
+  const fetchDiscussions = useCallback(
+    async (append = false) => {
+      try {
+        if (append) {
+          setLoadingMore(true);
+        } else {
+          setLoading(true);
+        }
+
+        const params = new URLSearchParams();
+        if (selectedCategory !== 'All') params.set('category', selectedCategory);
+        if (sortBy) params.set('sort', sortBy);
+        if (debouncedSearch) params.set('search', debouncedSearch);
+        params.set('limit', '20');
+        if (append && discussions.length > 0) {
+          params.set('offset', String(discussions.length));
+        }
+
+        const res = await fetch(`/api/discussions?${params.toString()}`);
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          const posts = Array.isArray(json.data)
+            ? json.data
+            : json.data.posts ?? json.data.discussions ?? json.data.items ?? [];
+
+          // Normalize the data
+          const normalized: Discussion[] = posts.map((p: any) => ({
+            id: p.id,
+            slug: p.slug || p.id,
+            title: p.title || '',
+            excerpt: p.excerpt || p.content?.slice(0, 200) || '',
+            content: p.content,
+            author: {
+              name: p.author?.fullName || p.author?.name || p.authorName || 'Unknown',
+              avatar: p.author?.avatarUrl || p.author?.avatar || p.authorAvatar || null,
+            },
+            category: typeof p.category === 'object' ? p.category?.name : (p.category || p.categoryName || ''),
+            categoryId: p.categoryId,
+            date: p.date || p.createdAt || p.created_at || new Date().toISOString(),
+            replies: p.replies ?? p.replyCount ?? p.commentCount ?? p._count?.comments ?? 0,
+            likes: p.likes ?? p.likeCount ?? p._count?.reactions ?? 0,
+            views: p.views ?? p.viewCount ?? 0,
+            isPinned: p.isPinned ?? p.pinned ?? false,
+            isResolved: p.isResolved ?? p.resolved ?? false,
+            tags: p.tags ?? [],
+          }));
+
+          if (append) {
+            setDiscussions((prev) => [...prev, ...normalized]);
+          } else {
+            setDiscussions(normalized);
+          }
+
+          // Determine if there are more to load
+          const total = json.data.total ?? json.data.totalCount;
+          if (total !== undefined) {
+            const newTotal = append ? discussions.length + normalized.length : normalized.length;
+            setHasMore(newTotal < total);
+          } else {
+            setHasMore(normalized.length >= 20);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch discussions:', err);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [selectedCategory, sortBy, debouncedSearch, discussions.length],
+  );
+
+  // Fetch on filter/sort/search change
+  useEffect(() => {
+    fetchDiscussions(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory, sortBy, debouncedSearch]);
+
+  // Compute stats from loaded discussions
   const totalReplies = discussions.reduce((sum, d) => sum + d.replies, 0);
   const popularCount = discussions.filter((d) => d.likes >= 50).length;
+
+  // Build category counts from loaded data
+  const categories: Category[] = STATIC_CATEGORIES.map((cat) => ({
+    ...cat,
+    count:
+      cat.name === 'All'
+        ? discussions.length
+        : discussions.filter((d) => d.category === cat.name).length,
+  }));
 
   const handleCreatePost = async () => {
     if (!newPostTitle.trim() || !newPostCategory || !newPostContent.trim()) return;
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSubmitting(false);
-    setDialogOpen(false);
-    setNewPostTitle('');
-    setNewPostCategory('');
-    setNewPostContent('');
+    try {
+      const res = await fetch('/api/discussions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newPostTitle.trim(),
+          content: newPostContent.trim(),
+          categoryId: newPostCategory,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setDialogOpen(false);
+        setNewPostTitle('');
+        setNewPostCategory('');
+        setNewPostContent('');
+        // Refresh discussions list
+        fetchDiscussions(false);
+      } else {
+        console.error('Create discussion failed:', json);
+      }
+    } catch (err) {
+      console.error('Failed to create discussion:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -290,7 +305,7 @@ export default function DiscussionsPage() {
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories
+                    {STATIC_CATEGORIES
                       .filter((c) => c.name !== 'All')
                       .map((cat) => (
                         <SelectItem key={cat.name} value={cat.name}>
@@ -351,21 +366,21 @@ export default function DiscussionsPage() {
         <StatCard
           label="Total Posts"
           value={discussions.length}
-          change="+12 this week"
+          change="Loaded"
           icon={FileText}
           iconColor="text-indigo-500"
         />
         <StatCard
-          label="My Posts"
-          value={myPostsCount}
-          change="+1 today"
+          label="Categories"
+          value={categories.filter((c) => c.name !== 'All' && c.count > 0).length}
+          change="Active"
           icon={MessageSquare}
           iconColor="text-blue-500"
         />
         <StatCard
           label="Replies"
           value={totalReplies}
-          change="+48 this week"
+          change="Total replies"
           icon={MessageSquare}
           iconColor="text-emerald-500"
         />
@@ -433,11 +448,13 @@ export default function DiscussionsPage() {
       </div>
 
       {/* Discussion List */}
-      {filteredDiscussions.length > 0 ? (
+      {loading ? (
+        <CardSkeleton count={5} />
+      ) : discussions.length > 0 ? (
         <div className="space-y-3">
-          {filteredDiscussions.map((post) => (
+          {discussions.map((post) => (
             <Link
-              key={post.slug}
+              key={post.id || post.slug}
               href={`/community/discussions/${post.slug}`}
             >
               <Card className="group cursor-pointer hover:shadow-md hover:border-primary/20 transition-all duration-300 mb-3">
@@ -513,9 +530,24 @@ export default function DiscussionsPage() {
           ))}
 
           {/* Load More */}
-          <div className="flex justify-center pt-4">
-            <Button variant="outline">Load More Discussions</Button>
-          </div>
+          {hasMore && (
+            <div className="flex justify-center pt-4">
+              <Button
+                variant="outline"
+                onClick={() => fetchDiscussions(true)}
+                disabled={loadingMore}
+              >
+                {loadingMore ? (
+                  <>
+                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Loading...
+                  </>
+                ) : (
+                  'Load More Discussions'
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <EmptyState

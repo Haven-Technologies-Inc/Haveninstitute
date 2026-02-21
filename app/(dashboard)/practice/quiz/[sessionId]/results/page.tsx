@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useApi } from "@/lib/hooks/use-api";
+import { useUser } from "@/lib/hooks/use-user";
+import { QuestionRenderer } from "@/components/questions/question-renderer";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,152 +38,142 @@ import {
   ChevronDown,
   ChevronUp,
   BookOpen,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
-const categoryBreakdown = [
-  { name: "Pharmacological Therapies", correct: 5, total: 6, percentage: 83 },
-  { name: "Physiological Adaptation", correct: 3, total: 4, percentage: 75 },
-  { name: "Management of Care", correct: 2, total: 3, percentage: 67 },
-  { name: "Safety & Infection Control", correct: 4, total: 4, percentage: 100 },
-  { name: "Psychosocial Integrity", correct: 1, total: 2, percentage: 50 },
-  { name: "Basic Care & Comfort", correct: 3, total: 3, percentage: 100 },
-  { name: "Health Promotion", correct: 2, total: 3, percentage: 67 },
-  { name: "Reduction of Risk Potential", correct: 4, total: 5, percentage: 80 },
-];
-
-interface QuestionResult {
-  id: number;
-  text: string;
-  category: string;
-  yourAnswer: string;
-  correctAnswer: string;
-  status: "correct" | "incorrect" | "skipped";
-  explanation: string;
+interface QuizQuestion {
+  id: string;
+  questionText: string;
+  questionType: string;
+  options: any;
+  correctAnswers: any;
+  correctOrder?: any;
+  hotSpotData?: any;
+  explanation?: string;
+  rationale?: string;
+  difficulty: string;
+  scenario?: string;
+  category: { name: string; code: string };
 }
 
-const questionResults: QuestionResult[] = [
-  {
-    id: 1,
-    text: "A nurse is caring for a client who has been prescribed warfarin. Which laboratory value should the nurse monitor most closely?",
-    category: "Pharmacological Therapies",
-    yourAnswer: "B",
-    correctAnswer: "B",
-    status: "correct",
-    explanation:
-      "INR is the standard test for monitoring warfarin therapy. The therapeutic range is typically 2.0-3.0.",
-  },
-  {
-    id: 2,
-    text: "A client is admitted with suspected myocardial infarction. Which nursing intervention should be performed first?",
-    category: "Physiological Adaptation",
-    yourAnswer: "A",
-    correctAnswer: "D",
-    status: "incorrect",
-    explanation:
-      "Establishing IV access and administering oxygen are priority interventions for suspected MI, following the ABCs of emergency care.",
-  },
-  {
-    id: 3,
-    text: "Which assessment finding should the nurse report immediately for a client receiving a blood transfusion?",
-    category: "Reduction of Risk Potential",
-    yourAnswer: "B",
-    correctAnswer: "B",
-    status: "correct",
-    explanation:
-      "Back pain and dark urine indicate a hemolytic transfusion reaction, which is a medical emergency requiring immediate intervention.",
-  },
-  {
-    id: 4,
-    text: "A nurse is teaching a client about digoxin. Which statement indicates understanding?",
-    category: "Pharmacological Therapies",
-    yourAnswer: "A",
-    correctAnswer: "A",
-    status: "correct",
-    explanation:
-      "Taking the pulse before each dose of digoxin is correct. The medication should be held if the pulse is below 60 bpm.",
-  },
-  {
-    id: 5,
-    text: "A nurse is caring for a client in Buck's traction. Which finding indicates a complication?",
-    category: "Basic Care & Comfort",
-    yourAnswer: "",
-    correctAnswer: "B",
-    status: "skipped",
-    explanation:
-      "Numbness and tingling indicate neurovascular compromise, which is a serious complication of traction that requires immediate intervention.",
-  },
-  {
-    id: 6,
-    text: "A nurse is planning care for a client who is at risk for falls. Which intervention is most appropriate?",
-    category: "Safety & Infection Control",
-    yourAnswer: "B",
-    correctAnswer: "B",
-    status: "correct",
-    explanation:
-      "Keeping the bed in the lowest position with side rails up is the most appropriate fall prevention measure.",
-  },
-  {
-    id: 7,
-    text: "Which priority nursing diagnosis is most appropriate for a client experiencing a panic attack?",
-    category: "Psychosocial Integrity",
-    yourAnswer: "D",
-    correctAnswer: "B",
-    status: "incorrect",
-    explanation:
-      "Anxiety is the priority nursing diagnosis during a panic attack. While ineffective coping may also apply, the immediate concern is the client's anxiety level.",
-  },
-  {
-    id: 8,
-    text: "A nurse is caring for a postoperative client who develops a wound evisceration. What is the priority nursing action?",
-    category: "Physiological Adaptation",
-    yourAnswer: "A",
-    correctAnswer: "A",
-    status: "correct",
-    explanation:
-      "Covering the wound with sterile saline-soaked dressings prevents tissue desiccation and contamination while preparing for surgical intervention.",
-  },
-  {
-    id: 9,
-    text: "Which topic is most important regarding safe sleep practices for an infant?",
-    category: "Health Promotion",
-    yourAnswer: "B",
-    correctAnswer: "B",
-    status: "correct",
-    explanation:
-      "The Back to Sleep campaign recommends placing infants on their backs to sleep to reduce the risk of SIDS.",
-  },
-  {
-    id: 10,
-    text: "Which task is most appropriate to delegate to an LPN?",
-    category: "Management of Care",
-    yourAnswer: "B",
-    correctAnswer: "B",
-    status: "correct",
-    explanation:
-      "Collecting data from a client with stable vital signs is within the LPN scope of practice. Care planning, evaluation, and initial assessment require an RN.",
-  },
-];
+interface QuizResponse {
+  id: string;
+  questionId: string;
+  userAnswer: any;
+  isCorrect: boolean;
+  timeSpentSeconds: number | null;
+  questionIndex: number;
+  question: QuizQuestion;
+}
+
+interface QuizSessionData {
+  id: string;
+  status: string;
+  score: number | null;
+  totalQuestions: number;
+  correctAnswers: number | null;
+  totalTimeSeconds: number | null;
+  difficulty: string;
+  timeLimitMinutes: number | null;
+  startedAt: string;
+  completedAt: string | null;
+  responses: QuizResponse[];
+}
 
 export default function QuizResultsPage() {
-  const { data: session } = useSession();
+  const { user } = useUser();
   const router = useRouter();
   const params = useParams();
   const sessionId = params.sessionId as string;
-  const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
 
-  const totalQuestions = questionResults.length;
-  const correctCount = questionResults.filter(
-    (q) => q.status === "correct"
-  ).length;
-  const incorrectCount = questionResults.filter(
-    (q) => q.status === "incorrect"
-  ).length;
-  const skippedCount = questionResults.filter(
-    (q) => q.status === "skipped"
-  ).length;
-  const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
+  const sessionApi = useApi<QuizSessionData>();
+  const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
+
+  // Load session results
+  useEffect(() => {
+    sessionApi.get(`/api/quiz/${sessionId}`);
+  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Loading state
+  if (sessionApi.loading || !sessionApi.data) {
+    return (
+      <div className="max-w-4xl mx-auto flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground">Loading quiz results...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (sessionApi.error) {
+    return (
+      <div className="max-w-4xl mx-auto flex items-center justify-center min-h-[60vh]">
+        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm max-w-md w-full">
+          <CardContent className="p-8 text-center space-y-4">
+            <AlertCircle className="h-10 w-10 text-red-500 mx-auto" />
+            <h2 className="text-lg font-semibold">Error Loading Results</h2>
+            <p className="text-sm text-muted-foreground">{sessionApi.error}</p>
+            <Button variant="outline" asChild>
+              <Link href="/practice/quiz">Back to Quiz Setup</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // If session is not completed, redirect to the active quiz
+  if (sessionApi.data.status !== "completed") {
+    router.replace(`/practice/quiz/${sessionId}`);
+    return null;
+  }
+
+  const quizSession = sessionApi.data;
+  const responses = quizSession.responses ?? [];
+  const totalQuestions = quizSession.totalQuestions;
+  const correctCount = quizSession.correctAnswers ?? 0;
+  const scorePercentage = quizSession.score ?? 0;
   const passed = scorePercentage >= 65;
-  const timeTaken = "8:42";
+
+  // Compute incorrect and skipped from responses
+  const incorrectCount = responses.filter(
+    (r) => !r.isCorrect && r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== ""
+  ).length;
+  const skippedCount = totalQuestions - correctCount - incorrectCount;
+
+  // Format time
+  const totalSeconds = quizSession.totalTimeSeconds ?? 0;
+  const timeTaken =
+    totalSeconds > 0
+      ? `${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60)
+          .toString()
+          .padStart(2, "0")}`
+      : "N/A";
+
+  // Build category breakdown from responses
+  const categoryMap: Record<
+    string,
+    { name: string; correct: number; total: number }
+  > = {};
+  responses.forEach((r) => {
+    const catCode = r.question.category?.code ?? "unknown";
+    const catName = r.question.category?.name ?? "Unknown";
+    if (!categoryMap[catCode]) {
+      categoryMap[catCode] = { name: catName, correct: 0, total: 0 };
+    }
+    categoryMap[catCode].total++;
+    if (r.isCorrect) {
+      categoryMap[catCode].correct++;
+    }
+  });
+
+  const categoryBreakdown = Object.values(categoryMap).map((cat) => ({
+    ...cat,
+    percentage: cat.total > 0 ? Math.round((cat.correct / cat.total) * 100) : 0,
+  }));
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -343,163 +335,169 @@ export default function QuizResultsPage() {
           <TabsContent value="breakdown" className="space-y-4">
             <Card className="border-0 shadow-sm bg-card/80 backdrop-blur-sm">
               <CardContent className="p-6 space-y-4">
-                {categoryBreakdown.map((cat, i) => (
-                  <motion.div
-                    key={cat.name}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + i * 0.05 }}
-                    className="space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{cat.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {cat.correct}/{cat.total}
-                        </span>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "text-xs min-w-[3rem] justify-center",
-                            cat.percentage >= 80
-                              ? "bg-emerald-500/10 text-emerald-600"
-                              : cat.percentage >= 65
-                              ? "bg-amber-500/10 text-amber-600"
-                              : "bg-red-500/10 text-red-600"
-                          )}
-                        >
-                          {cat.percentage}%
-                        </Badge>
+                {categoryBreakdown.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No category data available.
+                  </p>
+                ) : (
+                  categoryBreakdown.map((cat, i) => (
+                    <motion.div
+                      key={cat.name}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 + i * 0.05 }}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{cat.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {cat.correct}/{cat.total}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "text-xs min-w-[3rem] justify-center",
+                              cat.percentage >= 80
+                                ? "bg-emerald-500/10 text-emerald-600"
+                                : cat.percentage >= 65
+                                ? "bg-amber-500/10 text-amber-600"
+                                : "bg-red-500/10 text-red-600"
+                            )}
+                          >
+                            {cat.percentage}%
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <motion.div
-                        className={cn(
-                          "h-full rounded-full",
-                          cat.percentage >= 80
-                            ? "bg-emerald-500"
-                            : cat.percentage >= 65
-                            ? "bg-amber-500"
-                            : "bg-red-500"
-                        )}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${cat.percentage}%` }}
-                        transition={{ duration: 1, delay: 0.3 + i * 0.05 }}
-                      />
-                    </div>
-                  </motion.div>
-                ))}
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <motion.div
+                          className={cn(
+                            "h-full rounded-full",
+                            cat.percentage >= 80
+                              ? "bg-emerald-500"
+                              : cat.percentage >= 65
+                              ? "bg-amber-500"
+                              : "bg-red-500"
+                          )}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${cat.percentage}%` }}
+                          transition={{ duration: 1, delay: 0.3 + i * 0.05 }}
+                        />
+                      </div>
+                    </motion.div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Question Review */}
           <TabsContent value="review" className="space-y-3">
-            {questionResults.map((q, i) => (
-              <motion.div
-                key={q.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-              >
-                <Card
-                  className={cn(
-                    "border-0 shadow-sm bg-card/80 backdrop-blur-sm cursor-pointer transition-all",
-                    expandedQuestion === q.id && "shadow-md"
-                  )}
-                  onClick={() =>
-                    setExpandedQuestion(
-                      expandedQuestion === q.id ? null : q.id
-                    )
-                  }
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={cn(
-                          "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
-                          q.status === "correct"
-                            ? "bg-emerald-500/10"
-                            : q.status === "incorrect"
-                            ? "bg-red-500/10"
-                            : "bg-gray-500/10"
-                        )}
-                      >
-                        {q.status === "correct" ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        ) : q.status === "incorrect" ? (
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        ) : (
-                          <MinusCircle className="h-4 w-4 text-gray-400" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className="text-[10px]">
-                            Q{q.id}
-                          </Badge>
-                          <Badge variant="secondary" className="text-[10px]">
-                            {q.category}
-                          </Badge>
-                        </div>
-                        <p className="text-sm font-medium line-clamp-2">
-                          {q.text}
-                        </p>
+            {responses.map((r, i) => {
+              const q = r.question;
+              const status: "correct" | "incorrect" | "skipped" = r.isCorrect
+                ? "correct"
+                : r.userAnswer !== null &&
+                  r.userAnswer !== undefined &&
+                  r.userAnswer !== ""
+                ? "incorrect"
+                : "skipped";
+              const isExpanded = expandedQuestion === r.questionId;
 
-                        {expandedQuestion === q.id && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            className="mt-3 space-y-2"
-                          >
-                            <div className="flex items-center gap-4 text-sm">
-                              <span className="text-muted-foreground">
-                                Your answer:{" "}
-                                <span
-                                  className={cn(
-                                    "font-medium",
-                                    q.status === "correct"
-                                      ? "text-emerald-600"
-                                      : q.status === "incorrect"
-                                      ? "text-red-600"
-                                      : "text-gray-400"
-                                  )}
-                                >
-                                  {q.yourAnswer || "Skipped"}
-                                </span>
-                              </span>
-                              {q.status !== "correct" && (
-                                <span className="text-muted-foreground">
-                                  Correct:{" "}
-                                  <span className="font-medium text-emerald-600">
-                                    {q.correctAnswer}
-                                  </span>
-                                </span>
-                              )}
-                            </div>
-                            <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                              <div className="flex items-start gap-2">
-                                <BookOpen className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                                <p className="text-xs text-muted-foreground leading-relaxed">
-                                  {q.explanation}
-                                </p>
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
+              return (
+                <motion.div
+                  key={r.questionId}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                >
+                  <Card
+                    className={cn(
+                      "border-0 shadow-sm bg-card/80 backdrop-blur-sm cursor-pointer transition-all",
+                      isExpanded && "shadow-md"
+                    )}
+                    onClick={() =>
+                      setExpandedQuestion(
+                        isExpanded ? null : r.questionId
+                      )
+                    }
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={cn(
+                            "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
+                            status === "correct"
+                              ? "bg-emerald-500/10"
+                              : status === "incorrect"
+                              ? "bg-red-500/10"
+                              : "bg-gray-500/10"
+                          )}
+                        >
+                          {status === "correct" ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          ) : status === "incorrect" ? (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <MinusCircle className="h-4 w-4 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="text-[10px]">
+                              Q{i + 1}
+                            </Badge>
+                            <Badge variant="secondary" className="text-[10px]">
+                              {q.category?.name ?? "Unknown"}
+                            </Badge>
+                          </div>
+                          <p className="text-sm font-medium line-clamp-2">
+                            {q.questionText}
+                          </p>
+
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              className="mt-4 space-y-4"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <QuestionRenderer
+                                question={{
+                                  id: q.id,
+                                  questionText: q.questionText,
+                                  questionType: q.questionType,
+                                  options: q.options,
+                                  scenario: q.scenario,
+                                  difficulty: q.difficulty,
+                                  categoryName: q.category?.name,
+                                  hotSpotData: q.hotSpotData,
+                                }}
+                                userAnswer={r.userAnswer}
+                                onAnswerChange={() => {}}
+                                showResult={true}
+                                correctAnswers={q.correctAnswers}
+                                correctOrder={q.correctOrder}
+                                explanation={q.explanation}
+                                rationale={q.rationale}
+                                disabled={true}
+                              />
+                            </motion.div>
+                          )}
+                        </div>
+                        <div className="shrink-0">
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
                       </div>
-                      <div className="shrink-0">
-                        {expandedQuestion === q.id ? (
-                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </TabsContent>
         </Tabs>
       </motion.div>

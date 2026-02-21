@@ -1,16 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { cn, getInitials } from "@/lib/utils";
+import { cn, getInitials, formatRelativeTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
   Heart,
@@ -26,95 +25,195 @@ import {
   Eye,
   Send,
   ChevronUp,
+  Loader2,
 } from "lucide-react";
 
-const post = {
-  title: "Best way to memorize drug classifications?",
-  content: `I've been studying pharmacology for the past few weeks and I'm really struggling with remembering all the different drug classifications, their mechanisms of action, and common side effects.
+interface PostAuthor {
+  id: string;
+  fullName: string;
+  avatarUrl: string | null;
+  role?: string;
+}
 
-I've tried making flashcards and reading the textbook, but the information just doesn't seem to stick. There are so many drugs that sound similar and have overlapping side effects.
+interface Reaction {
+  id: string;
+  userId: string;
+  reactionType: string;
+}
 
-**Specifically, I'm having trouble with:**
-- Distinguishing between different antihypertensive classes (ACE inhibitors vs ARBs vs beta-blockers)
-- Remembering which antibiotics cover gram-positive vs gram-negative organisms
-- Keeping track of which drugs are safe during pregnancy
+interface Comment {
+  id: string;
+  author: PostAuthor;
+  content: string;
+  createdAt: string;
+  likeCount: number;
+  isBestAnswer: boolean;
+  reactions: Reaction[];
+}
 
-Has anyone found effective mnemonics or study techniques that helped them master pharmacology? I'm about 6 weeks out from my NCLEX and really need to improve in this area.
-
-Any help would be greatly appreciated! Thanks in advance.`,
-  author: { name: "Sarah Chen", avatar: null, joinDate: "Jan 2026", posts: 12 },
-  category: "Pharmacology",
-  date: "Feb 20, 2026 at 2:30 PM",
-  replies: 24,
-  likes: 48,
-  views: 312,
-  isResolved: true,
-  tags: ["pharmacology", "mnemonics", "study-tips"],
-  isLiked: false,
-  isBookmarked: false,
-};
-
-const comments = [
-  {
-    id: 1,
-    author: { name: "Emily Rodriguez", avatar: null },
-    content: `Great question! Here are some mnemonics that saved me:
-
-**ACE Inhibitors** (end in "-pril"): Remember "CAPTOPRIL" - Cough, Angioedema, Pregnancy contraindicated, Taste changes, hyPotension, Renal issues, Increased potassium, Low BP on first dose
-
-**Beta Blockers** (end in "-olol"): "BETA" - Bradycardia, Exercise intolerance, Tiredness, Asthma exacerbation
-
-The key is to focus on suffixes first, then associate side effects with the mechanism. Once you know HOW the drug works, the side effects make logical sense.`,
-    date: "2h ago",
-    likes: 32,
-    isLiked: false,
-    isBestAnswer: true,
-  },
-  {
-    id: 2,
-    author: { name: "Marcus Johnson", avatar: null },
-    content: `I second Emily's approach! For antibiotics, I found this helpful:
-
-**Gram-positive coverage**: Think "PVC Pipe" - Penicillin, Vancomycin, Cephalosporins (1st gen)
-**Gram-negative coverage**: "Aminoglycosides and the 3rd gen Cephalosporins"
-
-Also, creating drug classification tables really helped me. I'd organize them by class, prototype drug, mechanism, and the most tested side effects. Sometimes visual organization works better than mnemonics.`,
-    date: "1h 45m ago",
-    likes: 18,
-    isLiked: false,
-    isBestAnswer: false,
-  },
-  {
-    id: 3,
-    author: { name: "David Kim", avatar: null },
-    content: `For pregnancy safety, remember "Category X means X that drug out!" - drugs like Warfarin, Methotrexate, and most statins are Category X.
-
-I also recommend the Haven Institute AI Tutor for pharmacology review - it adapts to your weak areas and quizzes you on the specific drugs you keep getting wrong. That's what finally made it click for me.`,
-    date: "1h 30m ago",
-    likes: 24,
-    isLiked: true,
-    isBestAnswer: false,
-  },
-  {
-    id: 4,
-    author: { name: "Jessica Park", avatar: null },
-    content: `Don't forget about Quizlet! I made a pharmacology deck with over 200 cards and shared it with our study group. You can also use the spaced repetition feature to focus on the drugs you struggle with most.
-
-Also, try teaching the material to someone else or explaining it out loud. If you can explain why an ACE inhibitor causes a cough (buildup of bradykinin), you'll never forget it!`,
-    date: "55m ago",
-    likes: 11,
-    isLiked: false,
-    isBestAnswer: false,
-  },
-];
+interface Post {
+  id: string;
+  title: string;
+  content: string;
+  slug: string;
+  author: PostAuthor;
+  category: { id: string; name: string; slug: string; color?: string; icon?: string };
+  createdAt: string;
+  commentCount: number;
+  likeCount: number;
+  viewCount: number;
+  isResolved: boolean;
+  isPinned: boolean;
+  tags: string[];
+  comments: Comment[];
+  reactions: Reaction[];
+  bookmarks: { userId: string }[];
+}
 
 export default function DiscussionDetailPage() {
   const { data: session } = useSession();
+  const params = useParams();
   const router = useRouter();
+  const slug = params.slug as string;
+
+  const [post, setPost] = useState<Post | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
-  const [liked, setLiked] = useState(post.isLiked);
-  const [bookmarked, setBookmarked] = useState(post.isBookmarked);
-  const [likeCount, setLikeCount] = useState(post.likes);
+  const [submittingReply, setSubmittingReply] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+
+  const userId = session?.user?.id;
+
+  const fetchPost = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/discussions?slug=${encodeURIComponent(slug)}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        const p = json.data;
+        setPost(p);
+        setLikeCount(p.likeCount ?? 0);
+        if (userId) {
+          setLiked(p.reactions?.some((r: Reaction) => r.userId === userId && r.reactionType === 'like') ?? false);
+          setBookmarked(p.bookmarks?.some((b: { userId: string }) => b.userId === userId) ?? false);
+        }
+      } else {
+        setError(json.error || "Post not found");
+      }
+    } catch {
+      setError("Failed to load discussion");
+    } finally {
+      setLoading(false);
+    }
+  }, [slug, userId]);
+
+  useEffect(() => {
+    fetchPost();
+  }, [fetchPost]);
+
+  const handleToggleLike = async () => {
+    if (!post) return;
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
+    try {
+      await fetch(`/api/discussions/${post.id}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reactionType: "like" }),
+      });
+    } catch {
+      setLiked(wasLiked);
+      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
+    }
+  };
+
+  const handleToggleBookmark = async () => {
+    if (!post) return;
+    const wasBookmarked = bookmarked;
+    setBookmarked(!wasBookmarked);
+    try {
+      await fetch(`/api/discussions/${post.id}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reactionType: "bookmark" }),
+      });
+    } catch {
+      setBookmarked(wasBookmarked);
+    }
+  };
+
+  const handleToggleCommentLike = async (commentId: string, currentlyLiked: boolean) => {
+    if (!post) return;
+    try {
+      await fetch(`/api/discussions/${post.id}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reactionType: "like", commentId }),
+      });
+      // Refresh post to get updated counts
+      fetchPost();
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSubmitReply = async () => {
+    if (!replyContent.trim() || !post || submittingReply) return;
+    setSubmittingReply(true);
+    try {
+      const res = await fetch(`/api/discussions/${post.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: replyContent.trim() }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setReplyContent("");
+        fetchPost();
+      }
+    } catch {
+      // handle error
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error || !post) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground">Back to Discussions</span>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
+            <h2 className="text-lg font-bold mb-2">Discussion Not Found</h2>
+            <p className="text-sm text-muted-foreground mb-4">{error || "This discussion may have been removed."}</p>
+            <Button asChild>
+              <Link href="/community/discussions">Browse Discussions</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const comments = post.comments ?? [];
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -141,16 +240,21 @@ export default function DiscussionDetailPage() {
             {/* Post Header */}
             <div className="flex items-start gap-4 mb-4">
               <Avatar className="h-11 w-11 shrink-0">
-                <AvatarFallback className="text-sm">{getInitials(post.author.name)}</AvatarFallback>
+                {post.author.avatarUrl && (
+                  <AvatarImage src={post.author.avatarUrl} alt={post.author.fullName} />
+                )}
+                <AvatarFallback className="text-sm">{getInitials(post.author.fullName)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="font-semibold text-sm">{post.author.name}</span>
-                  <Badge variant="outline" className="text-[10px]">{post.author.posts} posts</Badge>
+                  <span className="font-semibold text-sm">{post.author.fullName}</span>
+                  {post.author.role && (
+                    <Badge variant="outline" className="text-[10px]">{post.author.role}</Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" />
-                  {post.date}
+                  {formatRelativeTime(post.createdAt)}
                 </div>
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -170,8 +274,8 @@ export default function DiscussionDetailPage() {
                 )}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                <Badge variant="outline" className="text-[10px]">{post.category}</Badge>
-                {post.tags.map((tag) => (
+                <Badge variant="outline" className="text-[10px]">{post.category?.name}</Badge>
+                {(post.tags ?? []).map((tag) => (
                   <Badge key={tag} variant="secondary" className="text-[10px]">
                     #{tag}
                   </Badge>
@@ -212,10 +316,7 @@ export default function DiscussionDetailPage() {
                 <Button
                   variant={liked ? "default" : "ghost"}
                   size="sm"
-                  onClick={() => {
-                    setLiked(!liked);
-                    setLikeCount((c) => (liked ? c - 1 : c + 1));
-                  }}
+                  onClick={handleToggleLike}
                   className={cn(liked && "bg-pink-500 hover:bg-pink-600")}
                 >
                   <Heart className={cn("h-3.5 w-3.5 mr-1.5", liked && "fill-current")} />
@@ -224,7 +325,7 @@ export default function DiscussionDetailPage() {
                 <Button
                   variant={bookmarked ? "secondary" : "ghost"}
                   size="sm"
-                  onClick={() => setBookmarked(!bookmarked)}
+                  onClick={handleToggleBookmark}
                 >
                   <Bookmark className={cn("h-3.5 w-3.5 mr-1.5", bookmarked && "fill-current")} />
                   {bookmarked ? "Saved" : "Save"}
@@ -237,11 +338,11 @@ export default function DiscussionDetailPage() {
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Eye className="h-3 w-3" />
-                  {post.views} views
+                  {post.viewCount} views
                 </span>
                 <span className="flex items-center gap-1">
                   <MessageSquare className="h-3 w-3" />
-                  {post.replies} replies
+                  {comments.length} replies
                 </span>
               </div>
             </div>
@@ -254,87 +355,103 @@ export default function DiscussionDetailPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
-            {comments.length} Replies
+            {comments.length} {comments.length === 1 ? "Reply" : "Replies"}
           </h2>
         </div>
 
-        {comments.map((comment, i) => (
-          <motion.div
-            key={comment.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 + i * 0.05 }}
-          >
-            <Card
-              glass
-              className={cn(
-                comment.isBestAnswer && "border-emerald-500/30 bg-emerald-500/5"
-              )}
-            >
-              <CardContent className="p-5">
-                {comment.isBestAnswer && (
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                      Best Answer
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-start gap-3 mb-3">
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="text-[10px]">
-                      {getInitials(comment.author.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{comment.author.name}</span>
-                      <span className="text-xs text-muted-foreground">{comment.date}</span>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <MoreVertical className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+        {comments.map((comment, i) => {
+          const commentLiked = userId
+            ? comment.reactions?.some((r) => r.userId === userId && r.reactionType === 'like')
+            : false;
 
-                {/* Comment Content */}
-                <div className="pl-11 space-y-2">
-                  {comment.content.split("\n").map((line, li) => {
-                    if (line.startsWith("**") && line.endsWith("**")) {
+          return (
+            <motion.div
+              key={comment.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 + i * 0.05 }}
+            >
+              <Card
+                glass
+                className={cn(
+                  comment.isBestAnswer && "border-emerald-500/30 bg-emerald-500/5"
+                )}
+              >
+                <CardContent className="p-5">
+                  {comment.isBestAnswer && (
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        Best Answer
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-3 mb-3">
+                    <Avatar className="h-8 w-8 shrink-0">
+                      {comment.author.avatarUrl && (
+                        <AvatarImage src={comment.author.avatarUrl} alt={comment.author.fullName} />
+                      )}
+                      <AvatarFallback className="text-[10px]">
+                        {getInitials(comment.author.fullName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{comment.author.fullName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatRelativeTime(comment.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <MoreVertical className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  {/* Comment Content */}
+                  <div className="pl-11 space-y-2">
+                    {comment.content.split("\n").map((line, li) => {
+                      if (line.startsWith("**") && line.endsWith("**")) {
+                        return (
+                          <p key={li} className="text-sm font-semibold mt-2">
+                            {line.replace(/\*\*/g, "")}
+                          </p>
+                        );
+                      }
+                      if (line.trim() === "") return <br key={li} />;
                       return (
-                        <p key={li} className="text-sm font-semibold mt-2">
-                          {line.replace(/\*\*/g, "")}
+                        <p key={li} className="text-sm text-foreground/90 leading-relaxed">
+                          {line}
                         </p>
                       );
-                    }
-                    if (line.trim() === "") return <br key={li} />;
-                    return (
-                      <p key={li} className="text-sm text-foreground/90 leading-relaxed">
-                        {line}
-                      </p>
-                    );
-                  })}
+                    })}
 
-                  {/* Comment Actions */}
-                  <div className="flex items-center gap-2 pt-3">
-                    <Button variant="ghost" size="sm" className="h-7 text-xs">
-                      <ThumbsUp className={cn("h-3 w-3 mr-1", comment.isLiked && "fill-current text-primary")} />
-                      {comment.likes}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs">
-                      <Reply className="h-3 w-3 mr-1" />
-                      Reply
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs">
-                      <Flag className="h-3 w-3 mr-1" />
-                      Report
-                    </Button>
+                    {/* Comment Actions */}
+                    <div className="flex items-center gap-2 pt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => handleToggleCommentLike(comment.id, !!commentLiked)}
+                      >
+                        <ThumbsUp className={cn("h-3 w-3 mr-1", commentLiked && "fill-current text-primary")} />
+                        {comment.likeCount ?? 0}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs">
+                        <Reply className="h-3 w-3 mr-1" />
+                        Reply
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs">
+                        <Flag className="h-3 w-3 mr-1" />
+                        Report
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Reply Form */}
@@ -362,8 +479,16 @@ export default function DiscussionDetailPage() {
                   <p className="text-xs text-muted-foreground">
                     Supports basic markdown formatting
                   </p>
-                  <Button disabled={!replyContent.trim()} size="sm">
-                    <Send className="mr-2 h-3.5 w-3.5" />
+                  <Button
+                    disabled={!replyContent.trim() || submittingReply}
+                    size="sm"
+                    onClick={handleSubmitReply}
+                  >
+                    {submittingReply ? (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-3.5 w-3.5" />
+                    )}
                     Post Reply
                   </Button>
                 </div>

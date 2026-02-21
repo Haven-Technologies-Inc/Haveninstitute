@@ -171,12 +171,14 @@ export default function AIChatPage() {
           throw new Error('Failed to get response');
         }
 
-        const data = await response.json();
+        const json = await response.json();
+        const data = json.data ?? json;
 
         const assistantMessage: ChatMessage = {
           id: generateId(),
           role: 'assistant',
           content:
+            data.content ??
             data.message ??
             data.response ??
             'I apologize, but I was unable to process your request. Please try again.',

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -14,7 +14,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Tabs,
   TabsList,
@@ -26,41 +25,75 @@ import {
   Trophy,
   ArrowLeft,
   RotateCcw,
-  BarChart3,
   TrendingUp,
-  CheckCircle2,
-  Target,
   Clock,
   Brain,
   Gauge,
   Layers,
-  ArrowUpRight,
-  ArrowDownRight,
+  Target,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
-const abilityData = [
-  0, 0.15, 0.32, 0.18, 0.45, 0.62, 0.48, 0.71, 0.85, 0.72, 0.91, 1.02,
-  0.88, 1.05, 1.12, 0.98, 1.15, 1.22, 1.08, 1.24,
-];
+interface CATResponse {
+  questionId: string;
+  isCorrect: boolean;
+  abilityAfter: number;
+  difficulty: number;
+  categoryName: string;
+  timeSpentSeconds: number;
+}
 
-const categoryResults = [
-  { name: "Management of Care", correct: 12, total: 15, percentage: 80 },
-  { name: "Safety & Infection Control", correct: 8, total: 10, percentage: 80 },
-  { name: "Health Promotion", correct: 5, total: 8, percentage: 63 },
-  { name: "Psychosocial Integrity", correct: 6, total: 8, percentage: 75 },
-  { name: "Basic Care & Comfort", correct: 7, total: 9, percentage: 78 },
-  { name: "Pharmacological Therapies", correct: 10, total: 14, percentage: 71 },
-  { name: "Risk Reduction", correct: 9, total: 11, percentage: 82 },
-  { name: "Physiological Adaptation", correct: 8, total: 10, percentage: 80 },
-];
+interface CATSessionResult {
+  id: string;
+  passed: boolean;
+  finalAbility: number;
+  currentAbility: number;
+  standardError: number;
+  confidence: number;
+  totalQuestions: number;
+  nclexType: string;
+  completedAt: string;
+  createdAt: string;
+  responses: CATResponse[];
+}
 
-const difficultyDistribution = [
-  { level: "Very Easy", count: 5, color: "bg-emerald-400" },
-  { level: "Easy", count: 12, color: "bg-emerald-500" },
-  { level: "Medium", count: 28, color: "bg-amber-500" },
-  { level: "Hard", count: 25, color: "bg-orange-500" },
-  { level: "Very Hard", count: 15, color: "bg-red-500" },
-];
+function getDifficultyBucket(difficulty: number): string {
+  if (difficulty <= -1.5) return "Very Easy";
+  if (difficulty <= -0.5) return "Easy";
+  if (difficulty <= 0.5) return "Medium";
+  if (difficulty <= 1.5) return "Hard";
+  return "Very Hard";
+}
+
+function getDifficultyColor(level: string): string {
+  switch (level) {
+    case "Very Easy":
+      return "bg-emerald-400";
+    case "Easy":
+      return "bg-emerald-500";
+    case "Medium":
+      return "bg-amber-500";
+    case "Hard":
+      return "bg-orange-500";
+    case "Very Hard":
+      return "bg-red-500";
+    default:
+      return "bg-gray-500";
+  }
+}
+
+function formatTimeTaken(startDate: string, endDate: string): string {
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
+  const diffMs = end - start;
+  if (isNaN(diffMs) || diffMs < 0) return "N/A";
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
 
 export default function CATResultsPage() {
   const { data: session } = useSession();
@@ -68,11 +101,134 @@ export default function CATResultsPage() {
   const params = useParams();
   const sessionId = params.sessionId as string;
 
-  const passed = true;
-  const confidencePercent = 92;
-  const finalAbility = 1.24;
-  const questionsAnswered = 85;
-  const timeTaken = "2h 18m";
+  const [sessionResult, setSessionResult] = useState<CATSessionResult | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchResults() {
+      try {
+        const res = await fetch(`/api/cat/${sessionId}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          setSessionResult(json.data);
+        } else {
+          setError(json.error || "Failed to load results.");
+        }
+      } catch (err) {
+        console.error("Failed to fetch CAT results:", err);
+        setError("Failed to load results. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchResults();
+  }, [sessionId]);
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading results...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !sessionResult) {
+    return (
+      <div className="max-w-4xl mx-auto flex items-center justify-center min-h-[60vh]">
+        <Card className="border-0 shadow-sm bg-card/80 backdrop-blur-sm max-w-md w-full">
+          <CardContent className="p-8 text-center space-y-4">
+            <AlertTriangle className="h-8 w-8 text-red-500 mx-auto" />
+            <p className="text-sm text-red-600">
+              {error || "No results found."}
+            </p>
+            <Button variant="outline" asChild>
+              <Link href="/practice/cat">Back to CAT</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const {
+    passed,
+    finalAbility: rawFinalAbility,
+    currentAbility,
+    standardError,
+    confidence: rawConfidence,
+    totalQuestions: rawTotalQuestions,
+    responses,
+    completedAt,
+    createdAt,
+  } = sessionResult;
+
+  const finalAbility = rawFinalAbility ?? currentAbility ?? 0;
+  const questionsAnswered =
+    rawTotalQuestions ?? responses?.length ?? 0;
+  const confidencePercent = rawConfidence
+    ? Math.round(rawConfidence * 100)
+    : standardError
+    ? Math.round((1 - standardError) * 100)
+    : 0;
+  const timeTaken = formatTimeTaken(createdAt, completedAt);
+
+  // Build ability trend data from responses
+  const abilityData: number[] = [0]; // Start at 0
+  if (responses && responses.length > 0) {
+    for (const r of responses) {
+      abilityData.push(r.abilityAfter ?? abilityData[abilityData.length - 1]);
+    }
+  }
+
+  // Build category performance from responses
+  const categoryMap = new Map<
+    string,
+    { correct: number; total: number }
+  >();
+  if (responses) {
+    for (const r of responses) {
+      const cat = r.categoryName || "Unknown";
+      const existing = categoryMap.get(cat) || { correct: 0, total: 0 };
+      existing.total += 1;
+      if (r.isCorrect) existing.correct += 1;
+      categoryMap.set(cat, existing);
+    }
+  }
+  const categoryResults = Array.from(categoryMap.entries())
+    .map(([name, data]) => ({
+      name,
+      correct: data.correct,
+      total: data.total,
+      percentage: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  // Build difficulty distribution from responses
+  const difficultyMap = new Map<string, number>();
+  const orderedLevels = ["Very Easy", "Easy", "Medium", "Hard", "Very Hard"];
+  for (const level of orderedLevels) {
+    difficultyMap.set(level, 0);
+  }
+  if (responses) {
+    for (const r of responses) {
+      const bucket = getDifficultyBucket(r.difficulty ?? 0);
+      difficultyMap.set(bucket, (difficultyMap.get(bucket) || 0) + 1);
+    }
+  }
+  const difficultyDistribution = orderedLevels
+    .map((level) => ({
+      level,
+      count: difficultyMap.get(level) || 0,
+      color: getDifficultyColor(level),
+    }))
+    .filter((d) => d.count > 0);
+
   const totalDiffQuestions = difficultyDistribution.reduce(
     (sum, d) => sum + d.count,
     0
@@ -85,17 +241,21 @@ export default function CATResultsPage() {
   const plotWidth = graphWidth - padding * 2;
   const plotHeight = graphHeight - padding * 2;
 
-  const points = abilityData.map((val, i) => {
-    const x = padding + (i / (abilityData.length - 1)) * plotWidth;
-    const y = padding + ((3 - val) / 6) * plotHeight; // -3 to 3 mapped to height
-    return { x, y };
-  });
+  const points =
+    abilityData.length > 1
+      ? abilityData.map((val, i) => {
+          const x =
+            padding + (i / (abilityData.length - 1)) * plotWidth;
+          const y = padding + ((3 - val) / 6) * plotHeight; // -3 to 3 mapped to height
+          return { x, y };
+        })
+      : [{ x: padding, y: padding + ((3 - 0) / 6) * plotHeight }];
 
   const pathD = points
     .map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`))
     .join(" ");
 
-  // passing line y
+  // Passing line y
   const passingY = padding + ((3 - 0) / 6) * plotHeight;
 
   return (
@@ -195,8 +355,11 @@ export default function CATResultsPage() {
             icon: Target,
             color: "text-purple-500",
           },
-        ].map((stat, i) => (
-          <Card key={stat.label} className="border-0 shadow-sm bg-card/80 backdrop-blur-sm">
+        ].map((stat) => (
+          <Card
+            key={stat.label}
+            className="border-0 shadow-sm bg-card/80 backdrop-blur-sm"
+          >
             <CardContent className="p-4">
               <stat.icon className={cn("h-5 w-5 mb-2", stat.color)} />
               <p className="text-2xl font-bold">{stat.value}</p>
@@ -287,39 +450,45 @@ export default function CATResultsPage() {
                     </text>
 
                     {/* Area fill */}
-                    <motion.path
-                      d={`${pathD} L ${points[points.length - 1].x} ${passingY} L ${points[0].x} ${passingY} Z`}
-                      fill="url(#areaGradient)"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 0.3 }}
-                      transition={{ duration: 1 }}
-                    />
+                    {points.length > 1 && (
+                      <motion.path
+                        d={`${pathD} L ${points[points.length - 1].x} ${passingY} L ${points[0].x} ${passingY} Z`}
+                        fill="url(#areaGradient)"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 0.3 }}
+                        transition={{ duration: 1 }}
+                      />
+                    )}
 
                     {/* Line */}
-                    <motion.path
-                      d={pathD}
-                      fill="none"
-                      stroke="url(#lineGradient)"
-                      strokeWidth={2.5}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 2, ease: "easeOut" }}
-                    />
+                    {points.length > 1 && (
+                      <motion.path
+                        d={pathD}
+                        fill="none"
+                        stroke="url(#lineGradient)"
+                        strokeWidth={2.5}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 2, ease: "easeOut" }}
+                      />
+                    )}
 
                     {/* End point */}
-                    <motion.circle
-                      cx={points[points.length - 1].x}
-                      cy={points[points.length - 1].y}
-                      r={5}
-                      fill="#10b981"
-                      stroke="white"
-                      strokeWidth={2}
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 2 }}
-                    />
+                    {points.length > 1 && (
+                      <motion.circle
+                        cx={points[points.length - 1].x}
+                        cy={points[points.length - 1].y}
+                        r={5}
+                        fill={finalAbility >= 0 ? "#10b981" : "#ef4444"}
+                        stroke="white"
+                        strokeWidth={2}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 2 }}
+                      />
+                    )}
 
                     <defs>
                       <linearGradient
@@ -330,7 +499,12 @@ export default function CATResultsPage() {
                         y2="0%"
                       >
                         <stop offset="0%" stopColor="#6366f1" />
-                        <stop offset="100%" stopColor="#10b981" />
+                        <stop
+                          offset="100%"
+                          stopColor={
+                            finalAbility >= 0 ? "#10b981" : "#ef4444"
+                          }
+                        />
                       </linearGradient>
                       <linearGradient
                         id="areaGradient"
@@ -339,8 +513,19 @@ export default function CATResultsPage() {
                         x2="0%"
                         y2="100%"
                       >
-                        <stop offset="0%" stopColor="#10b981" />
-                        <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                        <stop
+                          offset="0%"
+                          stopColor={
+                            finalAbility >= 0 ? "#10b981" : "#ef4444"
+                          }
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor={
+                            finalAbility >= 0 ? "#10b981" : "#ef4444"
+                          }
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
                   </svg>
@@ -353,52 +538,61 @@ export default function CATResultsPage() {
           <TabsContent value="categories" className="space-y-4">
             <Card className="border-0 shadow-sm bg-card/80 backdrop-blur-sm">
               <CardContent className="p-6 space-y-4">
-                {categoryResults.map((cat, i) => (
-                  <motion.div
-                    key={cat.name}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{cat.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {cat.correct}/{cat.total}
-                        </span>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "text-xs min-w-[3rem] justify-center",
-                            cat.percentage >= 80
-                              ? "bg-emerald-500/10 text-emerald-600"
-                              : cat.percentage >= 65
-                              ? "bg-amber-500/10 text-amber-600"
-                              : "bg-red-500/10 text-red-600"
-                          )}
-                        >
-                          {cat.percentage}%
-                        </Badge>
+                {categoryResults.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No category data available.
+                  </p>
+                ) : (
+                  categoryResults.map((cat, i) => (
+                    <motion.div
+                      key={cat.name}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{cat.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {cat.correct}/{cat.total}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "text-xs min-w-[3rem] justify-center",
+                              cat.percentage >= 80
+                                ? "bg-emerald-500/10 text-emerald-600"
+                                : cat.percentage >= 65
+                                ? "bg-amber-500/10 text-amber-600"
+                                : "bg-red-500/10 text-red-600"
+                            )}
+                          >
+                            {cat.percentage}%
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <motion.div
-                        className={cn(
-                          "h-full rounded-full",
-                          cat.percentage >= 80
-                            ? "bg-emerald-500"
-                            : cat.percentage >= 65
-                            ? "bg-amber-500"
-                            : "bg-red-500"
-                        )}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${cat.percentage}%` }}
-                        transition={{ duration: 1, delay: 0.2 + i * 0.05 }}
-                      />
-                    </div>
-                  </motion.div>
-                ))}
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <motion.div
+                          className={cn(
+                            "h-full rounded-full",
+                            cat.percentage >= 80
+                              ? "bg-emerald-500"
+                              : cat.percentage >= 65
+                              ? "bg-amber-500"
+                              : "bg-red-500"
+                          )}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${cat.percentage}%` }}
+                          transition={{
+                            duration: 1,
+                            delay: 0.2 + i * 0.05,
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -416,33 +610,51 @@ export default function CATResultsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {difficultyDistribution.map((d, i) => (
-                  <motion.div
-                    key={d.level}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.08 }}
-                    className="space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{d.level}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {d.count} questions (
-                        {Math.round((d.count / totalDiffQuestions) * 100)}%)
-                      </span>
-                    </div>
-                    <div className="h-3 rounded-full bg-muted overflow-hidden">
-                      <motion.div
-                        className={cn("h-full rounded-full", d.color)}
-                        initial={{ width: 0 }}
-                        animate={{
-                          width: `${(d.count / totalDiffQuestions) * 100}%`,
-                        }}
-                        transition={{ duration: 1, delay: 0.2 + i * 0.08 }}
-                      />
-                    </div>
-                  </motion.div>
-                ))}
+                {difficultyDistribution.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No difficulty data available.
+                  </p>
+                ) : (
+                  difficultyDistribution.map((d, i) => (
+                    <motion.div
+                      key={d.level}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.08 }}
+                      className="space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{d.level}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {d.count} questions (
+                          {totalDiffQuestions > 0
+                            ? Math.round(
+                                (d.count / totalDiffQuestions) * 100
+                              )
+                            : 0}
+                          %)
+                        </span>
+                      </div>
+                      <div className="h-3 rounded-full bg-muted overflow-hidden">
+                        <motion.div
+                          className={cn("h-full rounded-full", d.color)}
+                          initial={{ width: 0 }}
+                          animate={{
+                            width: `${
+                              totalDiffQuestions > 0
+                                ? (d.count / totalDiffQuestions) * 100
+                                : 0
+                            }%`,
+                          }}
+                          transition={{
+                            duration: 1,
+                            delay: 0.2 + i * 0.08,
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </TabsContent>

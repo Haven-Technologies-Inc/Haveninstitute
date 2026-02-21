@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -44,15 +44,19 @@ import {
   ChevronRight,
   Copy,
   ToggleLeft,
+  Loader2,
+  FileJson,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
+import { QUESTION_TYPES } from '@/lib/constants';
 
 interface Question {
   id: string;
   text: string;
   category: string;
   difficulty: 'easy' | 'medium' | 'hard';
-  type: 'multiple-choice' | 'select-all' | 'hot-spot' | 'drag-and-drop';
+  type: string;
   status: 'active' | 'draft' | 'archived';
   timesUsed: number;
   successRate: number;
@@ -60,17 +64,6 @@ interface Question {
   createdAt: string;
   selected?: boolean;
 }
-
-const mockQuestions: Question[] = [
-  { id: 'Q001', text: 'A patient with Type 2 diabetes presents with a blood glucose level of 450 mg/dL. Which nursing intervention should be performed first?', category: 'Pharmacology', difficulty: 'hard', type: 'multiple-choice', status: 'active', timesUsed: 1243, successRate: 62, createdBy: 'Dr. Emily Davis', createdAt: 'Jan 15, 2026' },
-  { id: 'Q002', text: 'Select all interventions appropriate for a patient experiencing heart failure with fluid volume overload.', category: 'Medical-Surgical', difficulty: 'medium', type: 'select-all', status: 'active', timesUsed: 987, successRate: 48, createdBy: 'Robert Taylor', createdAt: 'Jan 20, 2026' },
-  { id: 'Q003', text: 'A nurse is caring for a postoperative patient who develops sudden dyspnea and chest pain. What is the priority assessment?', category: 'Medical-Surgical', difficulty: 'hard', type: 'multiple-choice', status: 'active', timesUsed: 2134, successRate: 55, createdBy: 'Dr. Emily Davis', createdAt: 'Dec 8, 2025' },
-  { id: 'Q004', text: 'Identify the correct sequence for donning personal protective equipment (PPE) before entering an isolation room.', category: 'Fundamentals', difficulty: 'easy', type: 'drag-and-drop', status: 'active', timesUsed: 3421, successRate: 78, createdBy: 'Sarah Johnson', createdAt: 'Nov 15, 2025' },
-  { id: 'Q005', text: 'A child is admitted with suspected meningitis. Which assessment findings would the nurse expect? Select all that apply.', category: 'Pediatrics', difficulty: 'medium', type: 'select-all', status: 'draft', timesUsed: 0, successRate: 0, createdBy: 'Maria Garcia', createdAt: 'Feb 12, 2026' },
-  { id: 'Q006', text: 'During a mental health assessment, a patient states "I hear voices telling me to hurt myself." What is the nurse\'s best response?', category: 'Mental Health', difficulty: 'medium', type: 'multiple-choice', status: 'active', timesUsed: 1567, successRate: 71, createdBy: 'Dr. Emily Davis', createdAt: 'Oct 22, 2025' },
-  { id: 'Q007', text: 'A pregnant patient at 32 weeks gestation reports sudden severe abdominal pain and vaginal bleeding. Which condition should the nurse suspect?', category: 'Maternal-Newborn', difficulty: 'hard', type: 'multiple-choice', status: 'active', timesUsed: 892, successRate: 59, createdBy: 'Robert Taylor', createdAt: 'Jan 5, 2026' },
-  { id: 'Q008', text: 'Identify the anatomical landmark for the correct placement of a nasogastric tube on the provided diagram.', category: 'Fundamentals', difficulty: 'easy', type: 'hot-spot', status: 'archived', timesUsed: 4523, successRate: 83, createdBy: 'Sarah Johnson', createdAt: 'Sep 10, 2025' },
-];
 
 const difficultyColors: Record<string, string> = {
   easy: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
@@ -98,25 +91,99 @@ export default function AdminQuestionsPage() {
   const [difficultyFilter, setDifficultyFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [questions, setQuestions] = useState(mockQuestions);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [total, setTotal] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [loading, setLoading] = useState(true);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importJson, setImportJson] = useState('');
+  const itemsPerPage = 20;
 
-  const filteredQuestions = questions.filter((q) => {
-    const matchesSearch = q.text.toLowerCase().includes(searchQuery.toLowerCase()) || q.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCat = categoryFilter === 'all' || q.category === categoryFilter;
-    const matchesDiff = difficultyFilter === 'all' || q.difficulty === difficultyFilter;
-    const matchesType = typeFilter === 'all' || q.type === typeFilter;
-    const matchesStatus = statusFilter === 'all' || q.status === statusFilter;
-    return matchesSearch && matchesCat && matchesDiff && matchesType && matchesStatus;
-  });
+  const loadQuestions = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('limit', String(itemsPerPage));
+      params.set('offset', String((currentPage - 1) * itemsPerPage));
+      if (searchQuery) params.set('search', searchQuery);
+      if (categoryFilter !== 'all') params.set('categoryId', categoryFilter);
+      if (difficultyFilter !== 'all') params.set('difficulty', difficultyFilter);
+      if (typeFilter !== 'all') params.set('type', typeFilter);
 
-  const totalPages = Math.ceil(filteredQuestions.length / itemsPerPage);
-  const paginatedQuestions = filteredQuestions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+      const res = await fetch(`/api/admin/questions?${params}`);
+      const json = await res.json();
+      if (json.success) {
+        const qs = (json.data.questions || []).map((q: any) => ({
+          id: q.id,
+          text: q.questionText,
+          category: q.category?.name || 'Unknown',
+          difficulty: q.difficulty,
+          type: q.questionType,
+          status: q.isActive ? 'active' : 'archived',
+          timesUsed: q.timesUsed || 0,
+          successRate: q.timesUsed > 0 ? Math.round((q.timesCorrect / q.timesUsed) * 100) : 0,
+          createdBy: q.creator?.fullName || 'System',
+          createdAt: new Date(q.createdAt).toLocaleDateString(),
+        }));
+        setQuestions(qs);
+        setTotal(json.data.total || qs.length);
+      }
+    } catch {
+      // handle error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadQuestions();
+  }, [currentPage, categoryFilter, difficultyFilter, typeFilter, searchQuery]);
+
+  const handleImport = async () => {
+    setImportLoading(true);
+    try {
+      const parsed = JSON.parse(importJson);
+      const questionsArr = Array.isArray(parsed) ? parsed : parsed.questions;
+      const res = await fetch('/api/admin/questions/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questions: questionsArr }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const d = json.data;
+        toast.success(`Imported ${d.created} of ${d.total} questions${d.errors?.length ? ` (${d.errors.length} errors)` : ''}`);
+        setImportOpen(false);
+        setImportJson('');
+        loadQuestions();
+      } else {
+        toast.error(json.error || 'Import failed');
+      }
+    } catch (e: any) {
+      toast.error('Invalid JSON: ' + (e.message || 'Parse error'));
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/questions?questionId=${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        toast.success('Question deactivated');
+        loadQuestions();
+      }
+    } catch {
+      toast.error('Failed to delete');
+    }
+  };
+
+  const filteredQuestions = questions;
+  const totalPages = Math.ceil(total / itemsPerPage);
+  const paginatedQuestions = filteredQuestions;
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -149,13 +216,17 @@ export default function AdminQuestionsPage() {
     setSelectedIds(new Set());
   };
 
-  const categories = [...new Set(mockQuestions.map((q) => q.category))];
+  const categories = [...new Set(questions.map((q) => q.category))];
+  const activeCount = questions.filter(q => q.status === 'active').length;
+  const avgSuccess = questions.length > 0
+    ? Math.round(questions.reduce((s, q) => s + q.successRate, 0) / questions.length)
+    : 0;
 
   const stats = [
-    { label: 'Total Questions', value: '10,432', icon: Brain, color: 'from-blue-500 to-indigo-600' },
-    { label: 'Active', value: '8,741', icon: CheckCircle2, color: 'from-emerald-500 to-teal-600' },
-    { label: 'Avg Success Rate', value: '64%', icon: BarChart3, color: 'from-purple-500 to-pink-600' },
-    { label: 'Drafts', value: '312', icon: Edit, color: 'from-amber-500 to-orange-600' },
+    { label: 'Total Questions', value: total.toLocaleString(), icon: Brain, color: 'from-blue-500 to-indigo-600' },
+    { label: 'Active', value: activeCount.toLocaleString(), icon: CheckCircle2, color: 'from-emerald-500 to-teal-600' },
+    { label: 'Avg Success Rate', value: `${avgSuccess}%`, icon: BarChart3, color: 'from-purple-500 to-pink-600' },
+    { label: 'On Page', value: String(questions.length), icon: Edit, color: 'from-amber-500 to-orange-600' },
   ];
 
   return (
@@ -172,10 +243,57 @@ export default function AdminQuestionsPage() {
           <p className="text-muted-foreground text-sm">Create, manage, and review NCLEX practice questions.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Upload className="h-4 w-4 mr-2" />
-            Import
-          </Button>
+          <Dialog open={importOpen} onOpenChange={setImportOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileJson className="h-5 w-5" />
+                  Bulk Import Questions
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Paste a JSON array of questions. Each question needs: questionText, categoryCode, and correctAnswers. Supported types: {QUESTION_TYPES.map(t => t.label).join(', ')}.
+                </p>
+                <textarea
+                  value={importJson}
+                  onChange={(e) => setImportJson(e.target.value)}
+                  placeholder={`[
+  {
+    "questionText": "Which nursing action...",
+    "categoryCode": "PHARMACOLOGY",
+    "questionType": "multiple_choice",
+    "difficulty": "medium",
+    "options": [
+      { "id": "A", "text": "Option A" },
+      { "id": "B", "text": "Option B" },
+      { "id": "C", "text": "Option C" },
+      { "id": "D", "text": "Option D" }
+    ],
+    "correctAnswers": ["B"],
+    "explanation": "Because...",
+    "rationale": "The rationale is..."
+  }
+]`}
+                  rows={12}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm font-mono resize-y"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
+                  <Button onClick={handleImport} disabled={importLoading || !importJson.trim()}>
+                    {importLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                    Import Questions
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -246,15 +364,14 @@ export default function AdminQuestionsPage() {
                   </SelectContent>
                 </Select>
                 <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setCurrentPage(1); }}>
-                  <SelectTrigger className="w-[160px]">
+                  <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
-                    <SelectItem value="select-all">Select All</SelectItem>
-                    <SelectItem value="hot-spot">Hot Spot</SelectItem>
-                    <SelectItem value="drag-and-drop">Drag & Drop</SelectItem>
+                    {QUESTION_TYPES.map(qt => (
+                      <SelectItem key={qt.value} value={qt.value}>{qt.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
@@ -426,7 +543,7 @@ export default function AdminQuestionsPage() {
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => handleDelete(q.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

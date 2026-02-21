@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -13,12 +13,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { motion } from "motion/react";
 import {
   Clock,
   Send,
-  ChevronRight,
   Gauge,
   Brain,
   AlertTriangle,
@@ -26,78 +24,24 @@ import {
   TrendingDown,
   Minus,
   X,
+  Loader2,
 } from "lucide-react";
+import {
+  QuestionRenderer,
+  type QuestionData,
+} from "@/components/questions/question-renderer";
 
-interface CATQuestion {
-  id: number;
-  text: string;
-  options: { label: string; text: string }[];
-  difficulty: number; // -3 to 3 scale
-  category: string;
+interface CATSessionData {
+  id: string;
+  currentQuestion: any;
+  currentAbility: number;
+  standardError: number;
+  passingProbability: number;
+  totalQuestions?: number;
+  maxQuestions?: number;
+  minQuestions?: number;
+  timeLimitSeconds?: number;
 }
-
-const catQuestions: CATQuestion[] = [
-  {
-    id: 1,
-    text: "A nurse is assessing a client who has been receiving total parenteral nutrition (TPN). Which laboratory value indicates a need for the nurse to contact the healthcare provider?",
-    options: [
-      { label: "A", text: "Serum albumin 3.8 g/dL" },
-      { label: "B", text: "Blood glucose 320 mg/dL" },
-      { label: "C", text: "Serum sodium 140 mEq/L" },
-      { label: "D", text: "BUN 18 mg/dL" },
-    ],
-    difficulty: 0,
-    category: "Reduction of Risk Potential",
-  },
-  {
-    id: 2,
-    text: "A nurse is caring for a client with a chest tube connected to a water-seal drainage system. Which finding requires immediate nursing intervention?",
-    options: [
-      { label: "A", text: "Continuous bubbling in the water-seal chamber" },
-      { label: "B", text: "Gentle tidaling in the water-seal chamber" },
-      { label: "C", text: "100 mL of drainage in the first hour" },
-      { label: "D", text: "The drainage system is below the level of the chest" },
-    ],
-    difficulty: 1,
-    category: "Physiological Adaptation",
-  },
-  {
-    id: 3,
-    text: "A client with type 1 diabetes is admitted with diabetic ketoacidosis (DKA). Which arterial blood gas results would the nurse expect?",
-    options: [
-      { label: "A", text: "pH 7.50, PaCO2 30, HCO3 24" },
-      { label: "B", text: "pH 7.28, PaCO2 28, HCO3 14" },
-      { label: "C", text: "pH 7.48, PaCO2 48, HCO3 32" },
-      { label: "D", text: "pH 7.35, PaCO2 40, HCO3 22" },
-    ],
-    difficulty: 2,
-    category: "Physiological Adaptation",
-  },
-  {
-    id: 4,
-    text: "A nurse is prioritizing care for multiple clients. Which client should the nurse assess first?",
-    options: [
-      { label: "A", text: "A client with a blood glucose of 180 mg/dL" },
-      { label: "B", text: "A client 2 days postop with a temperature of 99.8\u00b0F" },
-      { label: "C", text: "A client with COPD and an oxygen saturation of 87%" },
-      { label: "D", text: "A client with a newly applied cast reporting numbness" },
-    ],
-    difficulty: 1,
-    category: "Management of Care",
-  },
-  {
-    id: 5,
-    text: "A nurse is administering IV potassium chloride to a client with hypokalemia. Which action is essential before starting the infusion?",
-    options: [
-      { label: "A", text: "Verify the client has adequate urine output" },
-      { label: "B", text: "Administer a test dose of 5 mEq" },
-      { label: "C", text: "Place the client on a cardiac monitor" },
-      { label: "D", text: "Both A and C" },
-    ],
-    difficulty: 1,
-    category: "Pharmacological Therapies",
-  },
-];
 
 export default function CATSessionPage() {
   const { data: session } = useSession();
@@ -105,25 +49,92 @@ export default function CATSessionPage() {
   const params = useParams();
   const sessionId = params.sessionId as string;
 
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState<any>(null);
+  const [userAnswer, setUserAnswer] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [abilityEstimate, setAbilityEstimate] = useState(0);
-  const [abilityHistory, setAbilityHistory] = useState<number[]>([0]);
+  const [standardError, setStandardError] = useState(1);
+  const [passingProbability, setPassingProbability] = useState(0.5);
   const [timeRemaining, setTimeRemaining] = useState(5 * 60 * 60); // 5 hours
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [maxQuestions, setMaxQuestions] = useState(145);
 
-  const question = catQuestions[currentQuestion];
-  const totalPossible = 145;
+  const questionStartTimeRef = useRef<number>(Date.now());
+
+  // Initialize session from sessionStorage (set by the POST /api/cat response)
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(`cat-session-${sessionId}`);
+      if (stored) {
+        const data: CATSessionData = JSON.parse(stored);
+        if (data.currentQuestion) {
+          setCurrentQuestion(data.currentQuestion);
+          setAbilityEstimate(data.currentAbility ?? 0);
+          setStandardError(data.standardError ?? 1);
+          setPassingProbability(data.passingProbability ?? 0.5);
+          if (data.maxQuestions) setMaxQuestions(data.maxQuestions);
+          if (data.timeLimitSeconds) setTimeRemaining(data.timeLimitSeconds);
+          questionStartTimeRef.current = Date.now();
+        }
+        // Clear sessionStorage after reading
+        sessionStorage.removeItem(`cat-session-${sessionId}`);
+        setLoading(false);
+      } else {
+        // No sessionStorage data - fetch session state from API
+        fetchSessionState();
+      }
+    } catch (err) {
+      console.error("Failed to load session data:", err);
+      fetchSessionState();
+    }
+  }, [sessionId]);
+
+  const fetchSessionState = async () => {
+    try {
+      const res = await fetch(`/api/cat/${sessionId}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        const data = json.data;
+        if (data.completed) {
+          router.push(`/practice/cat/${sessionId}/results`);
+          return;
+        }
+        if (data.currentQuestion) {
+          setCurrentQuestion(data.currentQuestion);
+          setAbilityEstimate(data.currentAbility ?? 0);
+          setStandardError(data.standardError ?? 1);
+          setPassingProbability(data.passingProbability ?? 0.5);
+          setQuestionsAnswered(data.responses?.length ?? data.totalQuestions ?? 0);
+          if (data.maxQuestions) setMaxQuestions(data.maxQuestions);
+          if (data.timeLimitSeconds) setTimeRemaining(data.timeLimitSeconds);
+          questionStartTimeRef.current = Date.now();
+        }
+        setLoading(false);
+      } else {
+        setError(json.error || "Failed to load CAT session.");
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("Failed to fetch session:", err);
+      setError("Failed to load CAT session. Please try again.");
+      setLoading(false);
+    }
+  };
 
   // Timer countdown
   useEffect(() => {
-    if (timeRemaining <= 0) return;
+    if (timeRemaining <= 0) {
+      // Time's up - redirect to results
+      router.push(`/practice/cat/${sessionId}/results`);
+      return;
+    }
     const interval = setInterval(() => {
       setTimeRemaining((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(interval);
-  }, [timeRemaining]);
+  }, [timeRemaining, sessionId, router]);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -132,32 +143,141 @@ export default function CATSessionPage() {
     return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  const handleSubmitAnswer = () => {
-    if (!selectedAnswer) return;
-    setIsSubmitted(true);
+  const handleSubmitAnswer = useCallback(async () => {
+    if (userAnswer === null || userAnswer === undefined || submitting) return;
+    setSubmitting(true);
+    setError(null);
 
-    // Simulate ability estimate change
-    const isCorrect = Math.random() > 0.4;
-    const change = isCorrect ? 0.15 + Math.random() * 0.2 : -(0.1 + Math.random() * 0.15);
-    const newAbility = Math.max(-3, Math.min(3, abilityEstimate + change));
-    setAbilityEstimate(newAbility);
-    setAbilityHistory((prev) => [...prev, newAbility]);
-    setQuestionsAnswered((prev) => prev + 1);
-  };
+    const timeSpentSeconds = Math.round(
+      (Date.now() - questionStartTimeRef.current) / 1000
+    );
 
-  const handleNext = () => {
-    if (currentQuestion >= catQuestions.length - 1) {
-      router.push(`/practice/cat/${sessionId}/results`);
-      return;
+    try {
+      const res = await fetch(`/api/cat/${sessionId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: currentQuestion?.id,
+          userAnswer,
+          timeSpentSeconds,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!json.success) {
+        setError(json.error || "Failed to submit answer.");
+        setSubmitting(false);
+        return;
+      }
+
+      const result = json.data;
+
+      // Update ability metrics
+      setAbilityEstimate(result.currentAbility ?? abilityEstimate);
+      setStandardError(result.standardError ?? standardError);
+      setPassingProbability(result.passingProbability ?? passingProbability);
+      setQuestionsAnswered((prev) => prev + 1);
+
+      if (result.completed) {
+        // CAT is finished - redirect to results
+        router.push(`/practice/cat/${sessionId}/results`);
+        return;
+      }
+
+      // Load next question
+      if (result.nextQuestion) {
+        setCurrentQuestion(result.nextQuestion);
+        setUserAnswer(null);
+        questionStartTimeRef.current = Date.now();
+      }
+
+      setSubmitting(false);
+    } catch (err) {
+      console.error("Failed to submit answer:", err);
+      setError("Failed to submit answer. Please try again.");
+      setSubmitting(false);
     }
-    setCurrentQuestion((prev) => prev + 1);
-    setSelectedAnswer(null);
-    setIsSubmitted(false);
-  };
+  }, [
+    userAnswer,
+    submitting,
+    sessionId,
+    currentQuestion,
+    abilityEstimate,
+    standardError,
+    passingProbability,
+    router,
+  ]);
 
   // Ability meter calculation (normalize -3..3 to 0..100)
   const abilityPercent = ((abilityEstimate + 3) / 6) * 100;
   const passingLine = 50; // 0 on the scale
+
+  // Map the API question to QuestionRenderer's QuestionData format
+  const questionData: QuestionData | null = currentQuestion
+    ? {
+        id: currentQuestion.id,
+        questionText: currentQuestion.questionText || currentQuestion.text || "",
+        questionType: currentQuestion.questionType || currentQuestion.type || "multiple_choice",
+        options: currentQuestion.options,
+        scenario: currentQuestion.scenario,
+        difficulty: currentQuestion.difficulty,
+        categoryName: currentQuestion.categoryName || currentQuestion.category,
+        hotSpotData: currentQuestion.hotSpotData,
+      }
+    : null;
+
+  // Determine difficulty label from numeric value
+  const getDifficultyInfo = () => {
+    const diff =
+      currentQuestion?.difficultyValue ??
+      currentQuestion?.difficulty ??
+      0;
+    if (typeof diff === "number") {
+      if (diff >= 2) return { label: "Hard", className: "bg-red-500/10 text-red-600" };
+      if (diff >= 0) return { label: "Medium", className: "bg-amber-500/10 text-amber-600" };
+      return { label: "Easy", className: "bg-emerald-500/10 text-emerald-600" };
+    }
+    // String difficulty
+    if (diff === "hard") return { label: "Hard", className: "bg-red-500/10 text-red-600" };
+    if (diff === "easy") return { label: "Easy", className: "bg-emerald-500/10 text-emerald-600" };
+    return { label: "Medium", className: "bg-amber-500/10 text-amber-600" };
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="text-sm text-muted-foreground">
+            Loading CAT session...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !currentQuestion) {
+    return (
+      <div className="max-w-4xl mx-auto flex items-center justify-center min-h-[60vh]">
+        <Card className="border-0 shadow-sm bg-card/80 backdrop-blur-sm max-w-md w-full">
+          <CardContent className="p-8 text-center space-y-4">
+            <AlertTriangle className="h-8 w-8 text-red-500 mx-auto" />
+            <p className="text-sm text-red-600">{error}</p>
+            <Button variant="outline" asChild>
+              <Link href="/practice/cat">Back to CAT</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const difficultyInfo = getDifficultyInfo();
+  const categoryName =
+    currentQuestion?.categoryName ||
+    currentQuestion?.category ||
+    "General";
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -197,7 +317,7 @@ export default function CATSessionPage() {
             {formatTime(timeRemaining)}
           </div>
           <Badge variant="secondary">
-            {questionsAnswered}/{totalPossible}
+            {questionsAnswered}/{maxQuestions}
           </Badge>
         </div>
       </motion.div>
@@ -270,94 +390,50 @@ export default function CATSessionPage() {
       </motion.div>
 
       {/* Question Card */}
-      <motion.div
-        key={currentQuestion}
-        initial={{ opacity: 0, x: 30 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {question.category}
-              </Badge>
-              <Badge
-                variant="secondary"
-                className={cn(
-                  "text-xs",
-                  question.difficulty >= 2
-                    ? "bg-red-500/10 text-red-600"
-                    : question.difficulty >= 0
-                    ? "bg-amber-500/10 text-amber-600"
-                    : "bg-emerald-500/10 text-emerald-600"
-                )}
-              >
-                {question.difficulty >= 2
-                  ? "Hard"
-                  : question.difficulty >= 0
-                  ? "Medium"
-                  : "Easy"}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="p-4 rounded-xl bg-muted/30 border border-border">
-              <p className="text-base font-medium leading-relaxed">
-                {question.text}
-              </p>
-            </div>
+      {questionData && (
+        <motion.div
+          key={currentQuestion?.id}
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-sm">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {categoryName}
+                </Badge>
+                <Badge
+                  variant="secondary"
+                  className={cn("text-xs", difficultyInfo.className)}
+                >
+                  {difficultyInfo.label}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <QuestionRenderer
+                question={questionData}
+                userAnswer={userAnswer}
+                onAnswerChange={setUserAnswer}
+                disabled={submitting}
+              />
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
-            <div className="space-y-3">
-              {question.options.map((option) => {
-                const isSelected = selectedAnswer === option.label;
-                return (
-                  <motion.div
-                    key={option.label}
-                    whileHover={!isSubmitted ? { scale: 1.01 } : {}}
-                    whileTap={!isSubmitted ? { scale: 0.99 } : {}}
-                  >
-                    <div
-                      onClick={() => !isSubmitted && setSelectedAnswer(option.label)}
-                      className={cn(
-                        "flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200",
-                        isSubmitted
-                          ? "cursor-default"
-                          : "cursor-pointer",
-                        isSelected
-                          ? "border-primary bg-primary/5 shadow-sm"
-                          : "border-border",
-                        !isSubmitted && !isSelected && "hover:border-primary/40 hover:bg-muted/50"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "h-10 w-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 transition-colors",
-                          isSelected
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {option.label}
-                      </div>
-                      <p
-                        className={cn(
-                          "text-sm transition-colors",
-                          isSelected
-                            ? "font-medium"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {option.text}
-                      </p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+      {/* Error Notice */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20"
+        >
+          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+          <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
+        </motion.div>
+      )}
 
       {/* Warning Notice */}
       <motion.div
@@ -373,30 +449,30 @@ export default function CATSessionPage() {
         </p>
       </motion.div>
 
-      {/* Action Buttons */}
+      {/* Action Button */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
         className="flex justify-end gap-3"
       >
-        {!isSubmitted ? (
-          <Button
-            onClick={handleSubmitAnswer}
-            disabled={!selectedAnswer}
-            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white"
-          >
-            <Send className="h-4 w-4 mr-1.5" />
-            Submit Answer
-          </Button>
-        ) : (
-          <Button onClick={handleNext}>
-            {currentQuestion >= catQuestions.length - 1
-              ? "View Results"
-              : "Next Question"}
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        )}
+        <Button
+          onClick={handleSubmitAnswer}
+          disabled={userAnswer === null || userAnswer === undefined || submitting}
+          className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              Submitting...
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4 mr-1.5" />
+              Submit Answer
+            </>
+          )}
+        </Button>
       </motion.div>
     </div>
   );

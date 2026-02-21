@@ -12,6 +12,35 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
 
+    // Single post lookup by slug
+    const slug = searchParams.get('slug');
+    if (slug) {
+      const post = await prisma.discussionPost.findFirst({
+        where: { slug: { contains: slug, mode: 'insensitive' } },
+        include: {
+          author: { select: { id: true, fullName: true, avatarUrl: true, role: true } },
+          category: { select: { id: true, name: true, slug: true, color: true, icon: true } },
+          comments: {
+            where: { isDeleted: false },
+            orderBy: { createdAt: 'asc' },
+            include: {
+              author: { select: { id: true, fullName: true, avatarUrl: true, role: true } },
+              reactions: { select: { id: true, userId: true, reactionType: true } },
+            },
+          },
+          reactions: { select: { id: true, userId: true, reactionType: true } },
+          bookmarks: { select: { userId: true } },
+        },
+      });
+      if (!post) return errorResponse('Post not found', 404);
+      // Increment view count
+      await prisma.discussionPost.update({
+        where: { id: post.id },
+        data: { viewCount: { increment: 1 } },
+      });
+      return successResponse(post);
+    }
+
     const where: any = { status: 'published' };
     if (categoryId) where.categoryId = categoryId;
     if (search) {
