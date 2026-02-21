@@ -7,10 +7,10 @@
 import { stripe } from '../config/stripe';
 import { Book, UserBook } from '../models/Book';
 import { User } from '../models/User';
-import { PaymentTransaction } from '../models/Subscription';
+import { PaymentTransaction, Subscription } from '../models/Subscription';
 import { sequelize } from '../config/database';
 import { QueryTypes } from 'sequelize';
-import { emailService } from './email.service';
+import emailService from './email.service';
 
 export interface PurchaseResult {
   success: boolean;
@@ -42,7 +42,7 @@ export class BookPurchaseService {
         return { success: false, error: 'Book not found' };
       }
 
-      if (book.is_free || (book.price && book.price <= 0)) {
+      if (book.isFree || (book.price && book.price <= 0)) {
         // Book is free, grant access directly
         await this.grantBookAccess(userId, bookId, 0);
         return { success: true, url: successUrl };
@@ -57,8 +57,9 @@ export class BookPurchaseService {
         return { success: false, error: 'Book already purchased' };
       }
 
-      // Get or create Stripe customer
-      let stripeCustomerId = user.stripe_customer_id;
+      // Get or create Stripe customer from subscription
+      const subscription = await Subscription.findOne({ where: { userId } });
+      let stripeCustomerId = subscription?.stripeCustomerId;
 
       if (!stripeCustomerId) {
         const customer = await stripe.customers.create({
@@ -68,7 +69,7 @@ export class BookPurchaseService {
         });
         stripeCustomerId = customer.id;
 
-        // Save customer ID
+        // Save customer ID to subscription if exists
         await user.update({ stripe_customer_id: stripeCustomerId });
       }
 
@@ -221,14 +222,11 @@ export class BookPurchaseService {
     const book = await Book.findByPk(bookId);
     if (!book) return false;
 
-    // Check subscription requirement
-    if (book.requiredSubscription) {
+    // Check subscription requirement (isPremiumOnly requires Pro or Premium)
+    if (book.isPremiumOnly) {
       const user = await User.findByPk(userId);
-      const planOrder = ['Free', 'Pro', 'Premium'];
-      const userPlanIndex = planOrder.indexOf(user?.subscriptionTier || 'Free');
-      const requiredIndex = planOrder.indexOf(book.requiredSubscription);
-
-      if (userPlanIndex >= requiredIndex) {
+      const userTier = user?.subscriptionTier || 'Free';
+      if (userTier === 'Pro' || userTier === 'Premium') {
         return true; // Subscription covers access
       }
     }

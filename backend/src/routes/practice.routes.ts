@@ -69,8 +69,8 @@ router.post('/nclex/:sessionId/answer', async (req: AuthRequest, res: Response, 
     // Award gamification points for answering
     try {
       await gamificationService.awardPoints(userId, 'question_answered', {
-        correct: result.isCorrect,
-        difficulty: result.difficulty
+        correct: result.correct,
+        difficulty: 'medium'
       });
     } catch (e) {
       // Don't fail request if gamification fails
@@ -243,8 +243,8 @@ router.post('/quick/:sessionId/answer', async (req: AuthRequest, res: Response, 
     if (userId) {
       try {
         await gamificationService.awardPoints(userId, 'question_answered', {
-          correct: result.isCorrect,
-          difficulty: result.difficulty
+          correct: result.correct,
+          difficulty: 'medium'
         });
       } catch (e) {
         console.error('Gamification award failed:', e);
@@ -271,7 +271,7 @@ router.post('/quick/:sessionId/complete', async (req: AuthRequest, res: Response
     // Award gamification points for completing quiz
     if (userId) {
       try {
-        const isPerfect = result.totalCorrect === result.totalQuestions;
+        const isPerfect = result.score === result.total;
         await gamificationService.awardPoints(userId, 'quiz_completed', {
           perfect: isPerfect
         });

@@ -9,7 +9,7 @@
  * - Invoice receipts
  */
 
-import { emailService } from './email.service';
+import emailService from './email.service';
 import { User } from '../models/User';
 import { PLAN_PRICING } from '../models/Subscription';
 
