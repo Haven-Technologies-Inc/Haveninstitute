@@ -5,6 +5,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getProvider, chatWithFallback } from './providers';
 import { SYSTEM_PROMPTS, NCLEX_CATEGORIES } from './prompts';
+import { NCLEX_TUTOR_PROMPT } from './tutorPrompt';
 import { redisUtils } from '../../config/redis';
 import {
   AIProvider,
@@ -98,9 +99,9 @@ export class AIService {
       timestamp: new Date()
     });
 
-    // Build messages for AI
+    // Build messages for AI - using enhanced NCLEX Master prompt
     const aiMessages: AIMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPTS.tutor },
+      { role: 'system', content: NCLEX_TUTOR_PROMPT },
       ...session.messages.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content
@@ -171,9 +172,9 @@ export class AIService {
       timestamp: new Date()
     });
 
-    // Build messages
+    // Build messages - using enhanced NCLEX Master prompt
     const aiMessages: AIMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPTS.tutor },
+      { role: 'system', content: NCLEX_TUTOR_PROMPT },
       ...session.messages.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content

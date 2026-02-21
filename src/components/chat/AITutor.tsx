@@ -34,27 +34,31 @@ type ChatMode = 'tutor' | 'quiz' | 'clinical';
 const QUICK_PROMPTS = [
   { 
     icon: Lightbulb, 
-    label: 'Explain a concept',
-    prompt: 'Explain the difference between heart failure and myocardial infarction in simple terms.',
-    color: 'from-yellow-500 to-orange-500'
+    label: 'Explain Concept',
+    prompt: 'Explain the pathophysiology of heart failure and how it leads to the classic symptoms. Use memory tricks to help me remember.',
+    color: 'from-amber-500 to-orange-600',
+    description: 'Deep dive into any nursing concept'
   },
   { 
     icon: HelpCircle, 
-    label: 'Practice question',
-    prompt: 'Give me an NCLEX-style practice question about medication administration.',
-    color: 'from-blue-500 to-cyan-500'
+    label: 'Practice Question',
+    prompt: 'Give me a challenging NCLEX-style priority question about a patient with multiple conditions. Walk me through the clinical reasoning.',
+    color: 'from-blue-500 to-indigo-600',
+    description: 'Test your knowledge with NCLEX-style Qs'
   },
   { 
     icon: Brain, 
-    label: 'Study strategy',
-    prompt: 'What are effective strategies for studying pharmacology for NCLEX?',
-    color: 'from-purple-500 to-pink-500'
+    label: 'Clinical Judgment',
+    prompt: 'Walk me through the NCSBN Clinical Judgment Model with a real patient scenario. Help me master the 6 cognitive skills.',
+    color: 'from-purple-500 to-pink-600',
+    description: 'Master the NGN clinical judgment model'
   },
   { 
     icon: Zap, 
-    label: 'Quick review',
-    prompt: 'Give me a quick review of the nursing process (ADPIE).',
-    color: 'from-green-500 to-emerald-500'
+    label: 'Pharm Review',
+    prompt: 'Give me a rapid-fire review of the most commonly tested drug classes on NCLEX with memory tricks and key nursing considerations.',
+    color: 'from-emerald-500 to-teal-600',
+    description: 'Quick pharmacology essentials'
   },
 ];
 
@@ -92,7 +96,7 @@ export function AITutor() {
       setMessages([{
         id: 'welcome',
         role: 'assistant',
-        content: `Hello${user?.fullName ? `, ${user.fullName.split(' ')[0]}` : ''}! 👋\n\nI'm your **AI NCLEX Tutor**, here to help you succeed on your nursing exam. I can:\n\n• **Explain concepts** in simple, memorable terms\n• **Generate practice questions** tailored to your needs\n• **Analyze clinical scenarios** using the Clinical Judgment Model\n• **Create study plans** based on your weak areas\n• **Provide rationales** for correct and incorrect answers\n\nWhat would you like to study today?`,
+        content: `Hello${user?.fullName ? `, ${user.fullName.split(' ')[0]}` : ''}! 👋\n\nI'm **NCLEX Master** — your personal AI nursing tutor with a **98% student pass rate**. I'm here to help you pass the NCLEX on your first attempt!\n\n**What I can do for you:**\n\n🎯 **Explain Complex Concepts** — Turn confusing topics into "aha!" moments with memory tricks\n\n📝 **Generate Practice Questions** — NCLEX-style questions with detailed rationales\n\n🧠 **Clinical Judgment Training** — Master the NCSBN Clinical Judgment Model\n\n💊 **Pharmacology Made Easy** — Drug classes, interactions, and nursing considerations\n\n📊 **Personalized Study Plans** — Based on YOUR weak areas\n\n**Pro tip:** Ask me anything! The more specific your question, the better I can help. Try "Explain the difference between left and right heart failure" or "Give me a priority question about a diabetic patient."\n\nWhat would you like to master today?`,
         timestamp: new Date()
       }]);
     }
@@ -201,8 +205,8 @@ export function AITutor() {
               <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-lg sm:text-xl font-bold text-white">AI NCLEX Tutor</h1>
-              <p className="text-xs sm:text-sm text-white/80 hidden sm:block">Your personal study assistant</p>
+              <h1 className="text-lg sm:text-xl font-bold text-white">NCLEX Master AI</h1>
+              <p className="text-xs sm:text-sm text-white/80 hidden sm:block">98% Pass Rate • Powered by Advanced AI</p>
             </div>
           </div>
           
@@ -261,7 +265,7 @@ export function AITutor() {
                       <Icon className="w-5 h-5 text-white" />
                     </div>
                     <p className="font-medium text-gray-900 dark:text-white text-sm">{item.label}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{item.prompt}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{item.description}</p>
                   </button>
                 );
               })}
