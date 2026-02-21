@@ -50,6 +50,7 @@ export default withAuth(
           pathname.startsWith('/api/health') ||
           pathname.startsWith('/api/stripe/webhooks') ||
           pathname.startsWith('/api/account') ||
+          pathname.startsWith('/api/cms') ||
           (pathname === '/api/admin/plans' && req.method === 'GET')
         ) {
           return true;

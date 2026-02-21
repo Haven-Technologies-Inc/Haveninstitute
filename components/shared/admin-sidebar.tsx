@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  PanelsTopLeft,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -32,6 +33,7 @@ const adminNavItems = [
       { href: '/admin/users', icon: Users, label: 'Users' },
       { href: '/admin/questions', icon: FileQuestion, label: 'Questions' },
       { href: '/admin/content', icon: BookOpen, label: 'Content' },
+      { href: '/admin/cms', icon: PanelsTopLeft, label: 'CMS / Landing Page' },
     ],
   },
   {

@@ -81,19 +81,19 @@ export async function GET(request: NextRequest) {
     let userBooksMap: Record<string, any> = {};
     const session = await getAuthSession();
 
-    if (session?.user?.id && books.length > 0) {
-      const bookIds = books.map((b) => b.id);
+    if ((session?.user as any)?.id && books.length > 0) {
+      const bookIds = books.map((b: any) => b.id);
       const userBooks = await prisma.userBook.findMany({
         where: {
-          userId: session.user.id,
+          userId: (session!.user as any).id,
           bookId: { in: bookIds },
         },
       });
-      userBooksMap = Object.fromEntries(userBooks.map((ub) => [ub.bookId, ub]));
+      userBooksMap = Object.fromEntries(userBooks.map((ub: any) => [ub.bookId, ub]));
     }
 
     // Attach user progress to each book
-    const booksWithProgress = books.map((book) => ({
+    const booksWithProgress = books.map((book: any) => ({
       ...book,
       ratingAvg: Number(book.ratingAvg),
       price: Number(book.price),

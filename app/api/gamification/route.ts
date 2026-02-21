@@ -1,10 +1,5 @@
 import { prisma } from '@/lib/db';
 import { requireAuth, successResponse, handleApiError } from '@/lib/api-utils';
-import type { Achievement, UserAchievement } from '@prisma/client';
-
-type UserAchievementWithAchievement = UserAchievement & {
-  achievement: Achievement;
-};
 
 // ---------------------------------------------------------------------------
 // Level thresholds: cumulative XP required for each level
@@ -103,41 +98,40 @@ export async function GET() {
       : null;
 
     // Separate unlocked vs available achievements
-    const typedUserAchievements =
-      userAchievements as UserAchievementWithAchievement[];
+    type UAItem = (typeof userAchievements)[number];
+    type AchItem = (typeof allAchievements)[number];
+    type LBItem = (typeof leaderboard)[number];
 
     const unlockedIds = new Set(
-      typedUserAchievements
-        .filter((ua: UserAchievementWithAchievement) => ua.isUnlocked)
-        .map((ua: UserAchievementWithAchievement) => ua.achievementId)
+      userAchievements
+        .filter((ua: UAItem) => ua.isUnlocked)
+        .map((ua: UAItem) => ua.achievementId)
     );
 
-    const unlockedAchievements = typedUserAchievements
-      .filter((ua: UserAchievementWithAchievement) => ua.isUnlocked)
-      .map((ua: UserAchievementWithAchievement) => ({
+    const unlockedAchievements = userAchievements
+      .filter((ua: UAItem) => ua.isUnlocked)
+      .map((ua: UAItem) => ({
         ...ua.achievement,
         unlockedAt: ua.unlockedAt,
         progress: ua.progress,
       }));
 
-    const availableAchievements = allAchievements.map(
-      (a: Achievement) => {
-        const userProgress = typedUserAchievements.find(
-          (ua: UserAchievementWithAchievement) => ua.achievementId === a.id
+    const availableAchievements = allAchievements
+      .filter((a: AchItem) => !a.isHidden || unlockedIds.has(a.id))
+      .map((a: AchItem) => {
+        const userProgress = userAchievements.find(
+          (ua: UAItem) => ua.achievementId === a.id
         );
         return {
           ...a,
           isUnlocked: unlockedIds.has(a.id),
-          isVisible: !a.isHidden || unlockedIds.has(a.id),
           progress: userProgress?.progress ?? 0,
         };
-      }
-    ).filter((a: { isVisible: boolean }) => a.isVisible);
+      });
 
     // Find current user's rank in leaderboard
-    type LeaderboardUser = (typeof leaderboard)[number];
     const userRank =
-      leaderboard.findIndex((u: LeaderboardUser) => u.id === userId) + 1;
+      leaderboard.findIndex((u: LBItem) => u.id === userId) + 1;
 
     return successResponse({
       xp: {
@@ -163,7 +157,7 @@ export async function GET() {
         totalUnlocked: unlockedAchievements.length,
         totalAvailable: allAchievements.length,
       },
-      leaderboard: leaderboard.map((u: LeaderboardUser, index: number) => ({
+      leaderboard: leaderboard.map((u: LBItem, index: number) => ({
         rank: index + 1,
         id: u.id,
         fullName: u.fullName,

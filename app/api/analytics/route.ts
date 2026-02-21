@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAuth, successResponse, handleApiError } from '@/lib/api-utils';
-import type { DailyUsage } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
 // GET /api/analytics
@@ -154,6 +153,11 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Type aliases for inferred Prisma result types
+    type DailyUsageItem = (typeof dailyUsage)[number];
+    type QuizSessionItem = (typeof recentQuizSessions)[number];
+    type CATSessionItem = (typeof recentCATSessions)[number];
+
     // --- Overall Stats ---
     const totalQuestionsAnswered = totalQuizResponses + totalCATResponses;
     const totalCorrect = correctQuizResponses + correctCATResponses;
@@ -225,7 +229,7 @@ export async function GET(request: NextRequest) {
       }));
 
     // --- Trend Data (daily aggregation over last 30 days) ---
-    const trendData = dailyUsage.map((day: DailyUsage) => ({
+    const trendData = dailyUsage.map((day: DailyUsageItem) => ({
       date: day.usageDate,
       questionsAttempted: day.questionsAttempted,
       flashcardsReviewed: day.flashcardsReviewed,
@@ -268,7 +272,7 @@ export async function GET(request: NextRequest) {
 
     // --- Recent Sessions ---
     const recentSessions = [
-      ...recentQuizSessions.map((q: (typeof recentQuizSessions)[number]) => ({
+      ...recentQuizSessions.map((q: QuizSessionItem) => ({
         id: q.id,
         type: 'quiz' as const,
         sessionType: q.sessionType,
@@ -284,7 +288,7 @@ export async function GET(request: NextRequest) {
         timeSeconds: q.totalTimeSeconds,
         completedAt: q.completedAt,
       })),
-      ...recentCATSessions.map((c) => ({
+      ...recentCATSessions.map((c: CATSessionItem) => ({
         id: c.id,
         type: 'cat' as const,
         sessionType: 'cat_test',
@@ -330,7 +334,7 @@ export async function GET(request: NextRequest) {
         longest: user?.longestStreak ?? 0,
         lastActiveDate: user?.lastActiveDate,
         daysActive: dailyUsage.filter(
-          (d) => d.questionsAttempted > 0 || d.studyTimeMinutes > 0
+          (d: DailyUsageItem) => d.questionsAttempted > 0 || d.studyTimeMinutes > 0
         ).length,
       },
       gamification: {
