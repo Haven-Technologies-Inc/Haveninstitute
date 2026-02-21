@@ -11,7 +11,7 @@
 
 import { emailService } from './email.service';
 import { User } from '../models/User';
-import { Subscription, PLAN_PRICING } from '../models/Subscription';
+import { PLAN_PRICING } from '../models/Subscription';
 
 export interface PaymentNotificationData {
   userId: string;
@@ -44,7 +44,7 @@ export class PaymentNotificationsService {
           </div>
 
           <div style="padding: 30px; background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-            <p>Hi ${user.full_name},</p>
+            <p>Hi ${user.fullName},</p>
             <p>Thank you for subscribing to Haven Institute ${data.planType}! Your account has been upgraded and you now have access to all ${data.planType} features.</p>
 
             <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin: 20px 0;">
@@ -85,7 +85,7 @@ export class PaymentNotificationsService {
           </div>
         </div>
       `,
-      text: `Welcome to Haven Institute ${data.planType}!\n\nHi ${user.full_name},\n\nThank you for subscribing! Your account has been upgraded to ${data.planType}.\n\nPlan: ${data.planType}\nBilling: ${data.billingPeriod === 'yearly' ? 'Annually' : 'Monthly'}\nAmount: $${amount.toFixed(2)}/${data.billingPeriod === 'yearly' ? 'year' : 'month'}\n\nStart studying now at: ${process.env.FRONTEND_URL}/dashboard`
+      text: `Welcome to Haven Institute ${data.planType}!\n\nHi ${user.fullName},\n\nThank you for subscribing! Your account has been upgraded to ${data.planType}.\n\nPlan: ${data.planType}\nBilling: ${data.billingPeriod === 'yearly' ? 'Annually' : 'Monthly'}\nAmount: $${amount.toFixed(2)}/${data.billingPeriod === 'yearly' ? 'year' : 'month'}\n\nStart studying now at: ${process.env.FRONTEND_URL}/dashboard`
     });
   }
 
@@ -103,7 +103,7 @@ export class PaymentNotificationsService {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #374151;">Payment Receipt</h1>
 
-          <p>Hi ${user.full_name},</p>
+          <p>Hi ${user.fullName},</p>
           <p>This is a receipt for your recent payment to Haven Institute.</p>
 
           <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin: 20px 0;">
@@ -134,7 +134,7 @@ export class PaymentNotificationsService {
           </p>
         </div>
       `,
-      text: `Payment Receipt\n\nHi ${user.full_name},\n\nThis is a receipt for your payment to Haven Institute.\n\nAmount: $${(data.amount || 0).toFixed(2)}\nPlan: ${data.planType || 'Subscription'}\nDate: ${new Date().toLocaleDateString()}\n\n${data.receiptUrl ? `View receipt: ${data.receiptUrl}` : ''}`
+      text: `Payment Receipt\n\nHi ${user.fullName},\n\nThis is a receipt for your payment to Haven Institute.\n\nAmount: $${(data.amount || 0).toFixed(2)}\nPlan: ${data.planType || 'Subscription'}\nDate: ${new Date().toLocaleDateString()}\n\n${data.receiptUrl ? `View receipt: ${data.receiptUrl}` : ''}`
     });
   }
 
@@ -155,7 +155,7 @@ export class PaymentNotificationsService {
             <p style="color: #7f1d1d; margin: 0;">We couldn't process your subscription payment.</p>
           </div>
 
-          <p>Hi ${user.full_name},</p>
+          <p>Hi ${user.fullName},</p>
           <p>We attempted to charge your payment method for your Haven Institute subscription, but the payment was unsuccessful.</p>
 
           ${data.failureReason ? `
@@ -176,7 +176,7 @@ export class PaymentNotificationsService {
           <p>Need help? Contact our support team.</p>
         </div>
       `,
-      text: `Payment Failed\n\nHi ${user.full_name},\n\nWe couldn't process your subscription payment.${data.failureReason ? `\nReason: ${data.failureReason}` : ''}\n\nPlease update your payment method to continue your subscription:\n${process.env.FRONTEND_URL}/account/billing`
+      text: `Payment Failed\n\nHi ${user.fullName},\n\nWe couldn't process your subscription payment.${data.failureReason ? `\nReason: ${data.failureReason}` : ''}\n\nPlease update your payment method to continue your subscription:\n${process.env.FRONTEND_URL}/account/billing`
     });
   }
 
@@ -194,7 +194,7 @@ export class PaymentNotificationsService {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #374151;">Subscription Canceled</h1>
 
-          <p>Hi ${user.full_name},</p>
+          <p>Hi ${user.fullName},</p>
           <p>Your Haven Institute ${data.planType || ''} subscription has been canceled as requested.</p>
 
           ${data.nextBillingDate ? `
@@ -219,7 +219,7 @@ export class PaymentNotificationsService {
           </p>
         </div>
       `,
-      text: `Subscription Canceled\n\nHi ${user.full_name},\n\nYour Haven Institute subscription has been canceled.${data.nextBillingDate ? `\n\nYou'll continue to have access until ${new Date(data.nextBillingDate).toLocaleDateString()}.` : ''}\n\nIf you change your mind, you can resubscribe anytime at: ${process.env.FRONTEND_URL}/account/subscription`
+      text: `Subscription Canceled\n\nHi ${user.fullName},\n\nYour Haven Institute subscription has been canceled.${data.nextBillingDate ? `\n\nYou'll continue to have access until ${new Date(data.nextBillingDate).toLocaleDateString()}.` : ''}\n\nIf you change your mind, you can resubscribe anytime at: ${process.env.FRONTEND_URL}/account/subscription`
     });
   }
 
@@ -239,7 +239,7 @@ export class PaymentNotificationsService {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #374151;">Your Trial is Ending Soon</h1>
 
-          <p>Hi ${user.full_name},</p>
+          <p>Hi ${user.fullName},</p>
           <p>Your Haven Institute trial ends in <strong>${daysLeft} days</strong> (${new Date(data.trialEndDate).toLocaleDateString()}).</p>
 
           <p>Don't lose access to:</p>
@@ -260,7 +260,7 @@ export class PaymentNotificationsService {
           </p>
         </div>
       `,
-      text: `Your Trial is Ending Soon\n\nHi ${user.full_name},\n\nYour Haven Institute trial ends in ${daysLeft} days (${new Date(data.trialEndDate).toLocaleDateString()}).\n\nSubscribe now to keep access: ${process.env.FRONTEND_URL}/account/subscription`
+      text: `Your Trial is Ending Soon\n\nHi ${user.fullName},\n\nYour Haven Institute trial ends in ${daysLeft} days (${new Date(data.trialEndDate).toLocaleDateString()}).\n\nSubscribe now to keep access: ${process.env.FRONTEND_URL}/account/subscription`
     });
   }
 
@@ -278,7 +278,7 @@ export class PaymentNotificationsService {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #374151;">Subscription Renewal</h1>
 
-          <p>Hi ${user.full_name},</p>
+          <p>Hi ${user.fullName},</p>
           <p>This is a friendly reminder that your Haven Institute ${data.planType || ''} subscription will automatically renew on <strong>${new Date(data.nextBillingDate).toLocaleDateString()}</strong>.</p>
 
           <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin: 20px 0;">
@@ -293,7 +293,7 @@ export class PaymentNotificationsService {
           </p>
         </div>
       `,
-      text: `Subscription Renewal Reminder\n\nHi ${user.full_name},\n\nYour ${data.planType || ''} subscription will renew on ${new Date(data.nextBillingDate).toLocaleDateString()} for $${(data.amount || 0).toFixed(2)}.\n\nManage your subscription: ${process.env.FRONTEND_URL}/account/subscription`
+      text: `Subscription Renewal Reminder\n\nHi ${user.fullName},\n\nYour ${data.planType || ''} subscription will renew on ${new Date(data.nextBillingDate).toLocaleDateString()} for $${(data.amount || 0).toFixed(2)}.\n\nManage your subscription: ${process.env.FRONTEND_URL}/account/subscription`
     });
   }
 }

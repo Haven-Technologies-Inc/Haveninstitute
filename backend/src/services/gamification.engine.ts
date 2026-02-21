@@ -286,24 +286,24 @@ export class GamificationEngine {
           user_id: userId,
           achievement_id: achievement.id,
           progress: progressValue,
-          is_unlocked: false
+          isCompleted: false
         }
       });
 
-      if (!existing.is_unlocked && progressValue >= (achievement.threshold_value || 0)) {
+      if (!existing.isCompleted && progressValue >= (achievement.requirementValue || 0)) {
         // Unlock achievement
         await existing.update({
-          is_unlocked: true,
-          unlocked_at: new Date(),
+          isCompleted: true,
+          completedAt: new Date(),
           progress: progressValue
         });
 
-        // Award XP reward
-        if (achievement.xp_reward) {
+        // Award points
+        if (achievement.points) {
           await sequelize.query(
             `UPDATE users SET total_xp = total_xp + :xp WHERE id = :userId`,
             {
-              replacements: { xp: achievement.xp_reward, userId },
+              replacements: { xp: achievement.points, userId },
               type: QueryTypes.UPDATE
             }
           );

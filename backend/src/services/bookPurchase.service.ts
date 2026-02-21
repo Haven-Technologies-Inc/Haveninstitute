@@ -63,7 +63,7 @@ export class BookPurchaseService {
       if (!stripeCustomerId) {
         const customer = await stripe.customers.create({
           email: user.email,
-          name: user.full_name,
+          name: user.fullName,
           metadata: { userId }
         });
         stripeCustomerId = customer.id;
@@ -82,7 +82,7 @@ export class BookPurchaseService {
             product_data: {
               name: book.title,
               description: book.description?.substring(0, 500) || undefined,
-              images: book.cover_url ? [book.cover_url] : undefined
+              images: book.coverImageUrl ? [book.coverImageUrl] : undefined
             },
             unit_amount: Math.round((book.price || 0) * 100) // Convert to cents
           },
@@ -178,7 +178,7 @@ export class BookPurchaseService {
       }
     });
 
-    if (!created && !userBook.is_purchased) {
+    if (!created && !userBook.isPurchased) {
       await userBook.update({
         is_purchased: true,
         purchased_at: new Date(),
@@ -222,11 +222,11 @@ export class BookPurchaseService {
     if (!book) return false;
 
     // Check subscription requirement
-    if (book.required_subscription) {
+    if (book.requiredSubscription) {
       const user = await User.findByPk(userId);
       const planOrder = ['Free', 'Pro', 'Premium'];
-      const userPlanIndex = planOrder.indexOf(user?.subscription_tier || 'Free');
-      const requiredIndex = planOrder.indexOf(book.required_subscription);
+      const userPlanIndex = planOrder.indexOf(user?.subscriptionTier || 'Free');
+      const requiredIndex = planOrder.indexOf(book.requiredSubscription);
 
       if (userPlanIndex >= requiredIndex) {
         return true; // Subscription covers access
@@ -238,7 +238,7 @@ export class BookPurchaseService {
       where: { user_id: userId, book_id: bookId, is_purchased: true }
     });
 
-    return !!userBook || book.is_free || (book.price || 0) <= 0;
+    return !!userBook || book.isFree || (book.price || 0) <= 0;
   }
 
   /**
@@ -314,7 +314,7 @@ export class BookPurchaseService {
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h1 style="color: #6366f1;">Purchase Confirmed!</h1>
-            <p>Hi ${user.full_name},</p>
+            <p>Hi ${user.fullName},</p>
             <p>Thank you for your purchase! Your book is now available in your library.</p>
 
             <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin: 20px 0;">
@@ -336,7 +336,7 @@ export class BookPurchaseService {
             <p>The Haven Institute Team</p>
           </div>
         `,
-        text: `Purchase Confirmed: ${book.title}\n\nHi ${user.full_name},\n\nThank you for your purchase! Your book "${book.title}" is now available in your library.\n\nAmount: $${amount.toFixed(2)}\n\nHappy studying!\nThe Haven Institute Team`
+        text: `Purchase Confirmed: ${book.title}\n\nHi ${user.fullName},\n\nThank you for your purchase! Your book "${book.title}" is now available in your library.\n\nAmount: $${amount.toFixed(2)}\n\nHappy studying!\nThe Haven Institute Team`
       });
     } catch (error) {
       console.error('Failed to send purchase confirmation:', error);
