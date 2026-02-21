@@ -19,6 +19,7 @@ import {
   Shield,
   PanelsTopLeft,
   Plug,
+  Search,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -42,6 +43,7 @@ const adminNavItems = [
     items: [
       { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
       { href: '/admin/billing', icon: CreditCard, label: 'Billing' },
+      { href: '/admin/seo', icon: Search, label: 'SEO' },
     ],
   },
   {

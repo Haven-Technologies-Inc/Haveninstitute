@@ -5,31 +5,31 @@ import { Logo } from "@/components/shared/logo";
 
 const footerLinks = {
   Product: [
-    { label: "Features", href: "#features" },
-    { label: "Pricing", href: "#pricing" },
-    { label: "CAT Simulator", href: "/signup" },
-    { label: "AI Tutor", href: "/signup" },
-    { label: "Study Planner", href: "/signup" },
-    { label: "Flashcards", href: "/signup" },
+    { label: "NCLEX-RN Prep", href: "/nclex-rn" },
+    { label: "NCLEX-PN Prep", href: "/nclex-pn" },
+    { label: "Features", href: "/features" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "Compare Providers", href: "/compare" },
+    { label: "Testimonials", href: "/testimonials" },
+  ],
+  Resources: [
+    { label: "Blog", href: "/blog" },
+    { label: "FAQ", href: "/faq" },
+    { label: "Haven vs UWorld", href: "/compare/uworld" },
+    { label: "Haven vs Archer", href: "/compare/archer" },
+    { label: "Haven vs Kaplan", href: "/compare/kaplan" },
   ],
   Company: [
     { label: "About Us", href: "/about" },
-    { label: "Careers", href: "/careers" },
-    { label: "Blog", href: "/blog" },
-    { label: "Press", href: "/press" },
-    { label: "Partners", href: "/partners" },
-  ],
-  Legal: [
+    { label: "Contact Us", href: "/contact" },
     { label: "Privacy Policy", href: "/privacy" },
     { label: "Terms of Service", href: "/terms" },
-    { label: "Cookie Policy", href: "/cookies" },
-    { label: "DMCA", href: "/dmca" },
   ],
   Support: [
-    { label: "Help Center", href: "/help" },
-    { label: "Contact Us", href: "/contact" },
-    { label: "System Status", href: "/status" },
-    { label: "FAQ", href: "#faq" },
+    { label: "Help Center", href: "/contact" },
+    { label: "Sign Up Free", href: "/signup" },
+    { label: "Sign In", href: "/login" },
+    { label: "System Status", href: "/contact" },
   ],
 };
 

@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/shared/logo";
 
 const navLinks = [
-  { label: "Features", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "About", href: "#testimonials" },
-  { label: "FAQ", href: "#faq" },
+  { label: "NCLEX-RN", href: "/nclex-rn" },
+  { label: "NCLEX-PN", href: "/nclex-pn" },
+  { label: "Features", href: "/features" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "Compare", href: "/compare" },
 ];
 
 export function LandingNav() {
