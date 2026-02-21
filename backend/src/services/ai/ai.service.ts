@@ -234,9 +234,10 @@ Return ONLY a valid JSON array of questions. Each question must have:
       maxTokens: 4096
     });
 
-    // Parse JSON response
+    // Parse JSON response - strip markdown code blocks
     try {
-      const jsonMatch = result.content.match(/\[[\s\S]*\]/);
+      const content = result.content.replace(/```json?\s*/gi, '').replace(/```/g, '');
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error('No JSON array found');
       
       const questions = JSON.parse(jsonMatch[0]) as GeneratedQuestion[];
@@ -302,7 +303,8 @@ Return ONLY valid JSON matching this structure:
     }, provider);
 
     try {
-      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+      const content = result.content.replace(/```json?\s*/gi, '').replace(/```/g, '');
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON object found');
       
       return JSON.parse(jsonMatch[0]) as StudyPlan;

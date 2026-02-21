@@ -15,6 +15,13 @@ router.use(authenticate);
 router.post('/start', (req, res, next) => catController.startSession(req, res, next));
 
 /**
+ * @route   GET /api/v1/cat/:sessionId
+ * @desc    Get CAT session state
+ * @access  Private
+ */
+router.get('/:sessionId', (req, res, next) => catController.getSession(req, res, next));
+
+/**
  * @route   POST /api/v1/cat/:sessionId/answer
  * @desc    Submit an answer for the current question
  * @access  Private

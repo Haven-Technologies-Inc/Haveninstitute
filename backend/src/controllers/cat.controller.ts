@@ -197,6 +197,52 @@ export class CATController {
   }
 
   /**
+   * Get CAT session state
+   * GET /api/v1/cat/:sessionId
+   */
+  async getSession(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { sessionId } = req.params;
+      const userId = req.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const session = await CATSession.findByPk(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: 'Session not found' });
+      }
+      if (session.userId !== userId) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+
+      // Get current question if session is in progress
+      let currentQuestion = null;
+      if (session.status === 'in_progress') {
+        currentQuestion = await catEngine.selectNextQuestion(
+          session.currentAbility,
+          session.answeredQuestionIds
+        );
+      }
+
+      res.json({
+        sessionId: session.id,
+        status: session.status,
+        currentQuestion: currentQuestion ? this.formatQuestion(currentQuestion) : null,
+        questionsAnswered: session.questionsAnswered,
+        questionsCorrect: session.questionsCorrect,
+        currentAbility: session.currentAbility,
+        standardError: session.standardError,
+        passingProbability: Math.round(session.passingProbability * 100),
+        timeSpent: session.timeSpent
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Get CAT history for user
    * GET /api/v1/cat/history
    */
