@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Shield,
   PanelsTopLeft,
+  Plug,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -47,21 +48,36 @@ const adminNavItems = [
     label: 'System',
     items: [
       { href: '/admin/settings', icon: Settings, label: 'Settings' },
+      { href: '/admin/integrations', icon: Plug, label: 'Integrations' },
     ],
   },
 ];
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
 
   return (
-    <aside
-      className={cn(
-        'relative flex flex-col h-screen border-r border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300',
-        collapsed ? 'w-[68px]' : 'w-[260px]'
+    <>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+          onClick={onMobileClose}
+        />
       )}
-    >
+      <aside
+        className={cn(
+          'fixed lg:relative flex flex-col h-screen border-r border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 z-50',
+          'lg:translate-x-0',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          collapsed ? 'w-[68px]' : 'w-[260px]'
+        )}
+      >
       {/* Logo */}
       <div className={cn('flex items-center h-16 px-4 border-b border-border/50', collapsed && 'justify-center')}>
         <div className="flex items-center gap-2">
@@ -90,6 +106,7 @@ export function AdminSidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={onMobileClose}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
                       isActive
@@ -122,15 +139,16 @@ export function AdminSidebar() {
         </div>
       )}
 
-      {/* Collapse Toggle */}
+      {/* Collapse Toggle - hidden on mobile */}
       <Button
         variant="ghost"
         size="icon"
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-20 h-6 w-6 rounded-full border border-border bg-background shadow-sm hover:bg-muted z-10"
+        className="absolute -right-3 top-20 h-6 w-6 rounded-full border border-border bg-background shadow-sm hover:bg-muted z-10 hidden lg:flex"
       >
         {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </Button>
     </aside>
+    </>
   );
 }

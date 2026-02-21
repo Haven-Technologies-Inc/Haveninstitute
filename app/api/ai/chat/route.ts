@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAuth, successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { checkAndIncrementUsage } from '@/lib/usage-limits';
 import OpenAI from 'openai';
 
 // ---------------------------------------------------------------------------
@@ -270,28 +271,14 @@ export async function POST(request: NextRequest) {
     if (!message) return errorResponse('Message is required');
 
     const tier = (session.user as any).subscriptionTier || 'Free';
-    const limit = AI_LIMITS[tier] ?? 10;
 
-    // Check usage limits for free tier
-    if (limit > 0) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const usage = await prisma.dailyUsage.findUnique({
-        where: {
-          userId_usageDate: {
-            userId: session.user.id,
-            usageDate: today,
-          },
-        },
-      });
-
-      if (usage && usage.aiChatMessages >= limit) {
-        return errorResponse(
-          `You've reached your daily AI tutor limit (${limit} messages). Upgrade to Pro for unlimited access.`,
-          429
-        );
-      }
+    // Check usage limits before processing
+    const usageCheck = await checkAndIncrementUsage(session.user.id, 'aiChatMessages', tier);
+    if (!usageCheck.allowed) {
+      return errorResponse(
+        `You've reached your daily AI tutor limit (${usageCheck.limit} messages). Upgrade to Pro for unlimited access.`,
+        429
+      );
     }
 
     // Build messages array for the AI provider
@@ -317,26 +304,6 @@ export async function POST(request: NextRequest) {
 
     // Get AI response (OpenAI -> Grok -> built-in fallback)
     const aiResult = await getAIResponse(messages, message);
-
-    // Track usage
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    await prisma.dailyUsage.upsert({
-      where: {
-        userId_usageDate: {
-          userId: session.user.id,
-          usageDate: today,
-        },
-      },
-      update: {
-        aiChatMessages: { increment: 1 },
-      },
-      create: {
-        userId: session.user.id,
-        usageDate: today,
-        aiChatMessages: 1,
-      },
-    });
 
     return successResponse({
       role: 'assistant',

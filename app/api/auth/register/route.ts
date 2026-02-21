@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/email';
 import { sendWelcomeSMS } from '@/lib/sms';
+import { RATE_LIMITS } from '@/lib/rate-limit';
 
 const registerSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -20,6 +21,15 @@ const registerSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting
+    const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
+    const rl = RATE_LIMITS.auth(`register:${ip}`);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Too many registration attempts. Please try again later.' },
+        { status: 429 }
+      );
+    }
     const body = await request.json();
 
     // Validate input

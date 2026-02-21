@@ -2,6 +2,41 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAuth, successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
 
+// Get group members
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ groupId: string }> }
+) {
+  try {
+    const session = await requireAuth();
+    const { groupId } = await params;
+
+    // Verify membership
+    const currentMember = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId: session.user.id } },
+    });
+
+    if (!currentMember) return errorResponse('Not a member of this group', 403);
+
+    const members = await prisma.groupMember.findMany({
+      where: { groupId, status: 'active' },
+      include: {
+        user: {
+          select: { id: true, fullName: true, avatarUrl: true },
+        },
+      },
+      orderBy: [
+        { role: 'asc' },
+        { joinedAt: 'asc' },
+      ],
+    });
+
+    return successResponse(members);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
 // Join a group
 export async function POST(
   request: NextRequest,

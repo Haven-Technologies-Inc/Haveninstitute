@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
     });
     const categoryMap = new Map<string, string>();
     for (const c of categories) {
-      categoryMap.set(c.code.toUpperCase(), c.id);
-      categoryMap.set(c.name.toUpperCase(), c.id);
+      categoryMap.set(c.code.toUpperCase(), String(c.id));
+      categoryMap.set(c.name.toUpperCase(), String(c.id));
     }
 
     const results = {

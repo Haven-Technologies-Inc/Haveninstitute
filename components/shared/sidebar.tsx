@@ -79,20 +79,32 @@ const navItems = [
 
 interface SidebarProps {
   className?: string;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, mobileOpen, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
 
   return (
-    <aside
-      className={cn(
-        'relative flex flex-col h-screen border-r border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300',
-        collapsed ? 'w-[68px]' : 'w-[260px]',
-        className
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+          onClick={onMobileClose}
+        />
       )}
-    >
+      <aside
+        className={cn(
+          'fixed lg:relative flex flex-col h-screen border-r border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 z-50',
+          'lg:translate-x-0',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          collapsed ? 'w-[68px]' : 'w-[260px]',
+          className
+        )}
+      >
       {/* Logo */}
       <div className={cn('flex items-center h-16 px-4 border-b border-border/50', collapsed && 'justify-center')}>
         <Logo size="sm" showText={!collapsed} />
@@ -114,6 +126,7 @@ export function Sidebar({ className }: SidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={onMobileClose}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
                       isActive
@@ -133,15 +146,16 @@ export function Sidebar({ className }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Collapse Toggle */}
+      {/* Collapse Toggle - hidden on mobile */}
       <Button
         variant="ghost"
         size="icon"
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-20 h-6 w-6 rounded-full border border-border bg-background shadow-sm hover:bg-muted z-10"
+        className="absolute -right-3 top-20 h-6 w-6 rounded-full border border-border bg-background shadow-sm hover:bg-muted z-10 hidden lg:flex"
       >
         {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </Button>
     </aside>
+    </>
   );
 }

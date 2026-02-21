@@ -1,11 +1,23 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAuth, successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { checkAndIncrementUsage } from '@/lib/usage-limits';
 
 // Start a new CAT session
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
+    const tier = (session.user as any).subscriptionTier || 'Free';
+
+    // Check usage limits before processing
+    const usageCheck = await checkAndIncrementUsage(session.user.id, 'catSessions', tier);
+    if (!usageCheck.allowed) {
+      return errorResponse(
+        `You've reached your CAT simulation limit (${usageCheck.limit} sessions). Upgrade to Pro for unlimited access.`,
+        429
+      );
+    }
+
     const body = await request.json();
 
     const catSession = await prisma.cATSession.create({

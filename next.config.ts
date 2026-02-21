@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  poweredByHeader: false,
+  compress: true,
+  reactStrictMode: true,
+  logging: {
+    fetches: {
+      fullUrl: process.env.NODE_ENV === 'development',
+    },
+  },
 };
 
 export default nextConfig;

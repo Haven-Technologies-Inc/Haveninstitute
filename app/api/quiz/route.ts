@@ -1,11 +1,23 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAuth, successResponse, errorResponse, handleApiError } from '@/lib/api-utils';
+import { checkAndIncrementUsage } from '@/lib/usage-limits';
 
 // Create a new quiz session
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
+    const tier = (session.user as any).subscriptionTier || 'Free';
+
+    // Check usage limits before processing
+    const usageCheck = await checkAndIncrementUsage(session.user.id, 'questionsAttempted', tier);
+    if (!usageCheck.allowed) {
+      return errorResponse(
+        `You've reached your monthly question limit (${usageCheck.limit} questions). Upgrade to Pro for unlimited access.`,
+        429
+      );
+    }
+
     const body = await request.json();
 
     const { categoryIds, difficulty, questionCount, timeLimitMinutes } = body;
