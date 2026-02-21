@@ -19,15 +19,15 @@ export async function GET() {
     });
 
     // Parse JSON values and return as a clean object
-    const content = settings.reduce<Record<string, any>>((acc, s) => {
+    const content: Record<string, any> = {};
+    for (const s of settings) {
       const cleanKey = s.settingKey.replace('cms_', '');
       try {
-        acc[cleanKey] = s.settingValue ? JSON.parse(s.settingValue) : null;
+        content[cleanKey] = s.settingValue ? JSON.parse(s.settingValue) : null;
       } catch {
-        acc[cleanKey] = s.settingValue;
+        content[cleanKey] = s.settingValue;
       }
-      return acc;
-    }, {});
+    }
 
     return successResponse(content);
   } catch (error) {

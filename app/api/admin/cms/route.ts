@@ -23,14 +23,14 @@ export async function GET() {
     });
 
     // Parse JSON values
-    const parsed = settings.reduce<Record<string, any>>((acc, s) => {
+    const parsed: Record<string, any> = {};
+    for (const s of settings) {
       try {
-        acc[s.settingKey] = s.settingValue ? JSON.parse(s.settingValue) : null;
+        parsed[s.settingKey] = s.settingValue ? JSON.parse(s.settingValue) : null;
       } catch {
-        acc[s.settingKey] = s.settingValue;
+        parsed[s.settingKey] = s.settingValue;
       }
-      return acc;
-    }, {});
+    }
 
     return successResponse(parsed);
   } catch (error) {
