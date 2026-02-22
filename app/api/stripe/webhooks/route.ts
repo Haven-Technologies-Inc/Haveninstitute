@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { getStripe } from '@/lib/stripe-client';
 import { sendNotification } from '@/lib/notifications';
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? '';
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 // ---------------------------------------------------------------------------
 // POST /api/stripe/webhooks
@@ -24,6 +24,11 @@ export async function POST(request: NextRequest) {
 
   if (!signature) {
     return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
+  }
+
+  if (!webhookSecret) {
+    console.error('STRIPE_WEBHOOK_SECRET is not configured');
+    return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
   }
 
   let event: Stripe.Event;
@@ -141,38 +146,38 @@ async function handleCheckoutCompleted(
     sub.items.data[0]?.price.recurring?.interval === 'year' ? 'year' : 'month';
   const period = getItemPeriod(sub);
 
-  // Update user's subscription tier
-  await prisma.user.update({
-    where: { id: userId },
-    data: { subscriptionTier: tier },
-  });
-
   const customerId =
     typeof checkoutSession.customer === 'string'
       ? checkoutSession.customer
       : checkoutSession.customer?.id ?? null;
 
-  // Create subscription record
-  await prisma.subscription.create({
-    data: {
-      userId,
-      planType: tier,
-      status: 'active',
-      stripeCustomerId: customerId,
-      stripeSubscriptionId: subId,
-      stripePriceId: priceId,
-      billingPeriod,
-      amount: sub.items.data[0]?.price.unit_amount
-        ? sub.items.data[0].price.unit_amount / 100
-        : null,
-      currentPeriodStart: period.start,
-      currentPeriodEnd: period.end,
-      ...(sub.trial_start && {
-        trialStart: new Date(sub.trial_start * 1000),
-      }),
-      ...(sub.trial_end && { trialEnd: new Date(sub.trial_end * 1000) }),
-    },
-  });
+  // Use transaction to atomically update user tier and create subscription
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { subscriptionTier: tier },
+    }),
+    prisma.subscription.create({
+      data: {
+        userId,
+        planType: tier,
+        status: 'active',
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subId,
+        stripePriceId: priceId,
+        billingPeriod,
+        amount: sub.items.data[0]?.price.unit_amount
+          ? sub.items.data[0].price.unit_amount / 100
+          : null,
+        currentPeriodStart: period.start,
+        currentPeriodEnd: period.end,
+        ...(sub.trial_start && {
+          trialStart: new Date(sub.trial_start * 1000),
+        }),
+        ...(sub.trial_end && { trialEnd: new Date(sub.trial_end * 1000) }),
+      },
+    }),
+  ]);
 
   // Send subscription activated notification
   await sendNotification({

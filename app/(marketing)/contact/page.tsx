@@ -137,7 +137,7 @@ export default function ContactPage() {
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <form className="space-y-5">
+                  <form action="mailto:support@havenstudy.com" method="POST" encType="text/plain" className="space-y-5">
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
                         <label htmlFor="firstName" className="block text-sm font-medium mb-1.5">

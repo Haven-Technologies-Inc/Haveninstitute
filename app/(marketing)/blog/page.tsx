@@ -237,8 +237,10 @@ export default function BlogPage() {
                     {blogPosts[0].readTime}
                   </span>
                 </div>
-                <Button variant="outline" className="w-fit">
-                  Read Article <ArrowRight className="ml-2 h-4 w-4" />
+                <Button variant="outline" className="w-fit" asChild>
+                  <Link href={`/blog/${blogPosts[0].slug}`}>
+                    Read Article <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
                 </Button>
               </CardContent>
             </div>
@@ -284,24 +286,22 @@ export default function BlogPage() {
           <Card className="border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/10">
             <CardContent className="p-8 sm:p-12 text-center">
               <h2 className="text-2xl sm:text-3xl font-bold mb-4">
-                Get NCLEX Tips Delivered to Your Inbox
+                Ready to Start Your NCLEX Journey?
               </h2>
               <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-                Subscribe to the Haven Institute newsletter for weekly NCLEX study tips, practice
-                questions, and nursing career advice from our team of expert educators.
+                Join over 50,000 nursing students using Haven Institute to prepare for the NCLEX.
+                Start with our free plan today and get access to practice questions, AI tutoring, and more.
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  aria-label="Email address for newsletter"
-                />
-                <Button>Subscribe</Button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button asChild size="lg">
+                  <Link href="/signup">
+                    Start Studying Free <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button variant="outline" size="lg" asChild>
+                  <Link href="/pricing">View Pricing</Link>
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-3">
-                No spam. Unsubscribe at any time.
-              </p>
             </CardContent>
           </Card>
         </section>

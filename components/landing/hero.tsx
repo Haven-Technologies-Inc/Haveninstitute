@@ -99,12 +99,15 @@ export function LandingHero() {
                 </Link>
               </Button>
               <Button
+                asChild
                 variant="outline"
                 size="lg"
                 className="h-12 px-8 text-base border-border/50 hover:border-indigo-500/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/5"
               >
-                <Play className="mr-2 h-4 w-4 fill-current" />
-                Watch Demo
+                <Link href="/features">
+                  <Play className="mr-2 h-4 w-4 fill-current" />
+                  Explore Features
+                </Link>
               </Button>
             </motion.div>
 
