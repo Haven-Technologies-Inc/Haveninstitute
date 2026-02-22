@@ -1,9 +1,0 @@
-Your project is located at: /var/www/Haveninstitute
-
-Run this command to fix the 502 error:
-
-ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose restart && curl http://localhost:3001/api/v1/health"
-
-If restart doesn't work, try full rebuild:
-
-ssh root@5.78.147.82 "cd /var/www/Haveninstitute && docker compose down && docker compose up -d --build && sleep 30 && curl http://localhost:3001/api/v1/health"

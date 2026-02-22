@@ -25,6 +25,9 @@ register-admin.json
 dist/
 build/
 .vite/
+.next/
+out/
+*.tsbuildinfo
 
 # IDE and editors
 .vscode/
